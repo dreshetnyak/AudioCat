@@ -1,0 +1,277 @@
+﻿<Window x:Class="AudioCat.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:AudioCat"
+        mc:Ignorable="d"
+        Icon="Cat.ico"
+        Title="Audio Cat Tool v1.0.0" Height="450" Width="800"
+        d:DataContext="{d:DesignInstance local:MainViewModel, IsDesignTimeCreatable=False}">
+    <Grid Margin="3,0,3,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <!--<ColumnDefinition Width="4" />
+                <ColumnDefinition Width="Auto" />-->
+            </Grid.ColumnDefinitions>
+
+            <Border
+                Grid.Column="0"
+                IsEnabled="{Binding IsUserEntryEnabled}"
+                BorderBrush="DarkGray"
+                BorderThickness="2"
+                CornerRadius="5,5,5,5"
+                Background="{StaticResource {x:Static SystemColors.WindowBrushKey}}">
+
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <ToolBarTray
+                        Grid.Row="0"
+                        DockPanel.Dock="Top"
+                        Margin="2,2,2,0">
+                        <ToolBar BandIndex="0">
+                            <Button
+                                Command="{Binding Concatenate}"
+                                IsEnabled="{Binding IsConcatenateEnabled}"
+                                ToolTip="Concatenate files">
+                                <Image
+                                    RenderOptions.BitmapScalingMode="Fant"
+                                    Height="18">
+                                    <Image.Style>
+                                        <Style TargetType="{x:Type Image}">
+                                            <Setter Property="Source" Value="Images/Execute.png" />
+                                            <Style.Triggers>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Source" Value="Images/ExecuteGray.png" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Image.Style>
+                                </Image>
+                            </Button>
+                            <Button
+                                Command="{Binding Cancel}"
+                                IsEnabled="{Binding IsCancelEnabled}"
+                                ToolTip="Concatenate files">
+                                <Image
+                                    RenderOptions.BitmapScalingMode="Fant"
+                                    Height="18">
+                                    <Image.Style>
+                                        <Style TargetType="{x:Type Image}">
+                                            <Setter Property="Source" Value="Images/Cancel.png" />
+                                            <Style.Triggers>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Source" Value="Images/CancelGray.png" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Image.Style>
+                                </Image>
+                            </Button>
+
+                        </ToolBar>
+
+                        <ToolBar BandIndex="1">
+                            <Button
+                                Command="{Binding AddFiles}"
+                                IsEnabled="{Binding IsAddFilesEnabled}"
+                                ToolTip="Add files">
+                                <Image
+                                    RenderOptions.BitmapScalingMode="Fant"
+                                    Height="18"
+                                    Margin="5,0,5,0">
+                                    <Image.Style>
+                                        <Style TargetType="{x:Type Image}">
+                                            <Setter Property="Source" Value="Images/AddFiles.png" />
+                                            <Style.Triggers>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Source" Value="Images/AddFilesGray.png" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Image.Style>
+                                </Image>
+                            </Button>
+                            <Button
+                                Command="{Binding AddPath}"
+                                IsEnabled="{Binding IsAddPathEnabled}"
+                                ToolTip="Add files from a directory">
+                                <Image
+                                    RenderOptions.BitmapScalingMode="Fant"
+                                    Height="18">
+                                    <Image.Style>
+                                        <Style TargetType="{x:Type Image}">
+                                            <Setter Property="Source" Value="Images/AddPath.png" />
+                                            <Style.Triggers>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Source" Value="Images/AddPathGray.png" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Image.Style>
+                                </Image>
+                            </Button>
+                            <Button
+                                Command="{Binding ClearPaths}"
+                                IsEnabled="{Binding IsClearPathsEnabled}"
+                                ToolTip="Clear all paths">
+                                <Image
+                                    RenderOptions.BitmapScalingMode="Fant"
+                                    Height="18"
+                                    Margin="1,0,0,0">
+                                    <Image.Style>
+                                        <Style TargetType="{x:Type Image}">
+                                            <Setter Property="Source" Value="Images/Clear.png" />
+                                            <Style.Triggers>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Source" Value="Images/ClearGray.png" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Image.Style>
+                                </Image>
+                            </Button>
+
+                        </ToolBar>
+
+                        <ToolBar BandIndex="2">
+                            <Button
+                                Command="{Binding MoveSelected}"
+                                CommandParameter="Up"
+                                IsEnabled="{Binding IsMoveUpEnabled}"
+                                ToolTip="Move the selected file up">
+                                <Image
+                                    RenderOptions.BitmapScalingMode="Fant"
+                                    Height="18">
+                                    <Image.Style>
+                                        <Style TargetType="{x:Type Image}">
+                                            <Setter Property="Source" Value="Images/Up.png" />
+                                            <Style.Triggers>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Source" Value="Images/UpGray.png" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Image.Style>
+                                </Image>
+                            </Button>
+                            <Button
+                                Command="{Binding MoveSelected}"
+                                CommandParameter="Down"
+                                IsEnabled="{Binding IsMoveDownEnabled}"
+                                ToolTip="Move the selected file down">
+                                <Image
+                                    RenderOptions.BitmapScalingMode="Fant"
+                                    Height="18">
+                                    <Image.Style>
+                                        <Style TargetType="{x:Type Image}">
+                                            <Setter Property="Source" Value="Images/Down.png" />
+                                            <Style.Triggers>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Source" Value="Images/DownGray.png" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Image.Style>
+                                </Image>
+                            </Button>
+                            <Button
+                                Command="{Binding MoveSelected}"
+                                CommandParameter="Remove"
+                                IsEnabled="{Binding IsRemoveEnabled}"
+                                ToolTip="Remove the selected file">
+                                <Image
+                                    RenderOptions.BitmapScalingMode="Fant"
+                                    Height="18">
+                                    <Image.Style>
+                                        <Style TargetType="{x:Type Image}">
+                                            <Setter Property="Source" Value="Images/Remove.png" />
+                                            <Style.Triggers>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Source" Value="Images/RemoveGray.png" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Image.Style>
+                                </Image>
+                            </Button>
+
+                        </ToolBar>
+
+
+                    </ToolBarTray>
+
+                    <DataGrid
+                        Grid.Row="1"
+                        IsReadOnly="True"
+                        CanUserAddRows="False"
+                        AlternationCount="2"
+                        SelectionMode="Single"
+                        SelectionUnit="FullRow"
+                        AutoGenerateColumns="False"
+                        MinRowHeight="25"
+                        BorderThickness="2"
+                        BorderBrush="DarkGray"
+                        AlternatingRowBackground="Bisque"
+                        ItemsSource="{Binding Files}"
+                        DisplayMemberPath="Path"
+                        SelectedItem="{Binding SelectedFile}"
+                        AllowDrop="True"
+                        Drop="OnDataGridDrop"
+                        CanUserSortColumns="False"
+                        Margin="1,0,1,2">
+                        <DataGrid.Resources>
+                            <Style
+                                x:Key="TextBoxStyle"
+                                TargetType="{x:Type DataGridCell}">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="{x:Type DataGridCell}">
+                                            <Grid Background="{TemplateBinding Background}">
+                                                <ContentPresenter VerticalAlignment="Center" />
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </DataGrid.Resources>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn
+                                Header="Files:"
+                                IsReadOnly="True"
+                                Binding="{Binding Path}"
+                                CellStyle="{StaticResource TextBoxStyle}" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid
+            Grid.Row="1"
+            MinHeight="20"
+            Margin="2,3,2,5">
+            <ProgressBar
+                Maximum="10000"
+                Value="{Binding ProgressPercentage, Mode=OneWay}" />
+            <TextBlock
+                Text="{Binding ProgressText}"
+                TextWrapping="NoWrap"
+                VerticalAlignment="Center"
+                HorizontalAlignment="Left"
+                Margin="5,0,0,0" />
+        </Grid>
+
+    </Grid>
+</Window>
