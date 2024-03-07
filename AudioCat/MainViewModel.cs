@@ -1,9 +1,10 @@
 ﻿using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
-using System.Windows;
+using System.Text;
 using System.Windows.Input;
 using AudioCat.Commands;
 
@@ -31,6 +32,8 @@ namespace AudioCat
         #region Backing Fields
         private bool _isUserEntryEnabled = true;
         private AudioFile _selectedFile = new("");
+        private long _totalSize;
+        private TimeSpan _totalDuration;
         private int _progressPercentage;
         private string _progressText = "";
 
@@ -49,6 +52,35 @@ namespace AudioCat
                 OnPropertyChanged(nameof(IsMoveDownEnabled));
             }
         }
+
+        public long TotalSize
+        {
+            get => _totalSize;
+            set
+            {
+                if (value == _totalSize) 
+                    return;
+                _totalSize = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(TotalSizeText));
+            }
+        }
+
+        public TimeSpan TotalDuration
+        {
+            get => _totalDuration;
+            set
+            {
+                if (value.Equals(_totalDuration)) 
+                    return;
+                _totalDuration = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DurationText));
+            }
+        }
+
+        public string TotalSizeText => GetTotalSizeText(TotalSize); 
+        public string DurationText => $"{TotalDuration.TotalHours:00}:{TotalDuration.Minutes:00}:{TotalDuration.Seconds:00}";
 
         public bool IsUserEntryEnabled
         {
@@ -117,7 +149,7 @@ namespace AudioCat
             var concatenate = new ConcatenateCommand(Files);
             concatenate.Starting += OnStarting;
             concatenate.Finished += OnFinished;
-            concatenate.Output += OnOutput;
+            concatenate.StatusUpdate += OnStatusUpdate;
             
             Concatenate = concatenate;
             Cancel = new RelayCommand(concatenate.Cancel);
@@ -134,12 +166,43 @@ namespace AudioCat
         private void OnFinished(object? sender, EventArgs e)
         {
             ProgressPercentage = 0;
+            ProgressText = "Done.";
             IsUserEntryEnabled = true;
         }
 
-        private void OnOutput(object sender, MessageEventArgs eventArgs)
+        private void OnStatusUpdate(object sender, StatusEventArgs eventArgs)
         {
-            ProgressText = eventArgs.Message;
+            var stats = eventArgs.Stats;
+            const string prefix = "Processing: ";
+            var sb = new StringBuilder(prefix);
+            
+            if (stats.Size is > 0)
+                sb.Append($"Size: {stats.Size.Value / 1024:N0}KiB");
+            if (stats.Time != default)
+            {
+                if (sb.Length > prefix.Length)
+                    sb.Append("; ");
+                sb.Append($"Time: {stats.Time.TotalHours:00}:{stats.Time.Minutes:00}:{stats.Time.Seconds:00}");
+            }
+            if (stats.Bitrate is > 0)
+            {
+                if (sb.Length > prefix.Length)
+                    sb.Append("; ");
+                sb.Append($"Bitrate: {stats.Bitrate:0.0}Kb/s");
+            }
+            if (stats.Speed is > 0)
+            {
+                if (sb.Length > prefix.Length)
+                    sb.Append("; ");
+                sb.Append($"Speed: {stats.Speed:N0}x");
+            }
+
+            if (sb.Length == prefix.Length)
+                sb.Append("...");
+
+            ProgressText = sb.ToString();
+            if (stats.Size.HasValue)
+                ProgressPercentage = GetProgressPercentage((long)stats.Size.Value);
         }
 
         private void OnFilesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -149,7 +212,46 @@ namespace AudioCat
             OnPropertyChanged(nameof(IsMoveUpEnabled));
             OnPropertyChanged(nameof(IsMoveDownEnabled));
             OnPropertyChanged(nameof(IsRemoveEnabled));
+            TotalSize = GetFilesTotalSize();
+            TotalDuration = GetTotalDuration();
         }
+        
+        private static string GetTotalSizeText(decimal size)
+        {
+            return size switch
+            {
+                < 1024 => $"{size:N0} B",
+                < 1_048_576 => $"{size / 1024m:N0} KB",
+                < 1_073_741_824 => $"{size / 1_048_576m:N1} MB",
+                _ => $"{size / 1_073_741_824m:N2} GB"
+            };
+        }
+
+        private long GetFilesTotalSize()
+        {
+            var totalSize = 0L;
+            foreach (var file in Files) 
+                totalSize += file.Size;
+            return totalSize;
+        }
+        
+        private TimeSpan GetTotalDuration()
+        {
+            TimeSpan totalDuration = default;
+            //TODO
+            //foreach (var file in Files)
+            //    totalDuration.Add(file.);
+            return totalDuration;
+        }
+
+        private const int PROGRESS_BAR_MAX_VALUE = 10000;
+        private int GetProgressPercentage(long processedSize)
+        {
+            return TotalSize != 0
+                ? (int)((decimal)processedSize * PROGRESS_BAR_MAX_VALUE / TotalSize)
+                : PROGRESS_BAR_MAX_VALUE;
+        }
+
 
         #region INotifyPropertyChanged Implementation
         public event PropertyChangedEventHandler? PropertyChanged;

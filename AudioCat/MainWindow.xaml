@@ -17,8 +17,8 @@
         <Grid Grid.Row="0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <!--<ColumnDefinition Width="4" />
-                <ColumnDefinition Width="Auto" />-->
+                <ColumnDefinition Width="4" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <Border
@@ -222,7 +222,7 @@
                         MinRowHeight="25"
                         BorderThickness="2"
                         BorderBrush="DarkGray"
-                        AlternatingRowBackground="Bisque"
+                        AlternatingRowBackground="SeaShell"
                         ItemsSource="{Binding Files}"
                         DisplayMemberPath="Path"
                         SelectedItem="{Binding SelectedFile}"
@@ -256,6 +256,57 @@
 
                 </Grid>
             </Border>
+
+            <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch" Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}" />
+
+            <Border
+                Grid.Column="2"
+                IsEnabled="{Binding IsUserEntryEnabled}"
+                BorderBrush="DarkGray"
+                BorderThickness="2"
+                CornerRadius="5,5,5,5"
+                Background="{StaticResource {x:Static SystemColors.WindowBrushKey}}">
+
+                <Grid
+                    Margin="3">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock 
+                        Grid.Row="0"
+                        Text="Duration:" 
+                        Margin="3,0,3,0"/>
+                    <TextBox 
+                        Grid.Row="1"
+                        Text="{Binding DurationText, Mode=OneWay}" 
+                        IsReadOnly="True"
+                        HorizontalContentAlignment="Center"
+                        FontFamily="Consolas"
+                        FontSize="14"
+                        />
+
+                    <TextBlock 
+                        Grid.Row="2"
+                        Text="Size:" 
+                        Margin="3,3,3,0"/>
+                    <TextBox 
+                        Grid.Row="3"
+                        Text="{Binding TotalSizeText, Mode=OneWay}" 
+                        IsReadOnly="True"
+                        HorizontalContentAlignment="Center"
+                        FontFamily="Consolas"
+                        FontSize="14"
+                    />
+
+                </Grid>
+
+            </Border>
+
         </Grid>
 
         <Grid
