@@ -1,29 +1,38 @@
 ﻿using System.Collections.ObjectModel;
 using System.Windows;
+using AudioCat.Models;
+using AudioCat.Services;
 
 namespace AudioCat.Commands
 {
-    internal sealed class AddFilesCommand(ObservableCollection<AudioFile> audioFiles) : CommandBase
+    public sealed class AddFilesCommand(IAudioFileService audioFileService, IAudioFilesContainer audioFilesContainer) : CommandBase
     {
-        private ObservableCollection<AudioFile> AudioFiles { get; } = audioFiles;
+        private IAudioFileService AudioFileService { get; } = audioFileService;
+        private ObservableCollection<IAudioFile> AudioFiles { get; } = audioFilesContainer.Files;
 
-        protected override Task Command(object? parameter)
+        protected override async Task<IResult> Command(object? parameter)
         {
             try
             {
-                var fileNames = FileSystemSelect.FilesToOpen("MP3 Audio|*.mp3", true);
+                var fileNames = SelectionDialog.ChooseFilesToOpen("MP3 Audio|*.mp3", true);
                 if (fileNames.Length == 0)
-                    return Task.CompletedTask;
+                    return Result.Success();
 
                 foreach (var fileName in fileNames)
-                    AudioFiles.Add(new AudioFile(fileName));
+                {
+                    var probeResponse = await AudioFileService.Probe(fileName, CancellationToken.None); // TODO Cancellation support
+                    if (probeResponse.IsFailure) //TODO Log the error
+                        continue;
+                    AudioFiles.Add(probeResponse.Data!);
+                }
+
+                return Result.Success();
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message, "Files selection error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return Result.Failure(ex.Message);
             }
-
-            return Task.CompletedTask;
         }
     }
 }

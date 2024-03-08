@@ -1,10 +1,10 @@
 ﻿using Microsoft.Win32;
 
-namespace AudioCat;
+namespace AudioCat.Services;
 
-internal static class FileSystemSelect
+internal static class SelectionDialog
 {
-    public static string[] FilesToOpen(string filter, bool multiSelect = false)
+    public static string[] ChooseFilesToOpen(string filter, bool multiSelect = false)
     {
         var selectFilesDialog = new OpenFileDialog { Filter = filter, Multiselect = multiSelect };
         return selectFilesDialog.ShowDialog() ?? false
@@ -12,7 +12,7 @@ internal static class FileSystemSelect
             : [];
     }
 
-    public static string FileToSave(string filter, string fileName = "")
+    public static string ChooseFileToSave(string filter, string fileName = "")
     {
         var selectFileDialog = new SaveFileDialog { Filter = filter, FileName = fileName };
         return selectFileDialog.ShowDialog() ?? false
@@ -20,7 +20,7 @@ internal static class FileSystemSelect
             : "";
     }
 
-    public static string Folder(bool multiSelect = false)
+    public static string ChooseFolder(bool multiSelect = false)
     {
         var selectFolderDialog = new OpenFolderDialog { Multiselect = multiSelect };
         return selectFolderDialog.ShowDialog() ?? false

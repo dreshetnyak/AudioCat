@@ -3,11 +3,11 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:AudioCat"
+        xmlns:viewModels="clr-namespace:AudioCat.ViewModels"
         mc:Ignorable="d"
-        Icon="Cat.ico"
+        Icon="/Cat.ico"
         Title="Audio Cat Tool v1.0.0" Height="450" Width="800"
-        d:DataContext="{d:DesignInstance local:MainViewModel, IsDesignTimeCreatable=False}">
+        d:DataContext="{d:DesignInstance viewModels:MainViewModel, IsDesignTimeCreatable=False}">
     <Grid Margin="3,0,3,0">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
@@ -49,10 +49,10 @@
                                     Height="18">
                                     <Image.Style>
                                         <Style TargetType="{x:Type Image}">
-                                            <Setter Property="Source" Value="Images/Execute.png" />
+                                            <Setter Property="Source" Value="../Images/Execute.png" />
                                             <Style.Triggers>
                                                 <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter Property="Source" Value="Images/ExecuteGray.png" />
+                                                    <Setter Property="Source" Value="../Images/ExecuteGray.png" />
                                                 </Trigger>
                                             </Style.Triggers>
                                         </Style>
@@ -68,10 +68,10 @@
                                     Height="18">
                                     <Image.Style>
                                         <Style TargetType="{x:Type Image}">
-                                            <Setter Property="Source" Value="Images/Cancel.png" />
+                                            <Setter Property="Source" Value="../Images/Cancel.png" />
                                             <Style.Triggers>
                                                 <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter Property="Source" Value="Images/CancelGray.png" />
+                                                    <Setter Property="Source" Value="../Images/CancelGray.png" />
                                                 </Trigger>
                                             </Style.Triggers>
                                         </Style>
@@ -92,10 +92,10 @@
                                     Margin="5,0,5,0">
                                     <Image.Style>
                                         <Style TargetType="{x:Type Image}">
-                                            <Setter Property="Source" Value="Images/AddFiles.png" />
+                                            <Setter Property="Source" Value="../Images/AddFiles.png" />
                                             <Style.Triggers>
                                                 <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter Property="Source" Value="Images/AddFilesGray.png" />
+                                                    <Setter Property="Source" Value="../Images/AddFilesGray.png" />
                                                 </Trigger>
                                             </Style.Triggers>
                                         </Style>
@@ -111,10 +111,10 @@
                                     Height="18">
                                     <Image.Style>
                                         <Style TargetType="{x:Type Image}">
-                                            <Setter Property="Source" Value="Images/AddPath.png" />
+                                            <Setter Property="Source" Value="../Images/AddPath.png" />
                                             <Style.Triggers>
                                                 <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter Property="Source" Value="Images/AddPathGray.png" />
+                                                    <Setter Property="Source" Value="../Images/AddPathGray.png" />
                                                 </Trigger>
                                             </Style.Triggers>
                                         </Style>
@@ -131,10 +131,10 @@
                                     Margin="1,0,0,0">
                                     <Image.Style>
                                         <Style TargetType="{x:Type Image}">
-                                            <Setter Property="Source" Value="Images/Clear.png" />
+                                            <Setter Property="Source" Value="../Images/Clear.png" />
                                             <Style.Triggers>
                                                 <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter Property="Source" Value="Images/ClearGray.png" />
+                                                    <Setter Property="Source" Value="../Images/ClearGray.png" />
                                                 </Trigger>
                                             </Style.Triggers>
                                         </Style>
@@ -155,10 +155,10 @@
                                     Height="18">
                                     <Image.Style>
                                         <Style TargetType="{x:Type Image}">
-                                            <Setter Property="Source" Value="Images/Up.png" />
+                                            <Setter Property="Source" Value="../Images/Up.png" />
                                             <Style.Triggers>
                                                 <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter Property="Source" Value="Images/UpGray.png" />
+                                                    <Setter Property="Source" Value="../Images/UpGray.png" />
                                                 </Trigger>
                                             </Style.Triggers>
                                         </Style>
@@ -175,10 +175,10 @@
                                     Height="18">
                                     <Image.Style>
                                         <Style TargetType="{x:Type Image}">
-                                            <Setter Property="Source" Value="Images/Down.png" />
+                                            <Setter Property="Source" Value="../Images/Down.png" />
                                             <Style.Triggers>
                                                 <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter Property="Source" Value="Images/DownGray.png" />
+                                                    <Setter Property="Source" Value="../Images/DownGray.png" />
                                                 </Trigger>
                                             </Style.Triggers>
                                         </Style>
@@ -195,20 +195,17 @@
                                     Height="18">
                                     <Image.Style>
                                         <Style TargetType="{x:Type Image}">
-                                            <Setter Property="Source" Value="Images/Remove.png" />
+                                            <Setter Property="Source" Value="../Images/Remove.png" />
                                             <Style.Triggers>
                                                 <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter Property="Source" Value="Images/RemoveGray.png" />
+                                                    <Setter Property="Source" Value="../Images/RemoveGray.png" />
                                                 </Trigger>
                                             </Style.Triggers>
                                         </Style>
                                     </Image.Style>
                                 </Image>
                             </Button>
-
                         </ToolBar>
-
-
                     </ToolBarTray>
 
                     <DataGrid
@@ -232,13 +229,45 @@
                         Margin="1,0,1,2">
                         <DataGrid.Resources>
                             <Style
-                                x:Key="TextBoxStyle"
+                                x:Key="TextBoxLeftStyle"
                                 TargetType="{x:Type DataGridCell}">
                                 <Setter Property="Template">
                                     <Setter.Value>
                                         <ControlTemplate TargetType="{x:Type DataGridCell}">
                                             <Grid Background="{TemplateBinding Background}">
-                                                <ContentPresenter VerticalAlignment="Center" />
+                                                <ContentPresenter 
+                                                    VerticalAlignment="Center" 
+                                                    HorizontalAlignment="Left" />
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                            <Style
+                                x:Key="TextBoxCenterStyle"
+                                TargetType="{x:Type DataGridCell}">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="{x:Type DataGridCell}">
+                                            <Grid Background="{TemplateBinding Background}">
+                                                <ContentPresenter 
+                                                    VerticalAlignment="Center" 
+                                                    HorizontalAlignment="Center" />
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                            <Style
+                                x:Key="TextBoxRightStyle"
+                                TargetType="{x:Type DataGridCell}">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="{x:Type DataGridCell}">
+                                            <Grid Background="{TemplateBinding Background}">
+                                                <ContentPresenter 
+                                                    VerticalAlignment="Center" 
+                                                    HorizontalAlignment="Right" />
                                             </Grid>
                                         </ControlTemplate>
                                     </Setter.Value>
@@ -249,8 +278,28 @@
                             <DataGridTextColumn
                                 Header="Files:"
                                 IsReadOnly="True"
-                                Binding="{Binding Path}"
-                                CellStyle="{StaticResource TextBoxStyle}" />
+                                Binding="{Binding FileName}"
+                                CellStyle="{StaticResource TextBoxLeftStyle}" />
+                            <DataGridTextColumn
+                                Header="Duration:"
+                                IsReadOnly="True"
+                                Binding="{Binding Duration}"
+                                CellStyle="{StaticResource TextBoxCenterStyle}" />
+                            <DataGridTextColumn
+                                Header="Bitrate:"
+                                IsReadOnly="True"
+                                Binding="{Binding Bitrate}"
+                                CellStyle="{StaticResource TextBoxCenterStyle}" />
+                            <DataGridTextColumn
+                                Header="Format:"
+                                IsReadOnly="True"
+                                Binding="{Binding FormatName}"
+                                CellStyle="{StaticResource TextBoxCenterStyle}" />
+                            <DataGridTextColumn
+                                Header="Size:"
+                                IsReadOnly="True"
+                                Binding="{Binding File.Length}"
+                                CellStyle="{StaticResource TextBoxRightStyle}" />
                         </DataGrid.Columns>
                     </DataGrid>
 

@@ -1,46 +1,38 @@
 ﻿using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
-using System.Text;
+using AudioCat.Models;
+using AudioCat.Services;
 
 namespace AudioCat.Commands;
 
-internal sealed class StatusEventArgs(string message) : EventArgs
+public sealed class StatusEventArgs(IProcessingStats stats) : EventArgs
 {
-    public IProcessingStats Stats { get; } = new ProcessingStats(message);
+    public IProcessingStats Stats { get; } = stats;
 }
-internal delegate void StatusEventHandler(object sender, StatusEventArgs eventArgs);
+public delegate void StatusEventHandler(object sender, StatusEventArgs eventArgs);
 
-internal sealed class ConcatenateCommand(ObservableCollection<AudioFile> audioFiles) : CommandBase
+public sealed class ConcatenateCommand(IAudioFileService audioFileService, IAudioFilesContainer audioFilesContainer) : CommandBase
 {
-    private ObservableCollection<AudioFile> AudioFiles { get; } = audioFiles;
+    public IAudioFileService AudioFileService { get; } = audioFileService;
+    private ObservableCollection<IAudioFile> AudioFiles { get; } = audioFilesContainer.Files;
+
     private CancellationTokenSource? Cts { get; set; }
 
     public event StatusEventHandler? StatusUpdate;
 
-    protected override async Task Command(object? parameter)
+    protected override async Task<IResult> Command(object? parameter)
     {
         try
         {
             Cts = new CancellationTokenSource();
 
             if (AudioFiles.Count == 0)
-            {
-                OnStatusUpdate("No files to concatenate");
-                return;
-            }
+                return Result.Failure("No files to concatenate");
 
-            var outputFileName = FileSystemSelect.FileToSave("MP3 Audio|*.mp3", GetSuggestedFileName());
-            if (outputFileName == "")
-            {
-                OnStatusUpdate("");
-                return;
-            }
-                
-            var listFile = await Task.Run(CreateFilesList);
-            var process = CreateProcess(listFile, outputFileName);
-
-            await ConcatenateFiles(process, Cts.Token);
+            var outputFileName = SelectionDialog.ChooseFileToSave("MP3 Audio|*.mp3", GetSuggestedFileName());
+            return outputFileName != ""
+                ? await AudioFileService.Concatenate(AudioFiles, outputFileName, OnStatusUpdate, CancellationToken.None) //TODO Implement cancellation
+                : Result.Success(); 
         }
         finally
         {
@@ -59,7 +51,7 @@ internal sealed class ConcatenateCommand(ObservableCollection<AudioFile> audioFi
 
     private string GetSuggestedFileName()
     {
-        var firstFile = AudioFiles.First().Path;
+        var firstFile = AudioFiles.First().FilePath;
 
         var fileInfo = new FileInfo(firstFile);
         var suggestedName = fileInfo.Directory?.Name ?? "";
@@ -76,62 +68,5 @@ internal sealed class ConcatenateCommand(ObservableCollection<AudioFile> audioFi
         return withoutExtension + ".Cat.mp3";
     }
 
-    private string CreateFilesList()
-    {
-        var listFile = Path.GetTempFileName();
-        var sb = new StringBuilder();
-        foreach (var audioFile in AudioFiles) 
-            sb.AppendLine($"file \'{audioFile.Path}\'");
-        File.WriteAllText(listFile, sb.ToString());
-        return listFile;
-    }
-
-    private static Process CreateProcess(string listFile, string outputFileName)
-    {
-        return new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = "ffmpeg.exe",
-                Arguments = $"-y -loglevel quiet -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -c copy \"{outputFileName}\"",
-                CreateNoWindow = true,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                Verb = "runas"
-            }
-        };
-    }
-
-    private async Task ConcatenateFiles(Process process, CancellationToken cancellationToken)
-    {
-        process.Start();
-        var errorOutTask = ReadOutputStream(process.StandardError, cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-        await errorOutTask;
-    }
-
-    private async Task ReadOutputStream(TextReader textReader, CancellationToken ctx)
-    {
-        while (!ctx.IsCancellationRequested)
-        {
-            try
-            {
-                var line = await textReader.ReadLineAsync(ctx);
-                if (line == "")
-                    continue;
-                if (line == null)
-                    break;
-                OnStatusUpdate(line);
-            }
-            catch
-            {
-                break;
-            }
-        }
-
-        ctx.ThrowIfCancellationRequested();
-    }
-
-    private void OnStatusUpdate(string message) => StatusUpdate?.Invoke(this, new StatusEventArgs(message));
+    private void OnStatusUpdate(IProcessingStats stats) => StatusUpdate?.Invoke(this, new StatusEventArgs(stats));
 }

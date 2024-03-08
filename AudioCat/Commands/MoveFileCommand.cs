@@ -1,24 +1,18 @@
-﻿using System.Collections.ObjectModel;
+﻿using AudioCat.Models;
 
 namespace AudioCat.Commands;
 
-internal interface IAudioFilesProvider
+public class MoveFileCommand(IAudioFilesContainer audioFilesContainer) : CommandBase
 {
-    ObservableCollection<AudioFile> Files { get; } 
-    AudioFile SelectedFile { get; set; }
-}
+    private IAudioFilesContainer AudioFilesContainer { get; } = audioFilesContainer;
 
-internal class MoveFileCommand(IAudioFilesProvider audioFilesProvider) : CommandBase
-{
-    private IAudioFilesProvider AudioFilesProvider { get; } = audioFilesProvider;
-
-    protected override Task Command(object? parameter)
+    protected override Task<IResult> Command(object? parameter)
     {
-        var selectedFile = AudioFilesProvider.SelectedFile;
-        if (selectedFile.Path == "") 
-            return Task.CompletedTask;
+        var selectedFile = AudioFilesContainer.SelectedFile;
+        if (string.IsNullOrEmpty(selectedFile?.File.FullName))
+            return Task.FromResult(Result.Success());
         if (parameter is not string action)
-            return Task.CompletedTask;
+            return Task.FromResult(Result.Success());
         switch (action)
         {
             case "Up":
@@ -32,45 +26,45 @@ internal class MoveFileCommand(IAudioFilesProvider audioFilesProvider) : Command
                 break;
         }
 
-        return Task.CompletedTask;
+        return Task.FromResult(Result.Success());
     }
 
-    private void MoveUp(AudioFile file)
+    private void MoveUp(IAudioFile file)
     {
         var fileIndex = IndexOf(file);
         if (fileIndex <= 0) 
             return;
         var newFileIndex = fileIndex - 1;
-        var files = AudioFilesProvider.Files;
+        var files = AudioFilesContainer.Files;
         files.Move(fileIndex, newFileIndex);
-        AudioFilesProvider.SelectedFile = files[newFileIndex];
+        AudioFilesContainer.SelectedFile = files[newFileIndex];
     }
 
-    private void MoveDown(AudioFile file)
+    private void MoveDown(IAudioFile file)
     {
         var fileIndex = IndexOf(file);
-        var files = AudioFilesProvider.Files;
+        var files = AudioFilesContainer.Files;
         if (fileIndex < 0 || fileIndex >= files.Count - 1) 
             return;
         var newFileIndex = fileIndex + 1;
         files.Move(fileIndex, newFileIndex);
-        AudioFilesProvider.SelectedFile = files[newFileIndex];
+        AudioFilesContainer.SelectedFile = files[newFileIndex];
     }
 
-    private void Remove(AudioFile file)
+    private void Remove(IAudioFile file)
     {
         var fileIndex = IndexOf(file);
         if (fileIndex == -1)
             return;
-        var files = AudioFilesProvider.Files;
+        var files = AudioFilesContainer.Files;
         files.RemoveAt(fileIndex);
         if (files.Count != 0)
-            AudioFilesProvider.SelectedFile = files[fileIndex < files.Count ? fileIndex : files.Count - 1];
+            AudioFilesContainer.SelectedFile = files[fileIndex < files.Count ? fileIndex : files.Count - 1];
     }
 
-    private int IndexOf(AudioFile file)
+    private int IndexOf(IAudioFile file)
     {
-        var audioFiles = AudioFilesProvider.Files;
+        var audioFiles = AudioFilesContainer.Files;
         for (var i = 0; i < audioFiles.Count; i++)
         {
             var audioFile = audioFiles[i];
