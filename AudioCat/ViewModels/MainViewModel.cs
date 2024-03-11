@@ -62,7 +62,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
 
     public string TotalSizeText => TotalSize.GetBytesCountToText();
-    public string DurationText => $"{TotalDuration.TotalHours:00}:{TotalDuration.Minutes:00}:{TotalDuration.Seconds:00}";
+    public string DurationText => $"{Math.Truncate(TotalDuration.TotalHours):00}:{TotalDuration.Minutes:00}:{TotalDuration.Seconds:00}";
 
     public bool IsUserEntryEnabled
     {
@@ -171,7 +171,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             if (sb.Length > prefix.Length)
                 sb.Append("; ");
-            sb.Append($"Time: {stats.Time.TotalHours:00}:{stats.Time.Minutes:00}:{stats.Time.Seconds:00}");
+            sb.Append($"Time: {Math.Truncate(stats.Time.TotalHours):00}:{stats.Time.Minutes:00}:{stats.Time.Seconds:00}");
         }
         if (stats.Bitrate is > 0)
         {

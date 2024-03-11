@@ -14,7 +14,7 @@ internal class TimeSpanConverter : IValueConverter
             TimeSpan time => time,
             _ => TimeSpan.Zero
         };
-        return $"{timeSpan.TotalHours:00}:{timeSpan.Minutes:00}:{timeSpan.Seconds:00}.{timeSpan.Milliseconds:000}";
+        return $"{Math.Truncate(timeSpan.TotalHours):00}:{timeSpan.Minutes:00}:{timeSpan.Seconds:00}.{timeSpan.Milliseconds:000}";
     }
 
     //Target to source

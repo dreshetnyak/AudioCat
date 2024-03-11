@@ -34,6 +34,11 @@ internal class FFmpegService : IAudioFileService
         {
             var listFile = await Task.Run(() => CreateFilesListFile(audioFiles), ctx);
             
+            // TODO Audio streams mapping
+            // TODO Subtitle streams
+            // TODO Cover image streams pass-through
+
+
             await Process.Run(
                 "ffmpeg.exe", 
                 $"-y -loglevel quiet -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -c copy \"{outputFileName}\"",
