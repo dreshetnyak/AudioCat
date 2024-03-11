@@ -3,11 +3,66 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:converters="clr-namespace:AudioCat.Converters"
         xmlns:viewModels="clr-namespace:AudioCat.ViewModels"
         mc:Ignorable="d"
         Icon="/Cat.ico"
         Title="Audio Cat Tool v1.0.0" Height="450" Width="800"
         d:DataContext="{d:DesignInstance viewModels:MainViewModel, IsDesignTimeCreatable=False}">
+    <Window.Resources>
+        <converters:DurationConverter x:Key="DurationConverter" />
+        <converters:BytesCountConverter x:Key="BytesCountConverter" />
+        <converters:BitrateConverter x:Key="BitrateConverter" />
+        <converters:TagsConcatConverter x:Key="TagsConcatConverter" />
+        <converters:SampleRateConverter x:Key="SampleRateConverter" />
+        <converters:TimeSpanConverter x:Key="TimeSpanConverter" />
+
+        <Style
+            x:Key="TextBoxLeftStyle"
+            TargetType="{x:Type DataGridCell}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type DataGridCell}">
+                        <Grid Background="{TemplateBinding Background}">
+                            <ContentPresenter
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Left" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style
+            x:Key="TextBoxCenterStyle"
+            TargetType="{x:Type DataGridCell}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type DataGridCell}">
+                        <Grid Background="{TemplateBinding Background}">
+                            <ContentPresenter
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Center" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style
+            x:Key="TextBoxRightStyle"
+            TargetType="{x:Type DataGridCell}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type DataGridCell}">
+                        <Grid Background="{TemplateBinding Background}">
+                            <ContentPresenter
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Right" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
     <Grid Margin="3,0,3,0">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
@@ -18,7 +73,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="4" />
-                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="150" />
             </Grid.ColumnDefinitions>
 
             <Border
@@ -210,13 +265,14 @@
 
                     <DataGrid
                         Grid.Row="1"
+                        HeadersVisibility="Column"
                         IsReadOnly="True"
                         CanUserAddRows="False"
                         AlternationCount="2"
                         SelectionMode="Single"
                         SelectionUnit="FullRow"
                         AutoGenerateColumns="False"
-                        MinRowHeight="25"
+                        MinRowHeight="20"
                         BorderThickness="2"
                         BorderBrush="DarkGray"
                         AlternatingRowBackground="SeaShell"
@@ -226,69 +282,23 @@
                         AllowDrop="True"
                         Drop="OnDataGridDrop"
                         CanUserSortColumns="False"
-                        Margin="1,0,1,2">
-                        <DataGrid.Resources>
-                            <Style
-                                x:Key="TextBoxLeftStyle"
-                                TargetType="{x:Type DataGridCell}">
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="{x:Type DataGridCell}">
-                                            <Grid Background="{TemplateBinding Background}">
-                                                <ContentPresenter 
-                                                    VerticalAlignment="Center" 
-                                                    HorizontalAlignment="Left" />
-                                            </Grid>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                            <Style
-                                x:Key="TextBoxCenterStyle"
-                                TargetType="{x:Type DataGridCell}">
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="{x:Type DataGridCell}">
-                                            <Grid Background="{TemplateBinding Background}">
-                                                <ContentPresenter 
-                                                    VerticalAlignment="Center" 
-                                                    HorizontalAlignment="Center" />
-                                            </Grid>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                            <Style
-                                x:Key="TextBoxRightStyle"
-                                TargetType="{x:Type DataGridCell}">
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="{x:Type DataGridCell}">
-                                            <Grid Background="{TemplateBinding Background}">
-                                                <ContentPresenter 
-                                                    VerticalAlignment="Center" 
-                                                    HorizontalAlignment="Right" />
-                                            </Grid>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </DataGrid.Resources>
+                        Margin="2,0,2,2">
                         <DataGrid.Columns>
                             <DataGridTextColumn
                                 Header="Files:"
                                 IsReadOnly="True"
                                 Binding="{Binding FileName}"
-                                CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                CellStyle="{StaticResource TextBoxLeftStyle}"
+                                Width="150" />
                             <DataGridTextColumn
                                 Header="Duration:"
                                 IsReadOnly="True"
-                                Binding="{Binding Duration}"
+                                Binding="{Binding Duration, Converter={StaticResource DurationConverter}}"
                                 CellStyle="{StaticResource TextBoxCenterStyle}" />
                             <DataGridTextColumn
                                 Header="Bitrate:"
                                 IsReadOnly="True"
-                                Binding="{Binding Bitrate}"
+                                Binding="{Binding Bitrate, Converter={StaticResource BitrateConverter}}"
                                 CellStyle="{StaticResource TextBoxCenterStyle}" />
                             <DataGridTextColumn
                                 Header="Format:"
@@ -298,15 +308,23 @@
                             <DataGridTextColumn
                                 Header="Size:"
                                 IsReadOnly="True"
-                                Binding="{Binding File.Length}"
+                                Binding="{Binding File.Length, Converter={StaticResource BytesCountConverter}}"
                                 CellStyle="{StaticResource TextBoxRightStyle}" />
+                            <DataGridTextColumn
+                                Header="Path:"
+                                IsReadOnly="True"
+                                Binding="{Binding File.DirectoryName}"
+                                CellStyle="{StaticResource TextBoxLeftStyle}" />
                         </DataGrid.Columns>
                     </DataGrid>
-
                 </Grid>
             </Border>
 
-            <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch" Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}" />
+            <GridSplitter
+                Grid.Column="1"
+                Width="4"
+                HorizontalAlignment="Stretch"
+                Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}" />
 
             <Border
                 Grid.Column="2"
@@ -316,46 +334,314 @@
                 CornerRadius="5,5,5,5"
                 Background="{StaticResource {x:Static SystemColors.WindowBrushKey}}">
 
-                <Grid
-                    Margin="3">
+                <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-
-                    <TextBlock 
+                    <GroupBox
                         Grid.Row="0"
-                        Text="Duration:" 
-                        Margin="3,0,3,0"/>
-                    <TextBox 
+                        Header="Totals"
+                        Margin="2,0,2,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="3" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock
+                                        Text="Duration:"
+                                        Margin="3,0,3,0" />
+                                    <TextBox
+                                        Text="{Binding DurationText, Mode=OneWay}"
+                                        IsReadOnly="True"
+                                        HorizontalContentAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock
+                                        Text="Size:"
+                                        Margin="3,0,3,0" />
+                                    <TextBox
+                                        Text="{Binding TotalSizeText, Mode=OneWay}"
+                                        IsReadOnly="True"
+                                        HorizontalContentAlignment="Center"
+                                        Margin="0,0,0,3" />
+                                </StackPanel>
+
+                            </Grid>
+                        </Grid>
+                    </GroupBox>
+
+                    <GroupBox
                         Grid.Row="1"
-                        Text="{Binding DurationText, Mode=OneWay}" 
-                        IsReadOnly="True"
-                        HorizontalContentAlignment="Center"
-                        FontFamily="Consolas"
-                        FontSize="14"
-                        />
+                        Header="File"
+                        Margin="2,0,2,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="4" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="4" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
 
-                    <TextBlock 
-                        Grid.Row="2"
-                        Text="Size:" 
-                        Margin="3,3,3,0"/>
-                    <TextBox 
-                        Grid.Row="3"
-                        Text="{Binding TotalSizeText, Mode=OneWay}" 
-                        IsReadOnly="True"
-                        HorizontalContentAlignment="Center"
-                        FontFamily="Consolas"
-                        FontSize="14"
-                    />
+                            <StackPanel Grid.Row="0">
+                                <TextBlock
+                                    Text="Name:"
+                                    Margin="3,0,3,0" />
+                                <TextBox
+                                    Text="{Binding SelectedFile.FileName, Mode=OneWay, FallbackValue=''}"
+                                    IsReadOnly="True" />
+                            </StackPanel>
 
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="3" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock
+                                        Text="Duration:"
+                                        Margin="3,3,3,0" />
+                                    <TextBox
+                                        Text="{Binding SelectedFile.Duration, Mode=OneWay, FallbackValue='', Converter={StaticResource DurationConverter}}"
+                                        IsReadOnly="True"
+                                        HorizontalContentAlignment="Center"
+                                        Margin="0,0,0,3" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock
+                                        Text="Size:"
+                                        Margin="3,3,3,0" />
+                                    <TextBox
+                                        Text="{Binding SelectedFile.File.Length, Mode=OneWay, FallbackValue='', Converter={StaticResource BytesCountConverter}}"
+                                        IsReadOnly="True"
+                                        HorizontalContentAlignment="Center"
+                                        Margin="0,0,0,3" />
+                                </StackPanel>
+
+                            </Grid>
+
+                            <Grid
+                                Grid.Row="2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Text="Tags:"
+                                    Margin="3,0,3,0" />
+                                <DataGrid
+                                    Grid.Row="1"
+                                    HeadersVisibility="Column"
+                                    IsReadOnly="True"
+                                    CanUserAddRows="False"
+                                    AlternationCount="2"
+                                    SelectionMode="Extended"
+                                    SelectionUnit="FullRow"
+                                    MinRowHeight="20"
+                                    AutoGenerateColumns="False"
+                                    BorderThickness="1"
+                                    BorderBrush="DarkGray"
+                                    AlternatingRowBackground="SeaShell"
+                                    ItemsSource="{Binding SelectedFile.Tags, Mode=OneWay, FallbackValue=''}"
+                                    AllowDrop="False"
+                                    CanUserSortColumns="True"
+                                    Margin="0,0,0,2">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn
+                                            Header="Name"
+                                            IsReadOnly="True"
+                                            Binding="{Binding Key, Mode=OneWay}"
+                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                        <DataGridTextColumn
+                                            Header="Value"
+                                            IsReadOnly="True"
+                                            Binding="{Binding Value, Mode=OneWay}"
+                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
+
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+
+                            <GridSplitter
+                                Grid.Row="3"
+                                Height="4"
+                                HorizontalAlignment="Stretch"
+                                Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}" />
+
+                            <Grid
+                                Grid.Row="4">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Text="Streams:"
+                                    Margin="3,0,3,0" />
+                                <DataGrid
+                                    Grid.Row="1"
+                                    HeadersVisibility="Column"
+                                    IsReadOnly="True"
+                                    CanUserAddRows="False"
+                                    AlternationCount="2"
+                                    SelectionMode="Extended"
+                                    SelectionUnit="FullRow"
+                                    MinRowHeight="20"
+                                    AutoGenerateColumns="False"
+                                    BorderThickness="1"
+                                    BorderBrush="DarkGray"
+                                    AlternatingRowBackground="SeaShell"
+                                    ItemsSource="{Binding SelectedFile.Streams, Mode=OneWay, FallbackValue=''}"
+                                    AllowDrop="False"
+                                    CanUserSortColumns="True"
+                                    Margin="0,0,0,2">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn
+                                            Header="Index"
+                                            IsReadOnly="True"
+                                            Binding="{Binding Index, Mode=OneWay}"
+                                            CellStyle="{StaticResource TextBoxCenterStyle}" />
+                                        <DataGridTextColumn
+                                            Header="Codec"
+                                            IsReadOnly="True"
+                                            Binding="{Binding CodecName, Mode=OneWay}"
+                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                        <DataGridTextColumn
+                                            Header="Codec Desc."
+                                            IsReadOnly="True"
+                                            Binding="{Binding CodecDescription, Mode=OneWay}"
+                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                        <DataGridTextColumn
+                                            Header="Codec Type"
+                                            IsReadOnly="True"
+                                            Binding="{Binding CodecType, Mode=OneWay}"
+                                            CellStyle="{StaticResource TextBoxCenterStyle}" />
+                                        <DataGridTextColumn
+                                            Header="Codec Tag"
+                                            IsReadOnly="True"
+                                            Binding="{Binding CodecTag, Mode=OneWay}"
+                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                        <DataGridTextColumn
+                                            Header="Sample Rate"
+                                            IsReadOnly="True"
+                                            Binding="{Binding SampleRate, Mode=OneWay, Converter={StaticResource SampleRateConverter}}"
+                                            CellStyle="{StaticResource TextBoxCenterStyle}" />
+                                        <DataGridTextColumn
+                                            Header="Channels"
+                                            IsReadOnly="True"
+                                            Binding="{Binding Channels, Mode=OneWay}"
+                                            CellStyle="{StaticResource TextBoxCenterStyle}" />
+                                        <DataGridTextColumn
+                                            Header="Channel Layout"
+                                            IsReadOnly="True"
+                                            Binding="{Binding ChannelLayout, Mode=OneWay}"
+                                            CellStyle="{StaticResource TextBoxCenterStyle}" />
+                                        <DataGridTextColumn
+                                            Header="Start Time"
+                                            IsReadOnly="True"
+                                            Binding="{Binding StartTime, Mode=OneWay, Converter={StaticResource TimeSpanConverter}}"
+                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                        <DataGridTextColumn
+                                            Header="Duration"
+                                            IsReadOnly="True"
+                                            Binding="{Binding Duration, Mode=OneWay, Converter={StaticResource DurationConverter}}"
+                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                        <DataGridTextColumn
+                                            Header="Width"
+                                            IsReadOnly="True"
+                                            Binding="{Binding Width, Mode=OneWay}"
+                                            CellStyle="{StaticResource TextBoxCenterStyle}" />
+                                        <DataGridTextColumn
+                                            Header="Height"
+                                            IsReadOnly="True"
+                                            Binding="{Binding Height, Mode=OneWay}"
+                                            CellStyle="{StaticResource TextBoxCenterStyle}" />
+                                        <DataGridTextColumn
+                                            Header="Tags"
+                                            IsReadOnly="True"
+                                            Binding="{Binding Tags, Mode=OneWay, Converter={StaticResource TagsConcatConverter}}"
+                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
+
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+
+                            <GridSplitter
+                                Grid.Row="5"
+                                Height="4"
+                                HorizontalAlignment="Stretch"
+                                Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}" />
+
+                            <Grid
+                                Grid.Row="6">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <TextBlock
+                                    Grid.Row="0"
+                                    Text="Chapters:"
+                                    Margin="3,0,3,0" />
+                                <DataGrid
+                                    Grid.Row="1"
+                                    HeadersVisibility="Column"
+                                    IsReadOnly="True"
+                                    CanUserAddRows="False"
+                                    AlternationCount="2"
+                                    SelectionMode="Extended"
+                                    SelectionUnit="FullRow"
+                                    MinRowHeight="20"
+                                    AutoGenerateColumns="False"
+                                    BorderThickness="1"
+                                    BorderBrush="DarkGray"
+                                    AlternatingRowBackground="SeaShell"
+                                    ItemsSource="{Binding SelectedFile.Chapters, Mode=OneWay, FallbackValue=''}"
+                                    AllowDrop="False"
+                                    CanUserSortColumns="True"
+                                    Margin="0,0,0,2">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn
+                                            Header="Id"
+                                            IsReadOnly="True"
+                                            Binding="{Binding Id, Mode=OneWay}"
+                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                        <DataGridTextColumn
+                                            Header="Start"
+                                            IsReadOnly="True"
+                                            Binding="{Binding StartTime, Mode=OneWay, Converter={StaticResource DurationConverter}}"
+                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                        <DataGridTextColumn
+                                            Header="End"
+                                            IsReadOnly="True"
+                                            Binding="{Binding EndTime, Mode=OneWay, Converter={StaticResource DurationConverter}}"
+                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                        <DataGridTextColumn
+                                            Header="Tags"
+                                            IsReadOnly="True"
+                                            Binding="{Binding Tags, Mode=OneWay, Converter={StaticResource TagsConcatConverter}}"
+                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
+
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+
+                        </Grid>
+                    </GroupBox>
                 </Grid>
-
             </Border>
-
         </Grid>
 
         <Grid

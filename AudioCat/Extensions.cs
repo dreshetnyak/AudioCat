@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Text;
 
 namespace AudioCat;
 
@@ -26,5 +27,23 @@ internal static class Extensions
             < 1_073_741_824 => $"{size / 1_048_576m:N1} MB",
             _ => $"{size / 1_073_741_824m:N2} GB"
         };
+    }
+
+    public static string ConcatenateTags(this IReadOnlyList<KeyValuePair<string, string>>? tags)
+    {
+        if (tags == null)
+            return "";
+
+        var sb = new StringBuilder();
+        foreach (var tag in tags)
+        {
+            if (sb.Length > 0)
+                sb.Append("; ");
+            sb.Append(tag.Key);
+            sb.Append(": ");
+            sb.Append(tag.Value.ToQuoted());
+        }
+
+        return sb.ToString();
     }
 }
