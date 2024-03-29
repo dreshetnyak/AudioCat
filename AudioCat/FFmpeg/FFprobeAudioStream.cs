@@ -4,7 +4,7 @@ using System.Xml.Linq;
 
 namespace AudioCat.FFmpeg;
 
-public class FFprobeAudioStream : IAudioStream
+public class FFprobeMediaStream : IMediaStream
 {
     public int Index { get; private init; }
     public string? CodecName { get; private init; }
@@ -20,16 +20,16 @@ public class FFprobeAudioStream : IAudioStream
     public int? Height { get; private init; }
     public IReadOnlyList<KeyValuePair<string, string>> Tags { get; private init; } = [];
 
-    private FFprobeAudioStream() { }
+    private FFprobeMediaStream() { }
 
-    public static IResponse<IAudioStream> Create(XElement streamElement)
+    public static IResponse<IMediaStream> Create(XElement streamElement)
     {
         var indexStr = streamElement.Attribute("index")?.Value;
         if (string.IsNullOrEmpty(indexStr))
-            return Response<IAudioStream>.Failure("The 'index' attribute is missing in the stream element");
+            return Response<IMediaStream>.Failure("The 'index' attribute is missing in the stream element");
         if (!int.TryParse(indexStr, NumberStyles.Integer, CultureInfo.CurrentCulture, out var index))
-            return Response<IAudioStream>.Failure("The 'index' attribute of a stream element can't be parsed to an integer");
-        return Response<IAudioStream>.Success(new FFprobeAudioStream
+            return Response<IMediaStream>.Failure("The 'index' attribute of a stream element can't be parsed to an integer");
+        return Response<IMediaStream>.Success(new FFprobeMediaStream
         {
             Index = index,
             CodecName = streamElement.Attribute("codec_name")?.Value,

@@ -1,9 +1,10 @@
 ﻿using System.Collections.ObjectModel;
+using AudioCat.ViewModels;
 
 namespace AudioCat.Models;
 
 public interface IAudioFilesContainer
 {
-    ObservableCollection<IAudioFile> Files { get; }
-    IAudioFile? SelectedFile { get; set; }
+    ObservableCollection<AudioFileViewModel> Files { get; }
+    AudioFileViewModel? SelectedFile { get; set; }
 }

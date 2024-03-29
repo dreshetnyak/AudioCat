@@ -33,7 +33,7 @@ public partial class App : Application
 
     private class AudioFilesContainer : IAudioFilesContainer
     {
-        public ObservableCollection<IAudioFile> Files { get; } = [];
-        public IAudioFile? SelectedFile { get; set; }
+        public ObservableCollection<AudioFileViewModel> Files { get; } = [];
+        public AudioFileViewModel? SelectedFile { get; set; }
     }
 }

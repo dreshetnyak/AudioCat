@@ -2,7 +2,7 @@
 
 namespace AudioCat.Models;
 
-public interface IAudioStream
+public interface IMediaStream
 {
     int Index { get; }
     string? CodecName { get; }
@@ -19,7 +19,7 @@ public interface IAudioStream
     IReadOnlyList<KeyValuePair<string, string>> Tags { get; }
 }
 
-public interface IAudioChapter
+public interface IMediaChapter
 {
     int Id { get; }
     long? Start { get; }
@@ -40,6 +40,6 @@ public interface IAudioFile
     TimeSpan? Duration { get; }
     decimal? Bitrate { get; }
     IReadOnlyList<KeyValuePair<string, string>> Tags { get; }
-    IReadOnlyList<IAudioChapter> Chapters { get; }
-    IReadOnlyList<IAudioStream> Streams { get; }
+    IReadOnlyList<IMediaChapter> Chapters { get; }
+    IReadOnlyList<IMediaStream> Streams { get; }
 }

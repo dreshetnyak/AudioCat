@@ -2,13 +2,14 @@
 using System.Windows;
 using AudioCat.Models;
 using AudioCat.Services;
+using AudioCat.ViewModels;
 
 namespace AudioCat.Commands
 {
     public sealed class AddFilesCommand(IAudioFileService audioFileService, IAudioFilesContainer audioFilesContainer) : CommandBase
     {
         private IAudioFileService AudioFileService { get; } = audioFileService;
-        private ObservableCollection<IAudioFile> AudioFiles { get; } = audioFilesContainer.Files;
+        private ObservableCollection<AudioFileViewModel> AudioFiles { get; } = audioFilesContainer.Files;
 
         protected override async Task<IResult> Command(object? parameter)
         {
@@ -23,7 +24,7 @@ namespace AudioCat.Commands
                     var probeResponse = await AudioFileService.Probe(fileName, CancellationToken.None); // TODO Cancellation support
                     if (probeResponse.IsFailure) //TODO Log the error
                         continue;
-                    AudioFiles.Add(probeResponse.Data!);
+                    AudioFiles.Add(new AudioFileViewModel(probeResponse.Data!, AudioFiles.Count == 0));
                 }
 
                 return Result.Success();

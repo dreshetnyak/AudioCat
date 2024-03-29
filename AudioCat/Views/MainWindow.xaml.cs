@@ -40,7 +40,7 @@ public partial class MainWindow : Window
             {
                 var probeResponse = await AudioFileService.Probe(fileName, CancellationToken.None);
                 if (probeResponse.IsSuccess)
-                    ViewModel.Files.Add(probeResponse.Data!);
+                    ViewModel.Files.Add(new AudioFileViewModel(probeResponse.Data!, ViewModel.Files.Count == 0));
             }
 
         }

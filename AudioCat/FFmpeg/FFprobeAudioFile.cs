@@ -15,8 +15,8 @@ public class FFprobeAudioFile : IAudioFile
     public TimeSpan? Duration { get; private init; }
     public decimal? Bitrate { get; private init; }
     public IReadOnlyList<KeyValuePair<string, string>> Tags { get; private init; } = [];
-    public IReadOnlyList<IAudioChapter> Chapters { get; private init; } = [];
-    public IReadOnlyList<IAudioStream> Streams { get; private init; } = [];
+    public IReadOnlyList<IMediaChapter> Chapters { get; private init; } = [];
+    public IReadOnlyList<IMediaStream> Streams { get; private init; } = [];
 
     private FFprobeAudioFile(FileInfo file) { File = file; }
 
@@ -46,15 +46,15 @@ public class FFprobeAudioFile : IAudioFile
         });
     }
 
-    private static IReadOnlyList<IAudioChapter> GetChapters(XElement? chaptersContainerElement)
+    private static IReadOnlyList<IMediaChapter> GetChapters(XElement? chaptersContainerElement)
     {
         if (chaptersContainerElement is not { HasElements: true })
             return [];
 
-        var chapters = new List<IAudioChapter>();
+        var chapters = new List<IMediaChapter>();
         foreach (var chapterElement in chaptersContainerElement.Elements("chapter"))
         {
-            var chapterResponse = FFprobeAudioChapter.Create(chapterElement);
+            var chapterResponse = FFprobeMediaChapter.Create(chapterElement);
             if (chapterResponse.IsSuccess)
                 chapters.Add(chapterResponse.Data!);
         }
@@ -62,15 +62,15 @@ public class FFprobeAudioFile : IAudioFile
         return chapters;
     }
 
-    private static IReadOnlyList<IAudioStream> GetStreams(XElement? streamsContainerElement)
+    private static IReadOnlyList<IMediaStream> GetStreams(XElement? streamsContainerElement)
     {
         if (streamsContainerElement is not { HasElements: true })
             return [];
 
-        var chapters = new List<IAudioStream>();
+        var chapters = new List<IMediaStream>();
         foreach (var chapterElement in streamsContainerElement.Elements("stream"))
         {
-            var chapterResponse = FFprobeAudioStream.Create(chapterElement);
+            var chapterResponse = FFprobeMediaStream.Create(chapterElement);
             if (chapterResponse.IsSuccess)
                 chapters.Add(chapterResponse.Data!);
         }

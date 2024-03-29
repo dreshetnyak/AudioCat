@@ -17,12 +17,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private TimeSpan _totalDuration;
     private int _progressPercentage;
     private string _progressText = "";
+    private bool _isTagsExpanded;
+    private bool _isStreamsExpanded;
+    private bool _isChaptersExpanded;
 
     #endregion
 
     private IAudioFilesContainer AudioFilesContainer { get; }
-    public ObservableCollection<IAudioFile> Files { get; }
-    public IAudioFile? SelectedFile
+    public ObservableCollection<AudioFileViewModel> Files { get; } // AudioFilesContainer.Files
+    public AudioFileViewModel? SelectedFile
     {
         get => AudioFilesContainer.SelectedFile;
         set
@@ -32,7 +35,20 @@ public sealed class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(IsMoveUpEnabled));
             OnPropertyChanged(nameof(IsMoveDownEnabled));
             OnPropertyChanged(nameof(IsRemoveEnabled));
+            UpdateExpanders();
         }
+    }
+
+    private void UpdateExpanders()
+    {
+        if (SelectedFile != null)
+        {
+            IsTagsExpanded = SelectedFile.Tags.Count > 0;
+            IsStreamsExpanded = SelectedFile.Streams.Count > 0;
+            IsChaptersExpanded = SelectedFile.Chapters.Count > 0;
+        }
+        else
+            IsTagsExpanded = IsStreamsExpanded = IsChaptersExpanded = false;
     }
 
     public long TotalSize
@@ -92,12 +108,47 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool IsMoveDownEnabled => IsUserEntryEnabled && Files.Count > 0 && SelectedFile != null && SelectedFile.FileName != "" && SelectedFile != Files.Last();
     public bool IsRemoveEnabled => IsUserEntryEnabled && Files.Count > 0 && SelectedFile != null && SelectedFile.FileName != "";
 
+    public bool IsTagsExpanded
+    {
+        get => _isTagsExpanded;
+        set
+        {
+            if (value == _isTagsExpanded) 
+                return;
+            _isTagsExpanded = value;
+            OnPropertyChanged();
+        }
+    }
+    public bool IsStreamsExpanded
+    {
+        get => _isStreamsExpanded;
+        set
+        {
+            if (value == _isStreamsExpanded) 
+                return;
+            _isStreamsExpanded = value;
+            OnPropertyChanged();
+        }
+    }
+    public bool IsChaptersExpanded
+    {
+        get => _isChaptersExpanded;
+        set
+        {
+            if (value == _isChaptersExpanded)
+                return;
+            _isChaptersExpanded = value;
+            OnPropertyChanged();
+        }
+    }
+
     public ICommand Concatenate { get; }
     public ICommand Cancel { get; }
     public ICommand AddPath { get; }
     public ICommand AddFiles { get; }
     public ICommand ClearPaths { get; }
     public ICommand MoveSelected { get; }
+    public ICommand SelectTags { get; }
 
     public int ProgressPercentage
     {
@@ -142,8 +193,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         ClearPaths = new RelayCommand(Files.Clear);
         Cancel = new RelayCommand(concatenate.Cancel);
+        SelectTags = new RelayParameterCommand(OnSelectTags);
 
         Files.CollectionChanged += OnFilesCollectionChanged;
+    }
+
+    private void OnSelectTags(object? obj)
+    {
+        if (obj is not AudioFileViewModel selectedFile || selectedFile.IsTagsSource)
+            return;
+        foreach (var currentFile in Files) 
+            currentFile.IsTagsSource = currentFile == selectedFile;
     }
 
     private void OnStarting(object? sender, EventArgs e)

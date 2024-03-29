@@ -7,7 +7,7 @@
         xmlns:viewModels="clr-namespace:AudioCat.ViewModels"
         mc:Ignorable="d"
         Icon="/Cat.ico"
-        Title="Audio Cat Tool v1.0.0" Height="450" Width="800"
+        Title="Audio Cat Tool v1.0.0" Height="640" Width="1024"
         d:DataContext="{d:DesignInstance viewModels:MainViewModel, IsDesignTimeCreatable=False}">
     <Window.Resources>
         <converters:DurationConverter x:Key="DurationConverter" />
@@ -73,7 +73,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="4" />
-                <ColumnDefinition Width="150" />
+                <ColumnDefinition Width="240" />
             </Grid.ColumnDefinitions>
 
             <Border
@@ -283,35 +283,83 @@
                         Drop="OnDataGridDrop"
                         CanUserSortColumns="False"
                         Margin="2,0,2,2">
+                        <DataGrid.Resources>
+                            <Style x:Key="OnOffImage" TargetType="{x:Type Image}">
+                                <Setter Property="Source" Value="../Images/ArrowRight.png" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsTagsSource}" Value="False">
+                                        <Setter Property="Source" Value="../Images/Blank.png" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                            <DataTemplate x:Key="SelectedTagsTemplate" DataType="{x:Type viewModels:AudioFileViewModel}">
+                                <Button
+                                    Command="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}, Path=DataContext.SelectTags}"
+                                    CommandParameter="{Binding}"
+                                    Background="Transparent"
+                                    BorderBrush="Transparent"
+                                    ToolTip="Use the tags from this file">
+                                    <Button.Style>
+                                        <Style TargetType="{x:Type Button}">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border>
+                                                            <Border.Style>
+                                                                <Style TargetType="{x:Type Border}">
+                                                                    <Style.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter Property="Background" Value="Transparent" />
+                                                                        </Trigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
+                                                            <Grid Background="Transparent">
+                                                                <ContentPresenter></ContentPresenter>
+                                                            </Grid>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                    <Image Style="{StaticResource OnOffImage}" RenderOptions.BitmapScalingMode="Fant" Height="16" Margin="3,0,3,0" />
+                                </Button>
+                            </DataTemplate>
+                        </DataGrid.Resources>
                         <DataGrid.Columns>
+                            <DataGridTemplateColumn
+                                Header="Tags"
+                                CellTemplate="{StaticResource SelectedTagsTemplate}"
+                                CanUserResize="False" />
                             <DataGridTextColumn
-                                Header="Files:"
+                                Header="Files"
                                 IsReadOnly="True"
                                 Binding="{Binding FileName}"
                                 CellStyle="{StaticResource TextBoxLeftStyle}"
                                 Width="150" />
                             <DataGridTextColumn
-                                Header="Duration:"
+                                Header="Duration"
                                 IsReadOnly="True"
                                 Binding="{Binding Duration, Converter={StaticResource DurationConverter}}"
                                 CellStyle="{StaticResource TextBoxCenterStyle}" />
                             <DataGridTextColumn
-                                Header="Bitrate:"
+                                Header="Bitrate"
                                 IsReadOnly="True"
                                 Binding="{Binding Bitrate, Converter={StaticResource BitrateConverter}}"
                                 CellStyle="{StaticResource TextBoxCenterStyle}" />
                             <DataGridTextColumn
-                                Header="Format:"
+                                Header="Format"
                                 IsReadOnly="True"
                                 Binding="{Binding FormatName}"
                                 CellStyle="{StaticResource TextBoxCenterStyle}" />
                             <DataGridTextColumn
-                                Header="Size:"
+                                Header="Size"
                                 IsReadOnly="True"
                                 Binding="{Binding File.Length, Converter={StaticResource BytesCountConverter}}"
                                 CellStyle="{StaticResource TextBoxRightStyle}" />
                             <DataGridTextColumn
-                                Header="Path:"
+                                Header="Path"
                                 IsReadOnly="True"
                                 Binding="{Binding File.DirectoryName}"
                                 CellStyle="{StaticResource TextBoxLeftStyle}" />
@@ -381,14 +429,10 @@
                         Grid.Row="1"
                         Header="File"
                         Margin="2,0,2,0">
-                        <Grid>
+                        <Grid Margin="0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="4" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="4" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
@@ -432,211 +476,214 @@
 
                             </Grid>
 
-                            <Grid
-                                Grid.Row="2">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="*" />
-                                </Grid.RowDefinitions>
-                                <TextBlock
-                                    Grid.Row="0"
-                                    Text="Tags:"
-                                    Margin="3,0,3,0" />
-                                <DataGrid
-                                    Grid.Row="1"
-                                    HeadersVisibility="Column"
-                                    IsReadOnly="True"
-                                    CanUserAddRows="False"
-                                    AlternationCount="2"
-                                    SelectionMode="Extended"
-                                    SelectionUnit="FullRow"
-                                    MinRowHeight="20"
-                                    AutoGenerateColumns="False"
-                                    BorderThickness="1"
-                                    BorderBrush="DarkGray"
-                                    AlternatingRowBackground="SeaShell"
-                                    ItemsSource="{Binding SelectedFile.Tags, Mode=OneWay, FallbackValue=''}"
-                                    AllowDrop="False"
-                                    CanUserSortColumns="True"
-                                    Margin="0,0,0,2">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn
-                                            Header="Name"
-                                            IsReadOnly="True"
-                                            Binding="{Binding Key, Mode=OneWay}"
-                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
-                                        <DataGridTextColumn
-                                            Header="Value"
-                                            IsReadOnly="True"
-                                            Binding="{Binding Value, Mode=OneWay}"
-                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
+                            <ScrollViewer
+                                Grid.Row="2"
+                                VerticalScrollBarVisibility="Auto"
+                                Padding="0,0,3,0"
+                                HorizontalScrollBarVisibility="Disabled">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
 
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </Grid>
-
-                            <GridSplitter
-                                Grid.Row="3"
-                                Height="4"
-                                HorizontalAlignment="Stretch"
-                                Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}" />
-
-                            <Grid
-                                Grid.Row="4">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="*" />
-                                </Grid.RowDefinitions>
-                                <TextBlock
-                                    Grid.Row="0"
-                                    Text="Streams:"
-                                    Margin="3,0,3,0" />
-                                <DataGrid
-                                    Grid.Row="1"
-                                    HeadersVisibility="Column"
-                                    IsReadOnly="True"
-                                    CanUserAddRows="False"
-                                    AlternationCount="2"
-                                    SelectionMode="Extended"
-                                    SelectionUnit="FullRow"
-                                    MinRowHeight="20"
-                                    AutoGenerateColumns="False"
-                                    BorderThickness="1"
-                                    BorderBrush="DarkGray"
-                                    AlternatingRowBackground="SeaShell"
-                                    ItemsSource="{Binding SelectedFile.Streams, Mode=OneWay, FallbackValue=''}"
-                                    AllowDrop="False"
-                                    CanUserSortColumns="True"
-                                    Margin="0,0,0,2">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn
-                                            Header="Index"
-                                            IsReadOnly="True"
-                                            Binding="{Binding Index, Mode=OneWay}"
-                                            CellStyle="{StaticResource TextBoxCenterStyle}" />
-                                        <DataGridTextColumn
-                                            Header="Codec"
-                                            IsReadOnly="True"
-                                            Binding="{Binding CodecName, Mode=OneWay}"
-                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
-                                        <DataGridTextColumn
-                                            Header="Codec Desc."
-                                            IsReadOnly="True"
-                                            Binding="{Binding CodecDescription, Mode=OneWay}"
-                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
-                                        <DataGridTextColumn
-                                            Header="Codec Type"
-                                            IsReadOnly="True"
-                                            Binding="{Binding CodecType, Mode=OneWay}"
-                                            CellStyle="{StaticResource TextBoxCenterStyle}" />
-                                        <DataGridTextColumn
-                                            Header="Codec Tag"
-                                            IsReadOnly="True"
-                                            Binding="{Binding CodecTag, Mode=OneWay}"
-                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
-                                        <DataGridTextColumn
-                                            Header="Sample Rate"
-                                            IsReadOnly="True"
-                                            Binding="{Binding SampleRate, Mode=OneWay, Converter={StaticResource SampleRateConverter}}"
-                                            CellStyle="{StaticResource TextBoxCenterStyle}" />
-                                        <DataGridTextColumn
-                                            Header="Channels"
-                                            IsReadOnly="True"
-                                            Binding="{Binding Channels, Mode=OneWay}"
-                                            CellStyle="{StaticResource TextBoxCenterStyle}" />
-                                        <DataGridTextColumn
-                                            Header="Channel Layout"
-                                            IsReadOnly="True"
-                                            Binding="{Binding ChannelLayout, Mode=OneWay}"
-                                            CellStyle="{StaticResource TextBoxCenterStyle}" />
-                                        <DataGridTextColumn
-                                            Header="Start Time"
-                                            IsReadOnly="True"
-                                            Binding="{Binding StartTime, Mode=OneWay, Converter={StaticResource TimeSpanConverter}}"
-                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
-                                        <DataGridTextColumn
-                                            Header="Duration"
-                                            IsReadOnly="True"
-                                            Binding="{Binding Duration, Mode=OneWay, Converter={StaticResource DurationConverter}}"
-                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
-                                        <DataGridTextColumn
-                                            Header="Width"
-                                            IsReadOnly="True"
-                                            Binding="{Binding Width, Mode=OneWay}"
-                                            CellStyle="{StaticResource TextBoxCenterStyle}" />
-                                        <DataGridTextColumn
-                                            Header="Height"
-                                            IsReadOnly="True"
-                                            Binding="{Binding Height, Mode=OneWay}"
-                                            CellStyle="{StaticResource TextBoxCenterStyle}" />
-                                        <DataGridTextColumn
+                                    <Border
+                                        Grid.Row="0"
+                                        ToolTip="File metadata tags"
+                                        BorderBrush="LightGray"
+                                        BorderThickness="1"
+                                        CornerRadius="10,10,10,10"
+                                        Margin="0,3,0,0"
+                                        Background="Transparent">
+                                        <Expander 
                                             Header="Tags"
-                                            IsReadOnly="True"
-                                            Binding="{Binding Tags, Mode=OneWay, Converter={StaticResource TagsConcatConverter}}"
-                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                            IsExpanded="{Binding IsTagsExpanded}">
+                                            <DataGrid
+                                                HeadersVisibility="Column"
+                                                IsReadOnly="True"
+                                                CanUserAddRows="False"
+                                                AlternationCount="2"
+                                                SelectionMode="Extended"
+                                                SelectionUnit="FullRow"
+                                                MinRowHeight="20"
+                                                AutoGenerateColumns="False"
+                                                BorderThickness="1"
+                                                BorderBrush="DarkGray"
+                                                AlternatingRowBackground="SeaShell"
+                                                ItemsSource="{Binding SelectedFile.Tags, Mode=OneWay, FallbackValue=''}"
+                                                AllowDrop="False"
+                                                CanUserSortColumns="True"
+                                                Margin="2,1,2,5">
+                                                <DataGrid.Columns>
+                                                    <DataGridTextColumn
+                                                        Header="Name"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding Key, Mode=OneWay}"
+                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                    <DataGridTextColumn
+                                                        Header="Value"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding Value, Mode=OneWay}"
+                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+                                        </Expander>
+                                    </Border>
 
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </Grid>
+                                    <Border
+                                        Grid.Row="1"
+                                        ToolTip="Media streams"
+                                        BorderBrush="LightGray"
+                                        BorderThickness="1"
+                                        CornerRadius="10,10,10,10"
+                                        Margin="0,3,0,0"
+                                        Background="Transparent">
+                                        <Expander 
+                                            Header="Streams"
+                                            IsExpanded="{Binding IsStreamsExpanded}">
+                                            <DataGrid
+                                                HeadersVisibility="Column"
+                                                IsReadOnly="True"
+                                                CanUserAddRows="False"
+                                                AlternationCount="2"
+                                                SelectionMode="Extended"
+                                                SelectionUnit="FullRow"
+                                                MinRowHeight="20"
+                                                AutoGenerateColumns="False"
+                                                BorderThickness="1"
+                                                BorderBrush="DarkGray"
+                                                AlternatingRowBackground="SeaShell"
+                                                ItemsSource="{Binding SelectedFile.Streams, Mode=OneWay, FallbackValue=''}"
+                                                AllowDrop="False"
+                                                CanUserSortColumns="True"
+                                                Margin="2,1,2,5">
+                                                <DataGrid.Columns>
+                                                    <DataGridTextColumn
+                                                        Header="Index"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding Index, Mode=OneWay}"
+                                                        CellStyle="{StaticResource TextBoxCenterStyle}" />
+                                                    <DataGridTextColumn
+                                                        Header="Codec"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding CodecName, Mode=OneWay}"
+                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                    <DataGridTextColumn
+                                                        Header="Codec Desc."
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding CodecDescription, Mode=OneWay}"
+                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                    <DataGridTextColumn
+                                                        Header="Codec Type"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding CodecType, Mode=OneWay}"
+                                                        CellStyle="{StaticResource TextBoxCenterStyle}" />
+                                                    <DataGridTextColumn
+                                                        Header="Codec Tag"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding CodecTag, Mode=OneWay}"
+                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                    <DataGridTextColumn
+                                                        Header="Sample Rate"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding SampleRate, Mode=OneWay, Converter={StaticResource SampleRateConverter}}"
+                                                        CellStyle="{StaticResource TextBoxCenterStyle}" />
+                                                    <DataGridTextColumn
+                                                        Header="Channels"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding Channels, Mode=OneWay}"
+                                                        CellStyle="{StaticResource TextBoxCenterStyle}" />
+                                                    <DataGridTextColumn
+                                                        Header="Channel Layout"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding ChannelLayout, Mode=OneWay}"
+                                                        CellStyle="{StaticResource TextBoxCenterStyle}" />
+                                                    <DataGridTextColumn
+                                                        Header="Start Time"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding StartTime, Mode=OneWay, Converter={StaticResource TimeSpanConverter}}"
+                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                    <DataGridTextColumn
+                                                        Header="Duration"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding Duration, Mode=OneWay, Converter={StaticResource DurationConverter}}"
+                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                    <DataGridTextColumn
+                                                        Header="Width"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding Width, Mode=OneWay}"
+                                                        CellStyle="{StaticResource TextBoxCenterStyle}" />
+                                                    <DataGridTextColumn
+                                                        Header="Height"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding Height, Mode=OneWay}"
+                                                        CellStyle="{StaticResource TextBoxCenterStyle}" />
+                                                    <DataGridTextColumn
+                                                        Header="Tags"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding Tags, Mode=OneWay, Converter={StaticResource TagsConcatConverter}}"
+                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+                                        </Expander>
+                                    </Border>
 
-                            <GridSplitter
-                                Grid.Row="5"
-                                Height="4"
-                                HorizontalAlignment="Stretch"
-                                Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}" />
+                                    <Border
+                                        Grid.Row="2"
+                                        ToolTip="Media chapters"
+                                        BorderBrush="LightGray"
+                                        BorderThickness="1"
+                                        CornerRadius="10,10,10,10"
+                                        Margin="0,3,0,0"
+                                        Background="Transparent">
+                                        <Expander 
+                                            Header="Chapters"
+                                            IsExpanded="{Binding IsChaptersExpanded}">
+                                            <DataGrid
+                                                HeadersVisibility="Column"
+                                                IsReadOnly="True"
+                                                CanUserAddRows="False"
+                                                AlternationCount="2"
+                                                SelectionMode="Extended"
+                                                SelectionUnit="FullRow"
+                                                MinRowHeight="20"
+                                                AutoGenerateColumns="False"
+                                                BorderThickness="1"
+                                                BorderBrush="DarkGray"
+                                                AlternatingRowBackground="SeaShell"
+                                                ItemsSource="{Binding SelectedFile.Chapters, Mode=OneWay, FallbackValue=''}"
+                                                AllowDrop="False"
+                                                CanUserSortColumns="True"
+                                                Margin="2,1,2,5">
+                                                <DataGrid.Columns>
+                                                    <DataGridTextColumn
+                                                        Header="Id"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding Id, Mode=OneWay}"
+                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                    <DataGridTextColumn
+                                                        Header="Start"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding StartTime, Mode=OneWay, Converter={StaticResource DurationConverter}}"
+                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                    <DataGridTextColumn
+                                                        Header="End"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding EndTime, Mode=OneWay, Converter={StaticResource DurationConverter}}"
+                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                    <DataGridTextColumn
+                                                        Header="Tags"
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding Tags, Mode=OneWay, Converter={StaticResource TagsConcatConverter}}"
+                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+                                        </Expander>
+                                    </Border>
 
-                            <Grid
-                                Grid.Row="6">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="*" />
-                                </Grid.RowDefinitions>
-                                <TextBlock
-                                    Grid.Row="0"
-                                    Text="Chapters:"
-                                    Margin="3,0,3,0" />
-                                <DataGrid
-                                    Grid.Row="1"
-                                    HeadersVisibility="Column"
-                                    IsReadOnly="True"
-                                    CanUserAddRows="False"
-                                    AlternationCount="2"
-                                    SelectionMode="Extended"
-                                    SelectionUnit="FullRow"
-                                    MinRowHeight="20"
-                                    AutoGenerateColumns="False"
-                                    BorderThickness="1"
-                                    BorderBrush="DarkGray"
-                                    AlternatingRowBackground="SeaShell"
-                                    ItemsSource="{Binding SelectedFile.Chapters, Mode=OneWay, FallbackValue=''}"
-                                    AllowDrop="False"
-                                    CanUserSortColumns="True"
-                                    Margin="0,0,0,2">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn
-                                            Header="Id"
-                                            IsReadOnly="True"
-                                            Binding="{Binding Id, Mode=OneWay}"
-                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
-                                        <DataGridTextColumn
-                                            Header="Start"
-                                            IsReadOnly="True"
-                                            Binding="{Binding StartTime, Mode=OneWay, Converter={StaticResource DurationConverter}}"
-                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
-                                        <DataGridTextColumn
-                                            Header="End"
-                                            IsReadOnly="True"
-                                            Binding="{Binding EndTime, Mode=OneWay, Converter={StaticResource DurationConverter}}"
-                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
-                                        <DataGridTextColumn
-                                            Header="Tags"
-                                            IsReadOnly="True"
-                                            Binding="{Binding Tags, Mode=OneWay, Converter={StaticResource TagsConcatConverter}}"
-                                            CellStyle="{StaticResource TextBoxLeftStyle}" />
-
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </Grid>
+                                </Grid>
+                            </ScrollViewer>
 
                         </Grid>
                     </GroupBox>

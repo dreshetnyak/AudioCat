@@ -2,6 +2,7 @@
 using System.IO;
 using AudioCat.Models;
 using AudioCat.Services;
+using AudioCat.ViewModels;
 
 namespace AudioCat.Commands;
 
@@ -14,7 +15,7 @@ public delegate void StatusEventHandler(object sender, StatusEventArgs eventArgs
 public sealed class ConcatenateCommand(IAudioFileService audioFileService, IAudioFilesContainer audioFilesContainer) : CommandBase
 {
     public IAudioFileService AudioFileService { get; } = audioFileService;
-    private ObservableCollection<IAudioFile> AudioFiles { get; } = audioFilesContainer.Files;
+    private ObservableCollection<AudioFileViewModel> AudioFiles { get; } = audioFilesContainer.Files;
 
     private CancellationTokenSource? Cts { get; set; }
 
