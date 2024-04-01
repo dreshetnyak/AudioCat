@@ -7,7 +7,7 @@
         xmlns:viewModels="clr-namespace:AudioCat.ViewModels"
         mc:Ignorable="d"
         Icon="/Cat.ico"
-        Title="Audio Cat Tool v1.0.0" Height="640" Width="1024"
+        Title="Audio Cat Tool v1.2.0" Height="640" Width="1024"
         d:DataContext="{d:DesignInstance viewModels:MainViewModel, IsDesignTimeCreatable=False}">
     <Window.Resources>
         <converters:DurationConverter x:Key="DurationConverter" />
@@ -285,11 +285,29 @@
                         Margin="2,0,2,2">
                         <DataGrid.Resources>
                             <Style x:Key="OnOffImage" TargetType="{x:Type Image}">
-                                <Setter Property="Source" Value="../Images/ArrowRight.png" />
+                                <Setter Property="Source" Value="../Images/Blank.png" />
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsTagsSource}" Value="False">
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding HasTags}" Value="True" />
+                                            <Condition Binding="{Binding IsTagsSource}" Value="True" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Source" Value="../Images/Ok.png" />
+                                    </MultiDataTrigger>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding HasTags}" Value="True" />
+                                            <Condition Binding="{Binding IsTagsSource}" Value="False" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Source" Value="../Images/OkGray.png" />
+                                    </MultiDataTrigger>
+
+                                    <!--<DataTrigger Binding="{Binding HasTags}" Value="False">
                                         <Setter Property="Source" Value="../Images/Blank.png" />
                                     </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsTagsSource}" Value="False">
+                                        <Setter Property="Source" Value="../Images/OkGray.png" />
+                                    </DataTrigger>-->
                                 </Style.Triggers>
                             </Style>
                             <DataTemplate x:Key="SelectedTagsTemplate" DataType="{x:Type viewModels:AudioFileViewModel}">
@@ -329,9 +347,13 @@
                         </DataGrid.Resources>
                         <DataGrid.Columns>
                             <DataGridTemplateColumn
-                                Header="Tags"
+                                Header="Tgs"
                                 CellTemplate="{StaticResource SelectedTagsTemplate}"
                                 CanUserResize="False" />
+                            <!--<DataGridTemplateColumn
+                                Header="Img"
+                                CellTemplate="{StaticResource SelectedTagsTemplate}"
+                                CanUserResize="False" />-->
                             <DataGridTextColumn
                                 Header="Files"
                                 IsReadOnly="True"

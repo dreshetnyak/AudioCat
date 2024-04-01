@@ -12,13 +12,13 @@ public class AddPathCommand(IAudioFileService audioFileService, IAudioFilesConta
     private IAudioFileService AudioFileService { get; } = audioFileService;
     private ObservableCollection<AudioFileViewModel> AudioFiles { get; } = audioFilesContainer.Files;
 
-    protected override async Task<IResult> Command(object? parameter)
+    protected override async Task<IResponse<object>> Command(object? parameter)
     {
         try
         {
             var path = SelectionDialog.ChooseFolder();
             if (path == "")
-                return Result.Success();
+                return Response<object>.Success();
 
             foreach (var fileName in Directory.EnumerateFiles(path, "*.mp3", SearchOption.AllDirectories))
             {
@@ -28,12 +28,12 @@ public class AddPathCommand(IAudioFileService audioFileService, IAudioFilesConta
                 AudioFiles.Add(new AudioFileViewModel(probeResponse.Data!, AudioFiles.Count == 0));
             }
 
-            return Result.Success();
+            return Response<object>.Success();
         }
         catch (Exception ex)
         {
             MessageBox.Show(ex.Message, "Folder selection error", MessageBoxButton.OK, MessageBoxImage.Error);
-            return Result.Failure(ex.Message);
+            return Response<object>.Failure(ex.Message);
         }
     }
 }

@@ -5,9 +5,8 @@ using AudioCat.Models;
 
 namespace AudioCat.ViewModels;
 
-public sealed class AudioFileViewModel(IAudioFile audioFile, bool isTagsSource = false) : IAudioFile, INotifyPropertyChanged
+public sealed class AudioFileViewModel(IAudioFile audioFile, bool isTagsSource = false, bool isCoverSource = false) : IAudioFile, INotifyPropertyChanged
 {
-    private bool _isTagsSource = isTagsSource;
     private IAudioFile AudioFile { get; } = audioFile;
 
     public FileInfo File => AudioFile.File;
@@ -24,15 +23,20 @@ public sealed class AudioFileViewModel(IAudioFile audioFile, bool isTagsSource =
 
     public bool IsTagsSource
     {
-        get => _isTagsSource;
+        get => isTagsSource;
         set
         {
-            if (value == _isTagsSource) 
+            if (value == isTagsSource) 
                 return;
-            _isTagsSource = value;
+            isTagsSource = value;
             OnPropertyChanged();
         }
     }
+    public bool HasTags => AudioFile.Tags.Count > 0;
+
+    public bool IsCoverSource { get; set; }
+    //TODO WIP
+    //public bool HasCover { get; } = Streams.Any(s => s.CodecName);
 
     private static IMediaStream[] GetStreams(IAudioFile audioFile)
     {

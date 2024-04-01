@@ -14,7 +14,6 @@
     <None Remove="Images\AddFilesGray.png" />
     <None Remove="Images\AddPath.png" />
     <None Remove="Images\AddPathGray.png" />
-    <None Remove="Images\ArrowRight.png" />
     <None Remove="Images\Blank.png" />
     <None Remove="Images\Cancel.png" />
     <None Remove="Images\CancelGray.png" />
@@ -24,6 +23,9 @@
     <None Remove="Images\DownGray.png" />
     <None Remove="Images\Execute.png" />
     <None Remove="Images\ExecuteGray.png" />
+    <None Remove="Images\Ignore.png" />
+    <None Remove="Images\Ok.png" />
+    <None Remove="Images\OkGray.png" />
     <None Remove="Images\Remove.png" />
     <None Remove="Images\RemoveGray.png" />
     <None Remove="Images\Up.png" />
@@ -43,7 +45,6 @@
     <Resource Include="Images\AddFilesGray.png" />
     <Resource Include="Images\AddPath.png" />
     <Resource Include="Images\AddPathGray.png" />
-    <Resource Include="Images\ArrowRight.png" />
     <Resource Include="Images\Blank.png" />
     <Resource Include="Images\Cancel.png" />
     <Resource Include="Images\CancelGray.png" />
@@ -53,6 +54,9 @@
     <Resource Include="Images\DownGray.png" />
     <Resource Include="Images\Execute.png" />
     <Resource Include="Images\ExecuteGray.png" />
+    <Resource Include="Images\Ignore.png" />
+    <Resource Include="Images\Ok.png" />
+    <Resource Include="Images\OkGray.png" />
     <Resource Include="Images\Remove.png" />
     <Resource Include="Images\RemoveGray.png" />
     <Resource Include="Images\Up.png" />

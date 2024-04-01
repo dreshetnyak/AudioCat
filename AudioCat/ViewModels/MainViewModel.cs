@@ -6,6 +6,7 @@ using System.Text;
 using System.Windows.Input;
 using AudioCat.Commands;
 using AudioCat.Models;
+using AudioCat.Windows;
 
 namespace AudioCat.ViewModels;
 
@@ -200,8 +201,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void OnSelectTags(object? obj)
     {
-        if (obj is not AudioFileViewModel selectedFile || selectedFile.IsTagsSource)
+        if (obj is not AudioFileViewModel selectedFile)
             return;
+
+        if (selectedFile.IsTagsSource)
+        {
+            selectedFile.IsTagsSource = false;
+            return;
+        }
+
+        if (!selectedFile.HasTags)
+            return;
+
         foreach (var currentFile in Files) 
             currentFile.IsTagsSource = currentFile == selectedFile;
     }
@@ -212,11 +223,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
         IsUserEntryEnabled = false;
     }
 
-    private void OnFinished(object? sender, EventArgs e)
+    private void OnFinished(object sender, ResponseEventArgs eventArgs)
     {
-        ProgressPercentage = 0;
-        ProgressText = "Done.";
-        IsUserEntryEnabled = true;
+        try
+        {
+            if (eventArgs.Response.IsFailure)
+                new ConcatErrorWindow(eventArgs.Response.Message, eventArgs.Response.Data as string ?? "").ShowDialog();
+        }
+        finally
+        {
+            ProgressPercentage = 0;
+            ProgressText = "Done.";
+            IsUserEntryEnabled = true;
+        }
     }
 
     private void OnStatusUpdate(object sender, StatusEventArgs eventArgs)

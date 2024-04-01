@@ -6,13 +6,13 @@ public class MoveFileCommand(IAudioFilesContainer audioFilesContainer) : Command
 {
     private IAudioFilesContainer AudioFilesContainer { get; } = audioFilesContainer;
 
-    protected override Task<IResult> Command(object? parameter)
+    protected override Task<IResponse<object>> Command(object? parameter)
     {
         var selectedFile = AudioFilesContainer.SelectedFile;
         if (string.IsNullOrEmpty(selectedFile?.File.FullName))
-            return Task.FromResult(Result.Success());
+            return Task.FromResult(Response<object>.Success());
         if (parameter is not string action)
-            return Task.FromResult(Result.Success());
+            return Task.FromResult(Response<object>.Success());
         switch (action)
         {
             case "Up":
@@ -26,7 +26,7 @@ public class MoveFileCommand(IAudioFilesContainer audioFilesContainer) : Command
                 break;
         }
 
-        return Task.FromResult(Result.Success());
+        return Task.FromResult(Response<object>.Success());
     }
 
     private void MoveUp(IAudioFile file)

@@ -2,26 +2,28 @@
 
 A tool for concatenating audio files.
 
-<details>
-<summary>Backlog</summary>
-AudioCat v1.1.0
-Now ffmpeg output is parsed and the displayed progress values formatted.
-Progress bar now displays the processing progression.
+AudioCat v1.2.0
+===============
+When saving the concatenated file, now the save dialog opens to the path of the first file.
+Now using -hide_banner.
+Tags source now can be deselected.
+Now the selected tags are written to the output file.
+Cancel button image had a cursor over it, replaced the images.
+Replaced the selected tags source icon from arrow to checkmark.
+Gray ckeckmark displayed if the file has tags. 
+Now selecting files without tags as a tags source is not allowed.
+Now handling concatenation errors, displaying them and offering to delete the output.
 
 
-Use -hide_banner
-Add right panel with stats on the added files
-Process errors
+Backlog
+=======
+Cover image pass-through
+Audio streams mapping
+Subtitle streams
 General logs view
-Delete the temporary file
-DataGrid change stripes color
-DataGrid selection color - needs more contrast color
 DataGrid more columns, cover checkmark
 Multi select for moving multiple files
 Add support for more audio files formats
 More intelligent suggested file names
-Read/Write ID3 tags
 Configuration.
 Globalization, Localization
-Bug. Remove enabled if no items is selected.
-</details>

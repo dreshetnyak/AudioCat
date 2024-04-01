@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32;
+﻿using System.IO;
+using Microsoft.Win32;
 
 namespace AudioCat.Services;
 
@@ -12,9 +13,11 @@ internal static class SelectionDialog
             : [];
     }
 
-    public static string ChooseFileToSave(string filter, string fileName = "")
+    public static string ChooseFileToSave(string filter, string fileName = "", string initialDirectory = "")
     {
-        var selectFileDialog = new SaveFileDialog { Filter = filter, FileName = fileName };
+        var selectFileDialog = Directory.Exists(initialDirectory)
+            ? new SaveFileDialog { Filter = filter, FileName = fileName, RestoreDirectory = true, InitialDirectory = initialDirectory }
+            : new SaveFileDialog { Filter = filter, FileName = fileName };
         return selectFileDialog.ShowDialog() ?? false
             ? selectFileDialog.FileName ?? ""
             : "";

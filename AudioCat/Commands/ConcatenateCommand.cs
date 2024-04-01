@@ -21,19 +21,23 @@ public sealed class ConcatenateCommand(IAudioFileService audioFileService, IAudi
 
     public event StatusEventHandler? StatusUpdate;
 
-    protected override async Task<IResult> Command(object? parameter)
+    protected override async Task<IResponse<object>> Command(object? parameter)
     {
         try
         {
             Cts = new CancellationTokenSource();
 
             if (AudioFiles.Count == 0)
-                return Result.Failure("No files to concatenate");
+                return Response<object>.Failure("No files to concatenate");
 
-            var outputFileName = SelectionDialog.ChooseFileToSave("MP3 Audio|*.mp3", GetSuggestedFileName());
-            return outputFileName != ""
-                ? await AudioFileService.Concatenate(AudioFiles, outputFileName, OnStatusUpdate, CancellationToken.None) //TODO Implement cancellation
-                : Result.Success(); 
+            var outputFileName = SelectionDialog.ChooseFileToSave("MP3 Audio|*.mp3", GetSuggestedFileName(), GetInitialDirectory());
+            if (outputFileName == "")
+                return Response<object>.Success();
+            
+            var concatResult = await AudioFileService.Concatenate(AudioFiles, outputFileName, OnStatusUpdate, CancellationToken.None);
+            return concatResult.IsSuccess
+                ? Response<object>.Success()
+                : Response<object>.Failure(outputFileName, concatResult.Message);
         }
         finally
         {
@@ -57,9 +61,7 @@ public sealed class ConcatenateCommand(IAudioFileService audioFileService, IAudi
         var fileInfo = new FileInfo(firstFile);
         var suggestedName = fileInfo.Directory?.Name ?? "";
         if (suggestedName != "")
-        {
             return suggestedName + ".mp3";
-        }
             
         suggestedName = fileInfo.Name;
         if (suggestedName == "")
@@ -68,6 +70,9 @@ public sealed class ConcatenateCommand(IAudioFileService audioFileService, IAudi
 
         return withoutExtension + ".Cat.mp3";
     }
+
+    private string GetInitialDirectory() => 
+        new FileInfo(AudioFiles.First().FilePath).Directory?.FullName ?? "";
 
     private void OnStatusUpdate(IProcessingStats stats) => StatusUpdate?.Invoke(this, new StatusEventArgs(stats));
 }

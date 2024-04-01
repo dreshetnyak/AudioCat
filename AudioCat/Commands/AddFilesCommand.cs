@@ -11,13 +11,13 @@ namespace AudioCat.Commands
         private IAudioFileService AudioFileService { get; } = audioFileService;
         private ObservableCollection<AudioFileViewModel> AudioFiles { get; } = audioFilesContainer.Files;
 
-        protected override async Task<IResult> Command(object? parameter)
+        protected override async Task<IResponse<object>> Command(object? parameter)
         {
             try
             {
                 var fileNames = SelectionDialog.ChooseFilesToOpen("MP3 Audio|*.mp3", true);
                 if (fileNames.Length == 0)
-                    return Result.Success();
+                    return Response<object>.Success();
 
                 foreach (var fileName in fileNames)
                 {
@@ -27,12 +27,12 @@ namespace AudioCat.Commands
                     AudioFiles.Add(new AudioFileViewModel(probeResponse.Data!, AudioFiles.Count == 0));
                 }
 
-                return Result.Success();
+                return Response<object>.Success();
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message, "Files selection error", MessageBoxButton.OK, MessageBoxImage.Error);
-                return Result.Failure(ex.Message);
+                return Response<object>.Failure(ex.Message);
             }
         }
     }

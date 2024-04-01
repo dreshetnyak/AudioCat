@@ -1,0 +1,91 @@
+﻿<Window x:Class="AudioCat.Windows.ConcatErrorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:AudioCat.Windows"
+        mc:Ignorable="d"
+        Title="Concatenation Error(s)" 
+        Height="250" Width="400"
+        WindowStartupLocation="CenterOwner"
+        d:DataContext="{d:DesignInstance local:ConcatErrorWindow}">
+
+    <Grid Margin="4,4,4,8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        
+        <TextBox 
+            Grid.Row="1"
+            Text="{Binding Errors, Mode=OneTime}"
+            IsReadOnly="True"
+            VerticalScrollBarVisibility="Auto"
+            HorizontalScrollBarVisibility="Auto"
+            />
+
+        <Grid 
+            Grid.Row="2"
+            Margin="0,5,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Button 
+                Grid.Column="1" 
+                Command="{Binding CloseDialog}"
+                Height="26"
+                Width="140"
+                HorizontalContentAlignment="Left"
+                Margin="5,0,0,0">
+                <Grid HorizontalAlignment="Left">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Image 
+                        Grid.Column="0" 
+                        Source="../Images/Ignore.png" 
+                        RenderOptions.BitmapScalingMode="Fant" 
+                        Height="18" 
+                        Margin="6,0,0,0" />
+                    <TextBlock 
+                        Grid.Column="1" 
+                        Text="Ignore" 
+                        HorizontalAlignment="Center" 
+                        Margin="5,0,0,0" />
+                </Grid>
+            </Button>
+
+            <Button 
+                Grid.Column="2" 
+                Command="{Binding DeleteOutputFile}"
+                Visibility="{Binding DeleteOutputFileVisibility, Mode=OneTime}"
+                Height="26"
+                Width="140"
+                HorizontalContentAlignment="Left"
+                Margin="5,0,0,0">
+                <Grid HorizontalAlignment="Left">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Image 
+                        Grid.Column="0" 
+                        Source="../Images/Remove.png" 
+                        RenderOptions.BitmapScalingMode="Fant" 
+                        Height="18" 
+                        Margin="6,0,0,0" />
+                    <TextBlock 
+                        Grid.Column="1" 
+                        Text="Delete Output File" 
+                        HorizontalAlignment="Center" 
+                        Margin="5,0,0,0" />
+                </Grid>
+            </Button>
+        </Grid>
+    </Grid>
+</Window>

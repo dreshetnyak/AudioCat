@@ -6,10 +6,10 @@ internal class RelayCommand(Action commandAction) : CommandBase
 {
     public Action CommandAction { get; } = commandAction;
 
-    protected override Task<IResult> Command(object? parameter)
+    protected override Task<IResponse<object>> Command(object? parameter)
     {
         CommandAction();
-        return Task.FromResult(Result.Success());
+        return Task.FromResult(Response<object>.Success());
     }
 }
 
@@ -17,9 +17,9 @@ internal class RelayParameterCommand(Action<object?> commandAction) : CommandBas
 {
     public Action<object?> CommandAction { get; } = commandAction;
 
-    protected override Task<IResult> Command(object? parameter)
+    protected override Task<IResponse<object>> Command(object? parameter)
     {
         CommandAction(parameter);
-        return Task.FromResult(Result.Success());
+        return Task.FromResult(Response<object>.Success());
     }
 }

@@ -3,27 +3,27 @@ using System.Windows.Input;
 
 namespace AudioCat.Commands;
 
-public sealed class ResultEventArgs(IResult result) : EventArgs
+public sealed class ResponseEventArgs(IResponse<object> response) : EventArgs
 {
-    public IResult Result { get; } = result;
+    public IResponse<object> Response { get; } = response;
 }
-public delegate void ResultEventHandler(object sender, ResultEventArgs eventArgs);
+public delegate void ResponseEventHandler(object sender, ResponseEventArgs eventArgs);
 
 public abstract class CommandBase : ICommand
 {
-    protected abstract Task<IResult> Command(object? parameter);
+    protected abstract Task<IResponse<object>> Command(object? parameter);
 
     public event EventHandler? Starting;
-    public event ResultEventHandler? Finished;
+    public event ResponseEventHandler? Finished;
 
     public async void Execute(object? parameter)
     {
-        var result = Result.Failure("Unknown error");
+        var response = Response<object>.Failure("Unknown error");
         try
         {
             CanBeExecuted = false;
             OnStarting();
-            result = await Command(parameter);
+            response = await Command(parameter);
         }
         catch
         {
@@ -31,7 +31,7 @@ public abstract class CommandBase : ICommand
         }
         finally
         {
-            OnFinished(result);
+            OnFinished(response);
             CanBeExecuted = true;
         }
     }
@@ -59,5 +59,5 @@ public abstract class CommandBase : ICommand
     #endregion
 
     protected virtual void OnStarting() => Starting?.Invoke(this, EventArgs.Empty);
-    protected virtual void OnFinished(IResult result) => Finished?.Invoke(this, new ResultEventArgs(result));
+    protected virtual void OnFinished(IResponse<object> response) => Finished?.Invoke(this, new ResponseEventArgs(response));
 }

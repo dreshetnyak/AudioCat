@@ -1,7 +1,9 @@
-﻿using AudioCat.FFmpeg;
+﻿using System.Diagnostics;
+using AudioCat.FFmpeg;
 using AudioCat.Models;
 using System.IO;
 using System.Text;
+using AudioCat.ViewModels;
 
 namespace AudioCat.Services;
 
@@ -28,33 +30,61 @@ internal class FFmpegService : IAudioFileService
         }
     }
 
-    public async Task<IResult> Concatenate(IEnumerable<IAudioFile> audioFiles, string outputFileName, Action<IProcessingStats> onStatusUpdate, CancellationToken ctx)
+    public async Task<IResult> Concatenate(IEnumerable<AudioFileViewModel> audioFiles, string outputFileName, Action<IProcessingStats> onStatusUpdate, CancellationToken ctx)
     {
+        var errorMessage = new StringBuilder();
         try
         {
-            var listFile = await Task.Run(() => CreateFilesListFile(audioFiles), ctx);
-            
-            // TODO Audio streams mapping
-            // TODO Subtitle streams
-            // TODO Cover image streams pass-through
+            var listFileTask = Task.Run(() => CreateFilesListFile(audioFiles), ctx);
+            var metadataFileTask = CreateMetadataFile(audioFiles, ctx);
 
+            var listFile = await listFileTask;
+            var metadataFile = await metadataFileTask;
+
+            var args = metadataFile != ""
+                ? $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -i \"{metadataFile}\" -map_metadata 1 -c copy -id3v2_version 3 -write_id3v1 1 \"{outputFileName}\""
+                : $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -c copy \"{outputFileName}\"";
 
             await Process.Run(
                 "ffmpeg.exe", 
-                $"-y -loglevel quiet -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -c copy \"{outputFileName}\"",
-                statusLine => onStatusUpdate(new FFmpegStats(statusLine)), 
+                args,
+                OnStatus, 
                 Process.OutputType.Error, 
                 ctx);
 
+            // TODO Register errors
+            // TODO If there was errors offer to remove the output file if such was created
+
+            // Delete the list file
             try { await Task.Run(() => File.Delete(listFile), CancellationToken.None); }
             catch { /* ignore */ }
 
-            return Result.Success();
+            // Delete the metadata file
+            if (metadataFile != "")
+            {
+                try { await Task.Run(() => File.Delete(metadataFile), CancellationToken.None); }
+                catch { /* ignore */ }
+            }
+
+            return errorMessage.Length == 0
+                ? Result.Success()
+                : Result.Failure(errorMessage.ToString());
         }
         catch (Exception ex)
         {
             return Result.Failure(ex.Message);
         }
+
+        void OnStatus(string status)
+        {
+            if (IsErrorMessage(status))
+                errorMessage.AppendLine(status);
+            else
+                onStatusUpdate(new FFmpegStats(status));
+        }
+
+        static bool IsErrorMessage(string status) => 
+            status.StartsWith('[') || !new[] { "size=", "time=", "bitrate=", "speed=" }.Any(status.Contains);
     }
 
     private static string CreateFilesListFile(IEnumerable<IAudioFile> audioFiles)
@@ -71,5 +101,41 @@ internal class FFmpegService : IAudioFileService
 
         File.WriteAllText(listFile, sb.ToString());
         return listFile;
+    }
+
+    private static async Task<string> CreateMetadataFile(IEnumerable<AudioFileViewModel> audioFiles, CancellationToken ctx)
+    {
+        var file = audioFiles.FirstOrDefault(file => file.IsTagsSource);
+        if (file == null)
+            return "";
+
+        var metadataFile = Path.GetTempFileName();
+        var extractResult = await ExtractMetadata(file.FilePath, metadataFile, ctx);
+        
+        return extractResult.IsSuccess 
+            ? metadataFile 
+            : "";
+    }
+
+    private static async Task<IResult> ExtractMetadata(string fileFullName, string outputFile, CancellationToken ctx)
+    {
+        var errorMessage = new StringBuilder();
+        await Process.Run(
+            "ffmpeg.exe",
+            $"-hide_banner -y -loglevel error -i \"{fileFullName}\" -f ffmetadata \"{outputFile}\"",
+            OnError,
+            Process.OutputType.Error,
+            ctx);
+
+        return errorMessage.Length == 0 
+            ? Result.Success()
+            : Result.Failure(errorMessage.ToString());
+
+        void OnError(string statusLine)
+        {
+            if (errorMessage.Length != 0)
+                errorMessage.Append(Environment.NewLine);
+            errorMessage.Append(statusLine.Trim());
+        }
     }
 }
