@@ -5,9 +5,11 @@ using AudioCat.Models;
 
 namespace AudioCat.ViewModels;
 
-public sealed class AudioFileViewModel(IAudioFile audioFile, bool isTagsSource = false, bool isCoverSource = false) : IAudioFile, INotifyPropertyChanged
+public sealed class AudioFileViewModel : IAudioFile, INotifyPropertyChanged
 {
-    private IAudioFile AudioFile { get; } = audioFile;
+    private bool _isTagsSource;
+    private bool _isCoverSource;
+    private IAudioFile AudioFile { get; }
 
     public FileInfo File => AudioFile.File;
     public string FileName => AudioFile.FileName;
@@ -19,24 +21,53 @@ public sealed class AudioFileViewModel(IAudioFile audioFile, bool isTagsSource =
     public decimal? Bitrate => AudioFile.Bitrate;
     public IReadOnlyList<KeyValuePair<string, string>> Tags => AudioFile.Tags;
     public IReadOnlyList<IMediaChapter> Chapters => AudioFile.Chapters;
-    public IReadOnlyList<IMediaStream> Streams { get; } = GetStreams(audioFile);
+    public IReadOnlyList<IMediaStream> Streams { get; }
 
     public bool IsTagsSource
     {
-        get => isTagsSource;
+        get => _isTagsSource;
         set
         {
-            if (value == isTagsSource) 
+            if (value == _isTagsSource) 
                 return;
-            isTagsSource = value;
+            _isTagsSource = value;
             OnPropertyChanged();
         }
     }
     public bool HasTags => AudioFile.Tags.Count > 0;
 
-    public bool IsCoverSource { get; set; }
-    //TODO WIP
-    //public bool HasCover { get; } = Streams.Any(s => s.CodecName);
+    public bool IsCoverSource
+    {
+        get => _isCoverSource;
+        set
+        {
+            if (value == _isCoverSource) 
+                return;
+            _isCoverSource = value;
+            OnPropertyChanged();
+        }
+    }
+    public bool HasCover { get; }
+
+    public AudioFileViewModel(IAudioFile audioFile, bool isTagsSource = false, bool isCoverSource = false)
+    {
+        _isTagsSource = isTagsSource;
+        _isCoverSource = isCoverSource;
+        AudioFile = audioFile;
+        Streams = GetStreams(audioFile);
+        HasCover = HasCoverStream(Streams);
+    }
+
+    private static bool HasCoverStream(IEnumerable<IMediaStream> streams)
+    {
+        foreach (var stream in streams)
+        {
+            if (stream.CodecName != null && stream.CodecName.Equals("mjpeg", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
 
     private static IMediaStream[] GetStreams(IAudioFile audioFile)
     {

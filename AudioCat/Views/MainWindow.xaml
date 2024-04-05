@@ -7,7 +7,7 @@
         xmlns:viewModels="clr-namespace:AudioCat.ViewModels"
         mc:Ignorable="d"
         Icon="/Cat.ico"
-        Title="Audio Cat Tool v1.2.0" Height="640" Width="1024"
+        Title="Audio Cat Tool v1.3.0" Height="640" Width="1024"
         d:DataContext="{d:DesignInstance viewModels:MainViewModel, IsDesignTimeCreatable=False}">
     <Window.Resources>
         <converters:DurationConverter x:Key="DurationConverter" />
@@ -284,7 +284,7 @@
                         CanUserSortColumns="False"
                         Margin="2,0,2,2">
                         <DataGrid.Resources>
-                            <Style x:Key="OnOffImage" TargetType="{x:Type Image}">
+                            <Style x:Key="TagsSelectionImage" TargetType="{x:Type Image}">
                                 <Setter Property="Source" Value="../Images/Blank.png" />
                                 <Style.Triggers>
                                     <MultiDataTrigger>
@@ -301,13 +301,6 @@
                                         </MultiDataTrigger.Conditions>
                                         <Setter Property="Source" Value="../Images/OkGray.png" />
                                     </MultiDataTrigger>
-
-                                    <!--<DataTrigger Binding="{Binding HasTags}" Value="False">
-                                        <Setter Property="Source" Value="../Images/Blank.png" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding IsTagsSource}" Value="False">
-                                        <Setter Property="Source" Value="../Images/OkGray.png" />
-                                    </DataTrigger>-->
                                 </Style.Triggers>
                             </Style>
                             <DataTemplate x:Key="SelectedTagsTemplate" DataType="{x:Type viewModels:AudioFileViewModel}">
@@ -341,7 +334,61 @@
                                             </Setter>
                                         </Style>
                                     </Button.Style>
-                                    <Image Style="{StaticResource OnOffImage}" RenderOptions.BitmapScalingMode="Fant" Height="16" Margin="3,0,3,0" />
+                                    <Image Style="{StaticResource TagsSelectionImage}" RenderOptions.BitmapScalingMode="Fant" Height="16" Margin="3,0,3,0" />
+                                </Button>
+                            </DataTemplate>
+
+                            <Style x:Key="CoverSelectionImage" TargetType="{x:Type Image}">
+                                <Setter Property="Source" Value="../Images/Blank.png" />
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding HasCover}" Value="True" />
+                                            <Condition Binding="{Binding IsCoverSource}" Value="True" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Source" Value="../Images/Ok.png" />
+                                    </MultiDataTrigger>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding HasCover}" Value="True" />
+                                            <Condition Binding="{Binding IsCoverSource}" Value="False" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Source" Value="../Images/OkGray.png" />
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                            <DataTemplate x:Key="SelectedCoverTemplate" DataType="{x:Type viewModels:AudioFileViewModel}">
+                                <Button
+                                    Command="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}, Path=DataContext.SelectCover}"
+                                    CommandParameter="{Binding}"
+                                    Background="Transparent"
+                                    BorderBrush="Transparent"
+                                    ToolTip="Use the cover from this file">
+                                    <Button.Style>
+                                        <Style TargetType="{x:Type Button}">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border>
+                                                            <Border.Style>
+                                                                <Style TargetType="{x:Type Border}">
+                                                                    <Style.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter Property="Background" Value="Transparent" />
+                                                                        </Trigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
+                                                            <Grid Background="Transparent">
+                                                                <ContentPresenter></ContentPresenter>
+                                                            </Grid>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                    <Image Style="{StaticResource CoverSelectionImage}" RenderOptions.BitmapScalingMode="Fant" Height="16" Margin="3,0,3,0" />
                                 </Button>
                             </DataTemplate>
                         </DataGrid.Resources>
@@ -350,10 +397,10 @@
                                 Header="Tgs"
                                 CellTemplate="{StaticResource SelectedTagsTemplate}"
                                 CanUserResize="False" />
-                            <!--<DataGridTemplateColumn
+                            <DataGridTemplateColumn
                                 Header="Img"
-                                CellTemplate="{StaticResource SelectedTagsTemplate}"
-                                CanUserResize="False" />-->
+                                CellTemplate="{StaticResource SelectedCoverTemplate}"
+                                CanUserResize="False" />
                             <DataGridTextColumn
                                 Header="Files"
                                 IsReadOnly="True"

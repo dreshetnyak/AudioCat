@@ -150,6 +150,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ICommand ClearPaths { get; }
     public ICommand MoveSelected { get; }
     public ICommand SelectTags { get; }
+    public ICommand SelectCover { get; }
 
     public int ProgressPercentage
     {
@@ -195,6 +196,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ClearPaths = new RelayCommand(Files.Clear);
         Cancel = new RelayCommand(concatenate.Cancel);
         SelectTags = new RelayParameterCommand(OnSelectTags);
+        SelectCover = new RelayParameterCommand(OnSelectCover);
 
         Files.CollectionChanged += OnFilesCollectionChanged;
     }
@@ -215,6 +217,23 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         foreach (var currentFile in Files) 
             currentFile.IsTagsSource = currentFile == selectedFile;
+    }
+
+    private void OnSelectCover(object? obj)
+    {
+        if (obj is not AudioFileViewModel selectedFile)
+            return;
+
+        if (selectedFile.IsCoverSource)
+        {
+            selectedFile.IsCoverSource = false;
+            return;
+        }
+
+        if (!selectedFile.HasCover)
+            return;
+
+        selectedFile.IsCoverSource = !selectedFile.IsCoverSource;
     }
 
     private void OnStarting(object? sender, EventArgs e)
