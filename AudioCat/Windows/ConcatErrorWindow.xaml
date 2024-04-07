@@ -22,8 +22,7 @@
             Text="{Binding Errors, Mode=OneTime}"
             IsReadOnly="True"
             VerticalScrollBarVisibility="Auto"
-            HorizontalScrollBarVisibility="Auto"
-            />
+            HorizontalScrollBarVisibility="Auto" />
 
         <Grid 
             Grid.Row="2"

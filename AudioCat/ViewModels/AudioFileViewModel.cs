@@ -58,11 +58,12 @@ public sealed class AudioFileViewModel : IAudioFile, INotifyPropertyChanged
         HasCover = HasCoverStream(Streams);
     }
 
+    private static IReadOnlyList<string> SupportedImageCodecs { get; } = ["mjpeg", "png"];
     private static bool HasCoverStream(IEnumerable<IMediaStream> streams)
     {
         foreach (var stream in streams)
         {
-            if (stream.CodecName != null && stream.CodecName.Equals("mjpeg", StringComparison.OrdinalIgnoreCase))
+            if (stream.CodecName != null && SupportedImageCodecs.Contains(stream.CodecName))
                 return true;
         }
 

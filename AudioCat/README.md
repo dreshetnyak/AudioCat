@@ -2,6 +2,19 @@
 
 A tool for concatenating audio files.
 
+AudioCat v1.4.0
+===============
+Bug. The escaping of the input file names was done incorrectly causing concatenation to fail in some cases.
+Fix. Corrected the algorithm of selection of the default tags and cover image when the files is added to the list.
+New. Now when the files are added they are properly sorted.
+New. Now when adding filed the first file that contains an audio stream define the expected encoding, the rest of the files is skipped if their encoding doesn't match.
+New. If files was skipped during addition a dialog will pop-up listing the files and reasons for skipping.
+New. When the files are added using drag-and-drop the first file is automatically selected.
+
+AudioCat v1.3.0
+===============
+Now can add cover images to the output file.
+
 AudioCat v1.2.0
 ===============
 When saving the concatenated file, now the save dialog opens to the path of the first file.
@@ -17,13 +30,11 @@ Now handling concatenation errors, displaying them and offering to delete the ou
 
 Backlog
 =======
-Cover image pass-through
-Audio streams mapping
+Auto-select the first file when adding by files selection or directory selection.
 Subtitle streams
 General logs view
-DataGrid more columns, cover checkmark
 Multi select for moving multiple files
 Add support for more audio files formats
 More intelligent suggested file names
 Configuration.
-Globalization, Localization
+Globalization, Localization.

@@ -1,7 +1,7 @@
-﻿using System.IO;
-using System.Windows;
+﻿using System.Windows;
 using AudioCat.Models;
 using AudioCat.ViewModels;
+using AudioCat.Windows;
 
 namespace AudioCat;
 
@@ -21,28 +21,29 @@ public partial class MainWindow : Window
         DataContext = viewModel;
     }
 
-    // Code that accepts drag and drop files
+    // Code that accepts drag and drop audioFiles
     private void OnDataGridDrop(object sender, DragEventArgs e)
     {
         if (e.Data.GetData(DataFormats.FileDrop, true) is string[] fileNames && fileNames.Length != 0) 
             _ = AddFilesAsync(fileNames); // Long operation, we fire the task and forget
     }
 
-    private async Task AddFilesAsync(IEnumerable<string> fileNames)
+    private async Task AddFilesAsync(IReadOnlyList<string> fileNames)
     {
         try
         {
             ViewModel.IsUserEntryEnabled = false;
 
-            var sortedFileNames = fileNames.OrderBy(s => s).ToArray();
             ViewModel.Files.Clear();
-            foreach (var fileName in sortedFileNames)
-            {
-                var probeResponse = await AudioFileService.Probe(fileName, CancellationToken.None);
-                if (probeResponse.IsSuccess)
-                    ViewModel.Files.Add(new AudioFileViewModel(probeResponse.Data!, ViewModel.Files.Count == 0));
-            }
+            var (audioFiles, skippedFiles) = await AudioFileService.GetAudioFiles(fileNames, CancellationToken.None);
+            foreach (var audioFile in audioFiles)
+                ViewModel.Files.Add(audioFile);
 
+            if (ViewModel.Files.Count > 0)
+                ViewModel.SelectedFile = ViewModel.Files.First();
+
+            if (skippedFiles.Count > 0) 
+                new SkippedFilesWindow(skippedFiles).ShowDialog();
         }
         finally
         {

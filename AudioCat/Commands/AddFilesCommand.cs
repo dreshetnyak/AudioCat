@@ -3,6 +3,7 @@ using System.Windows;
 using AudioCat.Models;
 using AudioCat.Services;
 using AudioCat.ViewModels;
+using AudioCat.Windows;
 
 namespace AudioCat.Commands
 {
@@ -15,17 +16,18 @@ namespace AudioCat.Commands
         {
             try
             {
-                var fileNames = SelectionDialog.ChooseFilesToOpen("MP3 Audio|*.mp3", true);
+                var fileNames = SelectionDialog.ChooseFilesToOpen("MP3 Audio|*.mp3|M4B Audio|*.m4b|M4A Audio|*.m4a|AAC Audio|*.aac|Other Audio|*.*", true);
                 if (fileNames.Length == 0)
                     return Response<object>.Success();
 
-                foreach (var fileName in fileNames)
-                {
-                    var probeResponse = await AudioFileService.Probe(fileName, CancellationToken.None); // TODO Cancellation support
-                    if (probeResponse.IsFailure) //TODO Log the error
-                        continue;
-                    AudioFiles.Add(new AudioFileViewModel(probeResponse.Data!, AudioFiles.Count == 0));
-                }
+                var sortedFileNames = Files.Sort(fileNames);
+
+                var (audioFiles, skippedFiles) = await AudioFileService.GetAudioFiles(sortedFileNames, CancellationToken.None); // TODO Cancellation support
+                foreach (var file in audioFiles) 
+                    AudioFiles.Add(file);
+
+                if (skippedFiles.Count > 0)
+                    new SkippedFilesWindow(skippedFiles).ShowDialog();
 
                 return Response<object>.Success();
             }

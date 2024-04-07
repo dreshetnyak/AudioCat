@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using AudioCat.FFmpeg;
+﻿using AudioCat.FFmpeg;
 using AudioCat.Models;
 using System.IO;
 using System.Text;
@@ -128,14 +127,14 @@ internal class FFmpegService : IAudioFileService
         sb.AppendLine("ffconcat version 1.0");
         foreach (var audioFile in audioFiles)
         {
-            var fileName = audioFile.File.FullName;
-            if (fileName.Contains('\'')) // Escape quotation marks contained in the file name
-                fileName = fileName.Replace("\'", "\\\'", StringComparison.Ordinal); //TODO Test if it actually works
+            var fileName = EscapeFilePath(audioFile.File.FullName);
             sb.AppendLine($"file \'{fileName}\'");
         }
 
         File.WriteAllText(listFile, sb.ToString());
         return listFile;
+
+        static string EscapeFilePath(string path) => path.Replace("\\", "/").Replace("'", "'\\''");
     }
 
     private static async Task<string> CreateMetadataFile(IEnumerable<AudioFileViewModel> audioFiles, CancellationToken ctx)
@@ -274,7 +273,7 @@ internal class FFmpegService : IAudioFileService
         return imageFiles;
     }
 
-    private static IReadOnlyList<string> KnownImageCodecs { get; } = [ "mjpeg", "png" ];
+    private static IReadOnlyList<string> KnownImageCodecs { get; } = ["mjpeg", "png"];
     private static IReadOnlyList<IMediaStream> GetImageStreams(IAudioFile audioFile)
     {
         var streams = new List<IMediaStream>();
@@ -306,4 +305,86 @@ internal class FFmpegService : IAudioFileService
             return Response<IResult>.Failure(ex.Message);
         }
     }
+
+    private static IReadOnlyList<string> SupportedAudioCodecs { get; } = ["mp3", "aac"];
+    public async Task<(IReadOnlyCollection<AudioFileViewModel> audioFiles, IReadOnlyList<(string filePath, string skipReason)> skippedFiles)> GetAudioFiles(IReadOnlyList<string> fileNames, CancellationToken ctx)
+    {
+        var sortedFileNames = Files.Sort(fileNames);
+
+        var codec = "";
+        var isTagsSourceSelected = false;
+        var isCoverSourceSelected = false;
+
+        var audioFiles = new List<AudioFileViewModel>(fileNames.Count);
+        var skippedFiles = new List<(string filePath, string skipReason)>();
+
+        foreach (var fileName in sortedFileNames)
+        {
+            var probeResponse = await Probe(fileName, ctx);
+            if (probeResponse.IsFailure)
+            {
+                skippedFiles.Add((fileName, probeResponse.Message));
+                continue;
+            }
+
+            var file = probeResponse.Data!;
+
+            var codecSelectResult = SelectCodec(file, ref codec);
+            if (codecSelectResult.IsFailure)
+            {
+                skippedFiles.Add((fileName, codecSelectResult.Message));
+                continue;
+            }
+
+            var isTagsSource = !isTagsSourceSelected && file.Tags.Count > 0;
+            if (isTagsSource)
+                isTagsSourceSelected = true;
+
+            var audioFileViewModel = new AudioFileViewModel(probeResponse.Data!, isTagsSource);
+            if (!isCoverSourceSelected && audioFileViewModel.HasCover)
+            {
+                audioFileViewModel.IsCoverSource = true;
+                isCoverSourceSelected = true;
+            }
+
+            audioFiles.Add(audioFileViewModel);
+        }
+
+        return (audioFiles, skippedFiles);
+
+        static string GetCodecName(IAudioFile audioFile)
+        {
+            foreach (var stream in audioFile.Streams)
+            {
+                if (SupportedAudioCodecs.Contains(stream.CodecName))
+                    return stream.CodecName ?? "";
+            }
+
+            return "";
+        }
+
+        static bool HasStreamWithCodec(IAudioFile audioFile, string codecName)
+        {
+            foreach (var stream in audioFile.Streams)
+            {
+                if (stream.CodecName == codecName)
+                    return true;
+            }
+
+            return false;
+        }
+
+        static IResult SelectCodec(IAudioFile audioFile, ref string selectedCodec)
+        {
+            if (selectedCodec == "")
+                return (selectedCodec = GetCodecName(audioFile)) != ""
+                    ? Result.Success()
+                    : Result.Failure("Doesn't contain any supported audio streams");
+
+            return HasStreamWithCodec(audioFile, selectedCodec)
+                ? Result.Success()
+                : Result.Failure($"Doesn't contain any audio stream encoded with '{selectedCodec}' codec");
+        }
+    }
+
 }
