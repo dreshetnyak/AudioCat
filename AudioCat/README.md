@@ -2,6 +2,10 @@
 
 A tool for concatenating audio files.
 
+AudioCat v1.4.1
+===============
+Bug. Adding cover was causing the concatenation error dialog to pop-up with an empty error message.
+
 AudioCat v1.4.0
 ===============
 Bug. The escaping of the input file names was done incorrectly causing concatenation to fail in some cases.

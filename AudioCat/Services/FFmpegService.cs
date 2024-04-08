@@ -190,7 +190,7 @@ internal class FFmpegService : IAudioFileService
                 Process.OutputType.Error,
                 ctx);
 
-            return !string.IsNullOrEmpty(response)
+            return string.IsNullOrEmpty(response)
                 ? Response<IResult>.Success()
                 : Response<IResult>.Failure(response);
         }
