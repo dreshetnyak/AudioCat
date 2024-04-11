@@ -30,7 +30,12 @@ public sealed class ConcatenateCommand(IAudioFileService audioFileService, IAudi
             if (AudioFiles.Count == 0)
                 return Response<object>.Failure("No files to concatenate");
 
-            var outputFileName = SelectionDialog.ChooseFileToSave("MP3 Audio|*.mp3", GetSuggestedFileName(), GetInitialDirectory());
+            var codec = AudioFileService.GetAudioCodec(AudioFiles);
+
+            var outputFileName = SelectionDialog.ChooseFileToSave(
+                codec == "aac" ? "AAC Audio|*.m4b" : "MP3 Audio|*.mp3", 
+                GetSuggestedFileName(codec), 
+                GetInitialDirectory());
             if (outputFileName == "")
                 return Response<object>.Success();
             
@@ -54,21 +59,23 @@ public sealed class ConcatenateCommand(IAudioFileService audioFileService, IAudi
         catch { /* ignore */ }
     }
 
-    private string GetSuggestedFileName()
+    private string GetSuggestedFileName(string codec)
     {
         var firstFile = AudioFiles.First().FilePath;
+
+        var extension = codec == "aac" ? ".m4b" : ".mp3";
 
         var fileInfo = new FileInfo(firstFile);
         var suggestedName = fileInfo.Directory?.Name ?? "";
         if (suggestedName != "")
-            return suggestedName + ".mp3";
+            return suggestedName + extension;
             
         suggestedName = fileInfo.Name;
         if (suggestedName == "")
-            return ".mp3";
+            return extension;
         var withoutExtension = Path.GetFileNameWithoutExtension(suggestedName);
 
-        return withoutExtension + ".Cat.mp3";
+        return withoutExtension + ".Cat" + extension;
     }
 
     private string GetInitialDirectory() => 

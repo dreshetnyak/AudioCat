@@ -29,6 +29,7 @@ internal class FFmpegService : IAudioFileService
         }
     }
 
+    private static IReadOnlyList<string> StatusLineContent { get; } = ["size=", "time=", "bitrate=", "speed="];
     public async Task<IResult> Concatenate(IReadOnlyList<AudioFileViewModel> audioFiles, string outputFileName, Action<IProcessingStats> onStatusUpdate, CancellationToken ctx)
     {
         var errorMessage = new StringBuilder();
@@ -93,6 +94,8 @@ internal class FFmpegService : IAudioFileService
 
         void OnStatus(string status)
         {
+            if (IsErrorToIgnore(status))
+                return;
             if (IsErrorMessage(status))
                 errorMessage.AppendLine(status);
             else
@@ -100,7 +103,7 @@ internal class FFmpegService : IAudioFileService
         }
 
         static bool IsErrorMessage(string status) => 
-            status.StartsWith('[') || !new[] { "size=", "time=", "bitrate=", "speed=" }.Any(status.Contains);
+            status.StartsWith('[') || !StatusLineContent.Any(status.Contains);
     }
 
     private static string GenerateTempOutputFileFrom(string outputFileName)
@@ -144,7 +147,7 @@ internal class FFmpegService : IAudioFileService
             return "";
 
         var metadataFile = Path.GetTempFileName();
-        var extractResult = await ExtractMetadata(file.FilePath, metadataFile, ctx);
+        var extractResult = await ExtractMetadata(file.FilePath, metadataFile, true, ctx);
 
         if (extractResult.IsSuccess)
             return metadataFile;
@@ -155,7 +158,7 @@ internal class FFmpegService : IAudioFileService
         return "";
     }
 
-    private static async Task<IResult> ExtractMetadata(string fileFullName, string outputFile, CancellationToken ctx)
+    private static async Task<IResult> ExtractMetadata(string fileFullName, string outputFile, bool discardChapters, CancellationToken ctx)
     {
         var errorMessage = new StringBuilder();
         await Process.Run(
@@ -165,9 +168,13 @@ internal class FFmpegService : IAudioFileService
             Process.OutputType.Error,
             ctx);
 
-        return errorMessage.Length == 0 
-            ? Result.Success()
-            : Result.Failure(errorMessage.ToString());
+        if (errorMessage.Length != 0 && !IsErrorToIgnore(errorMessage.ToString()))
+            return Result.Failure(errorMessage.ToString());
+
+        if (discardChapters)
+            DiscardChapters(outputFile);
+
+        return Result.Success();
 
         void OnError(string statusLine)
         {
@@ -175,6 +182,32 @@ internal class FFmpegService : IAudioFileService
                 errorMessage.Append(Environment.NewLine);
             errorMessage.Append(statusLine.Trim());
         }
+    }
+
+    private static void DiscardChapters(string metadataFile)
+    {
+        string[] fileLines;
+        try { fileLines = File.ReadAllLines(metadataFile); }
+        catch { return; }
+
+        var chapterFound = false;
+        var fileContent = new StringBuilder();
+        foreach (var fileLine in fileLines)
+        {
+            if (fileLine == "[CHAPTER]")
+            {
+                chapterFound = true;
+                break;
+            }
+
+            fileContent.AppendLine(fileLine);
+        }
+
+        if (!chapterFound)
+            return;
+
+        try { File.WriteAllText(metadataFile, fileContent.ToString()); }
+        catch { /* ignore */ }
     }
 
     private static async Task<IResult> AddImages(string audioFile, IReadOnlyList<(IMediaStream imageStream, string imageFile)> audioFileImages, string outputFile, CancellationToken ctx)
@@ -296,9 +329,13 @@ internal class FFmpegService : IAudioFileService
                 Process.OutputType.Error,
                 ctx);
 
-            return string.IsNullOrEmpty(response)
-                ? Response<IResult>.Success()
-                : Response<IResult>.Failure(response);
+            if (!string.IsNullOrEmpty(response) && !IsErrorToIgnore(response))
+                return Response<IResult>.Failure(response);
+
+            var fileInfo = new FileInfo(outputFileName);
+            return fileInfo.Length != 0 
+                ? Response<IResult>.Success() 
+                : Response<IResult>.Failure($"Unable to extract the image from the stream #{sourceStreamIndex}, the image will not be present in the output file");
         }
         catch (Exception ex)
         {
@@ -306,8 +343,20 @@ internal class FFmpegService : IAudioFileService
         }
     }
 
+    private static IReadOnlyList<string> ErrorsToIgnore { get; } = ["Invalid PNG signature", "    Last message repeated 1 times"];
+    private static bool IsErrorToIgnore(string response)
+    {
+        foreach (var error in response.Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (ErrorsToIgnore.All(errorToIgnore => !error.Contains(errorToIgnore)))
+                return false;
+        }
+
+        return true;
+    }
+
     private static IReadOnlyList<string> SupportedAudioCodecs { get; } = ["mp3", "aac"];
-    public async Task<(IReadOnlyCollection<AudioFileViewModel> audioFiles, IReadOnlyList<(string filePath, string skipReason)> skippedFiles)> GetAudioFiles(IReadOnlyList<string> fileNames, CancellationToken ctx)
+    public async Task<(IReadOnlyCollection<AudioFileViewModel> audioFiles, IReadOnlyList<(string filePath, string skipReason)> skippedFiles)> GetAudioFiles(IReadOnlyList<string> fileNames, bool selectMetadata, bool selectCover, CancellationToken ctx)
     {
         var sortedFileNames = Files.Sort(fileNames);
 
@@ -336,12 +385,17 @@ internal class FFmpegService : IAudioFileService
                 continue;
             }
 
-            var isTagsSource = !isTagsSourceSelected && file.Tags.Count > 0;
-            if (isTagsSource)
-                isTagsSourceSelected = true;
+            var isTagsSource = false;
+            if (selectMetadata)
+            {
+                isTagsSource = !isTagsSourceSelected && file.Tags.Count > 0;
+                if (isTagsSource)
+                    isTagsSourceSelected = true;
+            }
 
             var audioFileViewModel = new AudioFileViewModel(probeResponse.Data!, isTagsSource);
-            if (!isCoverSourceSelected && audioFileViewModel.HasCover)
+
+            if (selectCover && !isCoverSourceSelected && audioFileViewModel.HasCover)
             {
                 audioFileViewModel.IsCoverSource = true;
                 isCoverSourceSelected = true;
@@ -351,40 +405,80 @@ internal class FFmpegService : IAudioFileService
         }
 
         return (audioFiles, skippedFiles);
-
-        static string GetCodecName(IAudioFile audioFile)
-        {
-            foreach (var stream in audioFile.Streams)
-            {
-                if (SupportedAudioCodecs.Contains(stream.CodecName))
-                    return stream.CodecName ?? "";
-            }
-
-            return "";
-        }
-
-        static bool HasStreamWithCodec(IAudioFile audioFile, string codecName)
-        {
-            foreach (var stream in audioFile.Streams)
-            {
-                if (stream.CodecName == codecName)
-                    return true;
-            }
-
-            return false;
-        }
-
-        static IResult SelectCodec(IAudioFile audioFile, ref string selectedCodec)
-        {
-            if (selectedCodec == "")
-                return (selectedCodec = GetCodecName(audioFile)) != ""
-                    ? Result.Success()
-                    : Result.Failure("Doesn't contain any supported audio streams");
-
-            return HasStreamWithCodec(audioFile, selectedCodec)
-                ? Result.Success()
-                : Result.Failure($"Doesn't contain any audio stream encoded with '{selectedCodec}' codec");
-        }
     }
 
+    private static IResult SelectCodec(IAudioFile audioFile, ref string selectedCodec)
+    {
+        if (selectedCodec == "")
+            return (selectedCodec = GetCodecName(audioFile)) != ""
+                ? Result.Success()
+                : Result.Failure("Doesn't contain any supported audio streams");
+
+        return HasStreamWithCodec(audioFile, selectedCodec)
+            ? Result.Success()
+            : Result.Failure($"Doesn't contain any audio stream encoded with '{selectedCodec}' codec");
+    }
+
+    private static string GetCodecName(IAudioFile audioFile)
+    {
+        foreach (var stream in audioFile.Streams)
+        {
+            if (SupportedAudioCodecs.Contains(stream.CodecName))
+                return stream.CodecName ?? "";
+        }
+
+        return "";
+    }
+
+    private static bool HasStreamWithCodec(IAudioFile audioFile, string codecName)
+    {
+        foreach (var stream in audioFile.Streams)
+        {
+            if (stream.CodecName == codecName)
+                return true;
+        }
+
+        return false;
+    }
+
+    public string GetAudioCodec(IReadOnlyCollection<AudioFileViewModel> audioFiles)
+    {
+        foreach (var audioFile in audioFiles)
+        {
+            string codec;
+            if ((codec = GetCodecName(audioFile)) != "")
+                return codec;
+        }
+
+        return "";
+    }
+
+    public async Task<IResult> IsAccessible()
+    {
+        try
+        {
+            var response = await Process.Run(
+                "ffmpeg.exe",
+                "-version",
+                Process.OutputType.Standard,
+                CancellationToken.None);
+
+            if (!response.StartsWith("ffmpeg version"))
+                return Result.Failure("The tool 'ffmpeg.exe' is not found");
+
+            response = await Process.Run(
+                "ffprobe.exe",
+                "-version",
+                Process.OutputType.Standard,
+                CancellationToken.None);
+
+            return response.StartsWith("ffprobe version")
+                ? Result.Success()
+                : Result.Failure("The tool 'ffprobe.exe' is not found");
+        }
+        catch (Exception ex)
+        {
+            return Result.Failure("Unable to check the accessibility of the tools ffmpeg and ffprobe. " + ex.Message);
+        }
+    }
 }

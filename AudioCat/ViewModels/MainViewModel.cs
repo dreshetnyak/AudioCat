@@ -3,6 +3,8 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using AudioCat.Commands;
 using AudioCat.Models;
@@ -13,7 +15,7 @@ namespace AudioCat.ViewModels;
 public sealed class MainViewModel : INotifyPropertyChanged
 {
     #region Backing Fields
-    private bool _isUserEntryEnabled = true;
+    private bool _isUserEntryEnabled;
     private long _totalSize;
     private TimeSpan _totalDuration;
     private int _progressPercentage;
@@ -24,21 +26,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     #endregion
 
+    private IAudioFileService AudioFileService { get; }
     private IAudioFilesContainer AudioFilesContainer { get; }
     public ObservableCollection<AudioFileViewModel> Files { get; } // AudioFilesContainer.Files
     public AudioFileViewModel? SelectedFile
     {
         get => AudioFilesContainer.SelectedFile;
-        set
-        {
-            AudioFilesContainer.SelectedFile = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(IsMoveUpEnabled));
-            OnPropertyChanged(nameof(IsMoveDownEnabled));
-            OnPropertyChanged(nameof(IsRemoveEnabled));
-            UpdateExpanders();
-        }
+        set => AudioFilesContainer.SelectedFile = value;
     }
+    public Action? FocusFileDataGrid { get; set; }
 
     private void UpdateExpanders()
     {
@@ -176,13 +172,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
 
     public MainViewModel(
+        IAudioFileService audioFileService,
         IAudioFilesContainer audioFilesContainer,
         AddFilesCommand addFilesCommand,
         AddPathCommand addPathCommand,
         MoveFileCommand moveFileCommand,
         ConcatenateCommand concatenate)
     {
+        AudioFileService  = audioFileService;
+        
         AudioFilesContainer = audioFilesContainer;
+        if (audioFilesContainer is INotifyPropertyChanged container)
+            container.PropertyChanged += OnSelectedAudioFileChanged;
+
         Files = audioFilesContainer.Files;
         AddFiles = addFilesCommand;
         AddPath = addPathCommand;
@@ -199,6 +201,27 @@ public sealed class MainViewModel : INotifyPropertyChanged
         SelectCover = new RelayParameterCommand(OnSelectCover);
 
         Files.CollectionChanged += OnFilesCollectionChanged;
+
+        _ = VerifyAudioFileServiceIsAccessible();
+    }
+
+    private void OnSelectedAudioFileChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(SelectedFile));
+        OnPropertyChanged(nameof(IsMoveUpEnabled));
+        OnPropertyChanged(nameof(IsMoveDownEnabled));
+        OnPropertyChanged(nameof(IsRemoveEnabled));
+        UpdateExpanders();
+        FocusFileDataGrid?.Invoke();
+    }
+
+    private async Task VerifyAudioFileServiceIsAccessible()
+    {
+        var result = await AudioFileService.IsAccessible();
+        if (result.IsSuccess)
+            IsUserEntryEnabled = true;
+        else
+            MessageBox.Show(result.Message + Environment.NewLine + "The tools 'ffmpeg.exe' and 'ffprobe.exe' are required for the application to work properly. Download the tools and place them in the system path.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
     }
 
     private void OnSelectTags(object? obj)

@@ -24,7 +24,8 @@ public class AddPathCommand(IAudioFileService audioFileService, IAudioFilesConta
             var fileNames = Directory.EnumerateFiles(path, "*.mp3", SearchOption.AllDirectories).ToArray();
             var sortedFileNames = Files.Sort(fileNames);
 
-            var (audioFiles, skippedFiles) = await AudioFileService.GetAudioFiles(sortedFileNames, CancellationToken.None); // TODO Cancellation support
+            var (selectMetadata, selectCover) = SelectionFlags.GetFrom(AudioFiles);
+            var (audioFiles, skippedFiles) = await AudioFileService.GetAudioFiles(sortedFileNames, !selectMetadata, !selectCover, CancellationToken.None); // TODO Cancellation support
             foreach (var file in audioFiles)
                 AudioFiles.Add(file);
 

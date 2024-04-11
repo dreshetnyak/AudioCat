@@ -7,7 +7,7 @@
         xmlns:viewModels="clr-namespace:AudioCat.ViewModels"
         mc:Ignorable="d"
         Icon="/Cat.ico"
-        Title="Audio Cat Tool v1.4.1" Height="640" Width="1024"
+        Title="Audio Cat Tool v1.5.0" Height="640" Width="1024"
         d:DataContext="{d:DesignInstance viewModels:MainViewModel, IsDesignTimeCreatable=False}">
     <Window.Resources>
         <converters:DurationConverter x:Key="DurationConverter" />
@@ -114,7 +114,7 @@
                                     </Image.Style>
                                 </Image>
                             </Button>
-                            <Button
+                            <!--<Button
                                 Command="{Binding Cancel}"
                                 IsEnabled="{Binding IsCancelEnabled}"
                                 ToolTip="Concatenate files">
@@ -132,7 +132,7 @@
                                         </Style>
                                     </Image.Style>
                                 </Image>
-                            </Button>
+                            </Button>-->
 
                         </ToolBar>
 
@@ -264,6 +264,7 @@
                     </ToolBarTray>
 
                     <DataGrid
+                        x:Name="FileDataGrid"
                         Grid.Row="1"
                         HeadersVisibility="Column"
                         IsReadOnly="True"
@@ -392,6 +393,11 @@
                                 </Button>
                             </DataTemplate>
                         </DataGrid.Resources>
+                        <DataGrid.InputBindings>
+                            <KeyBinding Modifiers="Control" Key="Up" Command="{Binding MoveSelected}" CommandParameter="Up" />
+                            <KeyBinding Modifiers="Control" Key="Down" Command="{Binding MoveSelected}" CommandParameter="Down" />
+                            <KeyBinding Key="Delete" Command="{Binding MoveSelected}" CommandParameter="Remove" />
+                        </DataGrid.InputBindings>
                         <DataGrid.Columns>
                             <DataGridTemplateColumn
                                 Header="Tgs"

@@ -4,7 +4,8 @@ using AudioCat.Services;
 using AudioCat.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.ObjectModel;
-using System.IO;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Windows;
 
 namespace AudioCat;
@@ -31,9 +32,24 @@ public partial class App : Application
         ServiceProvider.GetService<MainWindow>()?.Show();
     }
 
-    private class AudioFilesContainer : IAudioFilesContainer
+    private sealed class AudioFilesContainer : IAudioFilesContainer, INotifyPropertyChanged
     {
+        private AudioFileViewModel? _selectedFile;
         public ObservableCollection<AudioFileViewModel> Files { get; } = [];
-        public AudioFileViewModel? SelectedFile { get; set; }
+        public AudioFileViewModel? SelectedFile
+        {
+            get => _selectedFile;
+            set
+            {
+                _selectedFile = value;
+                OnPropertyChanged();
+            }
+        }
+
+        #region INotifyPropertyChanged Implementation
+        public event PropertyChangedEventHandler? PropertyChanged;
+        private void OnPropertyChanged([CallerMemberName] string? propertyName = null) => 
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        #endregion
     }
 }

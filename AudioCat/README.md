@@ -2,6 +2,18 @@
 
 A tool for concatenating audio files.
 
+AudioCat v1.5.0
+===============
+Fix. Now the save file extension is added according to the input files encoding.
+New. Added support for cases when a jpg cover image is erroneously present as a png.
+New. Now app checks if ffmpeg and ffprobe is accessible.
+New. Now can remove a file by pressing Delete, or move files with Ctrl+Up/Down.
+Bug. When adding several files or a directory the first file was always marked as a metadata source event if the source was already selected.
+Fix. Chapters information is now discarded, before it could be writing an incomplete chapters info. Chapters are not supported.
+Fix. Removed error repetition messages, otherwise they were interpreted as errors.
+Fix. Cancel button is hidden now since it is not implemented.
+Fix. If a cover image was invalid that could result in a failure to output a file, now we skip those images.
+
 AudioCat v1.4.1
 ===============
 Bug. Adding cover was causing the concatenation error dialog to pop-up with an empty error message.
@@ -34,8 +46,6 @@ Now handling concatenation errors, displaying them and offering to delete the ou
 
 Backlog
 =======
-Auto-select the first file when adding by files selection or directory selection.
-Subtitle streams
 General logs view
 Multi select for moving multiple files
 Add support for more audio files formats
