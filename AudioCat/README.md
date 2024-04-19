@@ -2,6 +2,12 @@
 
 A tool for concatenating audio files.
 
+AudioCat v1.5.1
+===============
+Bug. If a warning that is ignored was repeated more than one time the error dialog would show anyway.
+Bug. Progress bar calculation was done based on the total file size, that could result in a wrong progress if one of the streams was discarded, now it is based on the duration.
+Fix. If metedata had an encoding BOM error that was always resulting in a concatenation error, now we handle it.
+
 AudioCat v1.5.0
 ===============
 Fix. Now the save file extension is added according to the input files encoding.
@@ -46,6 +52,13 @@ Now handling concatenation errors, displaying them and offering to delete the ou
 
 Backlog
 =======
+
+Allow adding images.
+Generate chapters. Options to generate from file names, from tags as well as passing through existing chapters.
+Pin down tags, streams and chapters.
+Tags, streams and chapters make the presence of content visible.
+Adjust the margin on the right of expanders.
+
 General logs view
 Multi select for moving multiple files
 Add support for more audio files formats

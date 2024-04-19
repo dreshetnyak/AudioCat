@@ -24,6 +24,8 @@ public interface IMediaChapter
     int Id { get; }
     long? Start { get; }
     long? End { get; }
+    decimal? TimeBaseDivident { get; }
+    decimal? TimeBaseDivisor { get; }
     TimeSpan? StartTime { get; }
     TimeSpan? EndTime { get; }
     IReadOnlyList<KeyValuePair<string, string>> Tags { get; }

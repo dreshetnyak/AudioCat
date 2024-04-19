@@ -1,4 +1,5 @@
-﻿using AudioCat.FFmpeg;
+﻿using System.Diagnostics;
+using AudioCat.FFmpeg;
 using AudioCat.Models;
 using System.IO;
 using System.Text;
@@ -36,15 +37,15 @@ internal class FFmpegService : IAudioFileService
         try
         {
             var extractImagesTask = ExtractImages(audioFiles, ctx);
-            var metadataFileTask = CreateMetadataFile(audioFiles, ctx);
-            var listFileTask = Task.Run(() => CreateFilesListFile(audioFiles), ctx);
+            var metadataFileTask = CreateMetadataFile(audioFiles, false, ctx); //TODO Adding chapters
+            var listFileTask = CreateFilesListFile(audioFiles);
 
             var listFile = await listFileTask;
             var metadataFile = await metadataFileTask;
             var extractedImages = await extractImagesTask;
 
             var hasImages = extractedImages.Count > 0;
-            var outputToFile = hasImages ? GenerateTempOutputFileFrom(outputFileName) : outputFileName;
+            var outputToFile = hasImages ? await GenerateTempOutputFileFrom(outputFileName) : outputFileName;
             var args = metadataFile != ""
                 ? $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -i \"{metadataFile}\" -map_metadata 1 -vn -c copy -id3v2_version 3 -write_id3v1 1 -update true \"{outputToFile}\""
                 : $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -vn -c copy -update true \"{outputToFile}\"";
@@ -94,7 +95,7 @@ internal class FFmpegService : IAudioFileService
 
         void OnStatus(string status)
         {
-            if (IsErrorToIgnore(status))
+            if (IsErrorToIgnore(status)) 
                 return;
             if (IsErrorMessage(status))
                 errorMessage.AppendLine(status);
@@ -106,7 +107,7 @@ internal class FFmpegService : IAudioFileService
             status.StartsWith('[') || !StatusLineContent.Any(status.Contains);
     }
 
-    private static string GenerateTempOutputFileFrom(string outputFileName)
+    private static async Task<string> GenerateTempOutputFileFrom(string outputFileName)
     {
         var tryCount = 0;
         while (tryCount++ < 3)
@@ -114,7 +115,7 @@ internal class FFmpegService : IAudioFileService
             try
             {
                 var filePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + Path.GetExtension(outputFileName));
-                File.WriteAllBytes(filePath, []);
+                await File.WriteAllBytesAsync(filePath, []);
                 return filePath;
             }
             catch { /* ignore */ }
@@ -123,7 +124,7 @@ internal class FFmpegService : IAudioFileService
         return "";
     }
 
-    private static string CreateFilesListFile(IEnumerable<IAudioFile> audioFiles)
+    private static async Task<string> CreateFilesListFile(IEnumerable<IAudioFile> audioFiles)
     {
         var listFile = Path.GetTempFileName();
         var sb = new StringBuilder();
@@ -134,23 +135,26 @@ internal class FFmpegService : IAudioFileService
             sb.AppendLine($"file \'{fileName}\'");
         }
 
-        File.WriteAllText(listFile, sb.ToString());
+        await File.WriteAllTextAsync(listFile, sb.ToString());
         return listFile;
 
         static string EscapeFilePath(string path) => path.Replace("\\", "/").Replace("'", "'\\''");
     }
 
-    private static async Task<string> CreateMetadataFile(IEnumerable<AudioFileViewModel> audioFiles, CancellationToken ctx)
+    private static async Task<string> CreateMetadataFile(IReadOnlyList<AudioFileViewModel> audioFiles, bool addChapters, CancellationToken ctx)
     {
         var file = audioFiles.FirstOrDefault(file => file.IsTagsSource);
         if (file == null)
             return "";
 
         var metadataFile = Path.GetTempFileName();
-        var extractResult = await ExtractMetadata(file.FilePath, metadataFile, true, ctx);
-
+        var extractResult = await ExtractMetadata(file.FilePath, metadataFile, ctx);
         if (extractResult.IsSuccess)
+        {
+            if (addChapters)
+                await AddChapters(audioFiles, metadataFile, ctx);
             return metadataFile;
+        }
 
         try { await Task.Run(() => File.Delete(metadataFile), CancellationToken.None); }
         catch { /* ignore */ }
@@ -158,7 +162,7 @@ internal class FFmpegService : IAudioFileService
         return "";
     }
 
-    private static async Task<IResult> ExtractMetadata(string fileFullName, string outputFile, bool discardChapters, CancellationToken ctx)
+    private static async Task<IResult> ExtractMetadata(string fileFullName, string outputFile, CancellationToken ctx)
     {
         var errorMessage = new StringBuilder();
         await Process.Run(
@@ -168,11 +172,15 @@ internal class FFmpegService : IAudioFileService
             Process.OutputType.Error,
             ctx);
 
-        if (errorMessage.Length != 0 && !IsErrorToIgnore(errorMessage.ToString()))
+        if (errorMessage.Length != 0 && 
+            !IsErrorToIgnore(errorMessage.ToString()))
             return Result.Failure(errorMessage.ToString());
 
-        if (discardChapters)
-            DiscardChapters(outputFile);
+        var fileInfo = new FileInfo(outputFile);
+        if (fileInfo.Length == 0)
+            return Result.Failure();
+
+        await DiscardChapters(outputFile);
 
         return Result.Success();
 
@@ -184,10 +192,10 @@ internal class FFmpegService : IAudioFileService
         }
     }
 
-    private static void DiscardChapters(string metadataFile)
+    private static async Task DiscardChapters(string metadataFile)
     {
         string[] fileLines;
-        try { fileLines = File.ReadAllLines(metadataFile); }
+        try { fileLines = await File.ReadAllLinesAsync(metadataFile); }
         catch { return; }
 
         var chapterFound = false;
@@ -206,8 +214,65 @@ internal class FFmpegService : IAudioFileService
         if (!chapterFound)
             return;
 
-        try { File.WriteAllText(metadataFile, fileContent.ToString()); }
+        try { await File.WriteAllTextAsync(metadataFile, fileContent.ToString()); }
         catch { /* ignore */ }
+    }
+
+    private static async Task AddChapters(IReadOnlyList<AudioFileViewModel> audioFiles, string metadataFile, CancellationToken ctx)
+    {
+        var startTime = TimeSpan.Zero;
+        var chapters = new StringBuilder();
+        foreach (var file in audioFiles)
+        {
+            if (!file.Duration.HasValue)
+                continue;
+
+            foreach (var chapter in file.Chapters)
+            {
+                ctx.ThrowIfCancellationRequested();
+                AddChapter(chapter);
+            }
+
+            startTime = startTime.Add(file.Duration.Value);
+            ctx.ThrowIfCancellationRequested();
+        }
+
+        if (chapters.Length != 0)
+            await File.AppendAllTextAsync(metadataFile, chapters.ToString(), CancellationToken.None);
+        
+        return;
+
+        void AddChapter(IMediaChapter chapter)
+        {
+            if (!chapter.Start.HasValue || 
+                !chapter.End.HasValue || 
+                chapter.TimeBaseDivident is not > 0 || 
+                chapter.TimeBaseDivisor is not > 0 ||
+                chapter.Tags.Count == 0)
+                return;
+
+            var divident = chapter.TimeBaseDivident.Value;
+            var divisor = chapter.TimeBaseDivisor.Value;
+            var multiplier = divident / divisor;
+
+            var startSeconds = chapter.Start.Value * multiplier;
+            var relativeStart = TimeSpan.FromSeconds((double)startSeconds);
+            var absoluteStart = relativeStart.Add(startTime);
+
+            var endSeconds = chapter.End.Value * multiplier;
+            var relativeEnd = TimeSpan.FromSeconds((double)endSeconds);
+            var absoluteEnd = relativeEnd.Add(startTime);
+
+            var calculatedStart = (long)((decimal)absoluteStart.TotalSeconds * 1000m);
+            var calculatedEnd = (long)((decimal)absoluteEnd.TotalSeconds * 1000m);
+                
+            chapters.AppendLine("[CHAPTER]");
+            chapters.AppendLine("TIMEBASE=1/1000");
+            chapters.AppendLine($"START={calculatedStart}");
+            chapters.AppendLine($"END={calculatedEnd}");
+            foreach (var tag in chapter.Tags) 
+                chapters.AppendLine($"{tag.Key}={tag.Value}");
+        }
     }
 
     private static async Task<IResult> AddImages(string audioFile, IReadOnlyList<(IMediaStream imageStream, string imageFile)> audioFileImages, string outputFile, CancellationToken ctx)
@@ -343,7 +408,14 @@ internal class FFmpegService : IAudioFileService
         }
     }
 
-    private static IReadOnlyList<string> ErrorsToIgnore { get; } = ["Invalid PNG signature", "    Last message repeated 1 times"];
+    private static IReadOnlyList<string> ErrorsToIgnore { get; } =
+    [
+        "Invalid PNG signature",
+        "    Last message repeated ",
+        "Incorrect BOM value\r\nError reading comment frame, skipped",
+        "Incorrect BOM value",
+        "Error reading comment frame, skipped"
+    ];
     private static bool IsErrorToIgnore(string response)
     {
         foreach (var error in response.Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries))

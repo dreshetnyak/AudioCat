@@ -4,7 +4,6 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 using AudioCat.Commands;
 using AudioCat.Models;
@@ -261,7 +260,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void OnStarting(object? sender, EventArgs e)
     {
-        ProgressPercentage = 10000;
+        ProgressPercentage = PROGRESS_BAR_MAX_VALUE;
         IsUserEntryEnabled = false;
     }
 
@@ -311,8 +310,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
             sb.Append("...");
 
         ProgressText = sb.ToString();
-        if (stats.Size.HasValue)
-            ProgressPercentage = GetProgressPercentage((long)stats.Size.Value);
+        if (stats.Time != TimeSpan.Zero)
+            ProgressPercentage = GetProgressPercentage(stats.Time);
     }
 
     private void OnFilesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -346,13 +345,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
 
     private const int PROGRESS_BAR_MAX_VALUE = 10000;
-    private int GetProgressPercentage(long processedSize)
+    private int GetProgressPercentage(TimeSpan processedDuration)
     {
-        return TotalSize != 0
-            ? (int)((decimal)processedSize * PROGRESS_BAR_MAX_VALUE / TotalSize)
-            : PROGRESS_BAR_MAX_VALUE;
+        if (TotalDuration == TimeSpan.Zero)
+            return PROGRESS_BAR_MAX_VALUE;
+        var percentage = (int)((decimal)processedDuration.TotalSeconds * PROGRESS_BAR_MAX_VALUE / (decimal)TotalDuration.TotalSeconds);
+        if (percentage < 0)
+            percentage = 0;
+        if (percentage > PROGRESS_BAR_MAX_VALUE)
+            percentage = PROGRESS_BAR_MAX_VALUE;
+        return percentage;
     }
-
 
     #region INotifyPropertyChanged Implementation
     public event PropertyChangedEventHandler? PropertyChanged;
