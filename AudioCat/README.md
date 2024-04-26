@@ -2,6 +2,14 @@
 
 A tool for concatenating audio files.
 
+AudioCat v1.6.0
+===============
+New. Now we can add image files along with audio files, those images will be attached as cover images. 
+New. Now if files are dragged and Left Ctrl is pressed the files will be added without clearing existing files.
+Bug. The text values read from files was dispayed garbled if they was in a language different from English.
+Fix. If a bitrate was not available an empty value was shown, now it is 'N/A'.
+Bug. When adding files by a directory, only mp3 files were added.
+
 AudioCat v1.5.1
 ===============
 Bug. If a warning that is ignored was repeated more than one time the error dialog would show anyway.

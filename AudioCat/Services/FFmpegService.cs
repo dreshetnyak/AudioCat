@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using AudioCat.FFmpeg;
+﻿using AudioCat.FFmpeg;
 using AudioCat.Models;
 using System.IO;
 using System.Text;
@@ -7,9 +6,9 @@ using AudioCat.ViewModels;
 
 namespace AudioCat.Services;
 
-internal class FFmpegService : IAudioFileService
+internal class FFmpegService : IMediaFileService
 {
-    public async Task<IResponse<IAudioFile>> Probe(string fileFullName, CancellationToken ctx)
+    public async Task<IResponse<IMediaFile>> Probe(string fileFullName, CancellationToken ctx)
     {
         try
         {
@@ -19,26 +18,26 @@ internal class FFmpegService : IAudioFileService
                 Process.OutputType.Standard,
                 ctx);
 
-            var createResponse = FFprobeAudioFile.Create(fileFullName, probeResponse);
+            var createResponse = FFprobeMediaFile.Create(fileFullName, probeResponse);
             return createResponse.IsSuccess
-                ? Response<IAudioFile>.Success(createResponse.Data!)
-                : Response<IAudioFile>.Failure(createResponse);
+                ? Response<IMediaFile>.Success(createResponse.Data!)
+                : Response<IMediaFile>.Failure(createResponse);
         }
         catch (Exception ex)
         {
-            return Response<IAudioFile>.Failure(ex.Message);
+            return Response<IMediaFile>.Failure(ex.Message);
         }
     }
 
     private static IReadOnlyList<string> StatusLineContent { get; } = ["size=", "time=", "bitrate=", "speed="];
-    public async Task<IResult> Concatenate(IReadOnlyList<AudioFileViewModel> audioFiles, string outputFileName, Action<IProcessingStats> onStatusUpdate, CancellationToken ctx)
+    public async Task<IResult> Concatenate(IReadOnlyList<MediaFileViewModel> mediaFiles, string outputFileName, Action<IProcessingStats> onStatusUpdate, CancellationToken ctx)
     {
         var errorMessage = new StringBuilder();
         try
         {
-            var extractImagesTask = ExtractImages(audioFiles, ctx);
-            var metadataFileTask = CreateMetadataFile(audioFiles, false, ctx); //TODO Adding chapters
-            var listFileTask = CreateFilesListFile(audioFiles);
+            var extractImagesTask = ExtractImages(mediaFiles, ctx);
+            var metadataFileTask = CreateMetadataFile(mediaFiles, false, ctx); //TODO Adding chapters
+            var listFileTask = CreateFilesListFile(mediaFiles);
 
             var listFile = await listFileTask;
             var metadataFile = await metadataFileTask;
@@ -124,14 +123,16 @@ internal class FFmpegService : IAudioFileService
         return "";
     }
 
-    private static async Task<string> CreateFilesListFile(IEnumerable<IAudioFile> audioFiles)
+    private static async Task<string> CreateFilesListFile(IEnumerable<IMediaFile> mediaFiles)
     {
         var listFile = Path.GetTempFileName();
         var sb = new StringBuilder();
         sb.AppendLine("ffconcat version 1.0");
-        foreach (var audioFile in audioFiles)
+        foreach (var mediaFile in mediaFiles)
         {
-            var fileName = EscapeFilePath(audioFile.File.FullName);
+            if (IsImageFile(mediaFile))
+                continue;
+            var fileName = EscapeFilePath(mediaFile.File.FullName);
             sb.AppendLine($"file \'{fileName}\'");
         }
 
@@ -141,9 +142,9 @@ internal class FFmpegService : IAudioFileService
         static string EscapeFilePath(string path) => path.Replace("\\", "/").Replace("'", "'\\''");
     }
 
-    private static async Task<string> CreateMetadataFile(IReadOnlyList<AudioFileViewModel> audioFiles, bool addChapters, CancellationToken ctx)
+    private static async Task<string> CreateMetadataFile(IReadOnlyList<MediaFileViewModel> mediaFiles, bool addChapters, CancellationToken ctx)
     {
-        var file = audioFiles.FirstOrDefault(file => file.IsTagsSource);
+        var file = mediaFiles.FirstOrDefault(file => file.IsTagsSource);
         if (file == null)
             return "";
 
@@ -152,7 +153,7 @@ internal class FFmpegService : IAudioFileService
         if (extractResult.IsSuccess)
         {
             if (addChapters)
-                await AddChapters(audioFiles, metadataFile, ctx);
+                await AddChapters(mediaFiles, metadataFile, ctx);
             return metadataFile;
         }
 
@@ -218,11 +219,11 @@ internal class FFmpegService : IAudioFileService
         catch { /* ignore */ }
     }
 
-    private static async Task AddChapters(IReadOnlyList<AudioFileViewModel> audioFiles, string metadataFile, CancellationToken ctx)
+    private static async Task AddChapters(IReadOnlyList<MediaFileViewModel> mediaFiles, string metadataFile, CancellationToken ctx)
     {
         var startTime = TimeSpan.Zero;
         var chapters = new StringBuilder();
-        foreach (var file in audioFiles)
+        foreach (var file in mediaFiles)
         {
             if (!file.Duration.HasValue)
                 continue;
@@ -306,10 +307,10 @@ internal class FFmpegService : IAudioFileService
         return query.ToString();
     }
 
-    private static string GetMappingQuery(int audioFilesCount)
+    private static string GetMappingQuery(int mediaFilesCount)
     {
         var query = new StringBuilder();
-        for (var i = 0; i < audioFilesCount; i++) 
+        for (var i = 0; i < mediaFilesCount; i++) 
             query.Append($" -map {i + 1}");
         return query.ToString();
     }
@@ -336,21 +337,23 @@ internal class FFmpegService : IAudioFileService
         return query.ToString();
     }
 
-    private static async Task<IReadOnlyList<(IMediaStream imageStream, string imageFile)>> ExtractImages(IEnumerable<AudioFileViewModel> audioFiles, CancellationToken ctx)
+    private static async Task<IReadOnlyList<(IMediaStream imageStream, string imageFile)>> ExtractImages(IEnumerable<MediaFileViewModel> mediaFiles, CancellationToken ctx)
     {
         var imageFiles = new List<(IMediaStream imageStream, string imageFile)>();
-        foreach (var file in audioFiles)
+        foreach (var file in mediaFiles)
         {
-            if (file.IsCoverSource)
+            if (IsImageFile(file))
+                imageFiles.Add((file.Streams[0], file.FilePath));
+            else if (file.IsCoverSource)
                 imageFiles.AddRange(await ExtractImages(file, ctx));
         }
 
         return imageFiles;
     }
 
-    private static async Task<IReadOnlyList<(IMediaStream imageStream, string imageFile)>> ExtractImages(IAudioFile audioFile, CancellationToken ctx)
+    private static async Task<IReadOnlyList<(IMediaStream imageStream, string imageFile)>> ExtractImages(IMediaFile mediaFile, CancellationToken ctx)
     {
-        var imageStreams = GetImageStreams(audioFile);
+        var imageStreams = GetImageStreams(mediaFile);
         if (imageStreams.Count == 0)
             return [];
 
@@ -358,7 +361,7 @@ internal class FFmpegService : IAudioFileService
         foreach (var imageStream in imageStreams)
         {
             var outputFileName = Path.GetTempFileName();
-            var extractResult = await ExtractImageStream(audioFile.FilePath, outputFileName, imageStream.Index, ctx);
+            var extractResult = await ExtractImageStream(mediaFile.FilePath, outputFileName, imageStream.Index, ctx);
             if (extractResult.IsSuccess)
                 imageFiles.Add((imageStream, outputFileName));
             else
@@ -372,10 +375,10 @@ internal class FFmpegService : IAudioFileService
     }
 
     private static IReadOnlyList<string> KnownImageCodecs { get; } = ["mjpeg", "png"];
-    private static IReadOnlyList<IMediaStream> GetImageStreams(IAudioFile audioFile)
+    private static IReadOnlyList<IMediaStream> GetImageStreams(IMediaFile mediaFile)
     {
         var streams = new List<IMediaStream>();
-        foreach (var stream in audioFile.Streams)
+        foreach (var stream in mediaFile.Streams)
         {
             if (KnownImageCodecs.Contains(stream.CodecName))
                 streams.Add(stream);
@@ -428,7 +431,8 @@ internal class FFmpegService : IAudioFileService
     }
 
     private static IReadOnlyList<string> SupportedAudioCodecs { get; } = ["mp3", "aac"];
-    public async Task<(IReadOnlyCollection<AudioFileViewModel> audioFiles, IReadOnlyList<(string filePath, string skipReason)> skippedFiles)> GetAudioFiles(IReadOnlyList<string> fileNames, bool selectMetadata, bool selectCover, CancellationToken ctx)
+    private static IReadOnlyList<string> SupportedImageCodecs { get; } = ["mjpeg", "png"];
+    public async Task<(IReadOnlyList<MediaFileViewModel> mediaFiles, IReadOnlyList<(string filePath, string skipReason)> skippedFiles)> GetMediaFiles(IReadOnlyList<string> fileNames, bool selectMetadata, bool selectCover, CancellationToken ctx)
     {
         var sortedFileNames = Files.Sort(fileNames);
 
@@ -436,7 +440,7 @@ internal class FFmpegService : IAudioFileService
         var isTagsSourceSelected = false;
         var isCoverSourceSelected = false;
 
-        var audioFiles = new List<AudioFileViewModel>(fileNames.Count);
+        var mediaFiles = new List<MediaFileViewModel>(fileNames.Count);
         var skippedFiles = new List<(string filePath, string skipReason)>();
 
         foreach (var fileName in sortedFileNames)
@@ -448,52 +452,55 @@ internal class FFmpegService : IAudioFileService
                 continue;
             }
 
-            var file = probeResponse.Data!;
-
-            var codecSelectResult = SelectCodec(file, ref codec);
-            if (codecSelectResult.IsFailure)
-            {
-                skippedFiles.Add((fileName, codecSelectResult.Message));
-                continue;
-            }
-
             var isTagsSource = false;
-            if (selectMetadata)
+            var file = probeResponse.Data!;
+            var isImageFile = IsImageFile(file);
+            if (!isImageFile)
             {
-                isTagsSource = !isTagsSourceSelected && file.Tags.Count > 0;
-                if (isTagsSource)
-                    isTagsSourceSelected = true;
+                var codecSelectResult = SelectCodec(file, ref codec);
+                if (codecSelectResult.IsFailure)
+                {
+                    skippedFiles.Add((fileName, codecSelectResult.Message));
+                    continue;
+                }
+
+                if (selectMetadata)
+                {
+                    isTagsSource = !isTagsSourceSelected && file.Tags.Count > 0;
+                    if (isTagsSource)
+                        isTagsSourceSelected = true;
+                }
             }
 
-            var audioFileViewModel = new AudioFileViewModel(probeResponse.Data!, isTagsSource);
+            var mediaFileViewModel = new MediaFileViewModel(probeResponse.Data!, isTagsSource, isImageFile);
 
-            if (selectCover && !isCoverSourceSelected && audioFileViewModel.HasCover)
+            if (!isImageFile && selectCover && !isCoverSourceSelected && mediaFileViewModel.HasCover)
             {
-                audioFileViewModel.IsCoverSource = true;
+                mediaFileViewModel.IsCoverSource = true;
                 isCoverSourceSelected = true;
             }
 
-            audioFiles.Add(audioFileViewModel);
+            mediaFiles.Add(mediaFileViewModel);
         }
 
-        return (audioFiles, skippedFiles);
+        return (mediaFiles, skippedFiles);
     }
 
-    private static IResult SelectCodec(IAudioFile audioFile, ref string selectedCodec)
+    private static IResult SelectCodec(IMediaFile mediaFile, ref string selectedCodec)
     {
-        if (selectedCodec == "")
-            return (selectedCodec = GetCodecName(audioFile)) != ""
+        if (selectedCodec == "") // Acceptable codec has not been selected yet
+            return (selectedCodec = GetCodecName(mediaFile)) != ""
                 ? Result.Success()
                 : Result.Failure("Doesn't contain any supported audio streams");
 
-        return HasStreamWithCodec(audioFile, selectedCodec)
+        return HasStreamWithCodec(mediaFile, selectedCodec)
             ? Result.Success()
             : Result.Failure($"Doesn't contain any audio stream encoded with '{selectedCodec}' codec");
     }
 
-    private static string GetCodecName(IAudioFile audioFile)
+    private static string GetCodecName(IMediaFile mediaFile)
     {
-        foreach (var stream in audioFile.Streams)
+        foreach (var stream in mediaFile.Streams)
         {
             if (SupportedAudioCodecs.Contains(stream.CodecName))
                 return stream.CodecName ?? "";
@@ -502,9 +509,12 @@ internal class FFmpegService : IAudioFileService
         return "";
     }
 
-    private static bool HasStreamWithCodec(IAudioFile audioFile, string codecName)
+    private static bool IsImageFile(IMediaFile mediaFile) => 
+        mediaFile.Streams.Count == 1 && SupportedImageCodecs.Contains(mediaFile.Streams[0].CodecName);
+
+    private static bool HasStreamWithCodec(IMediaFile mediaFile, string codecName)
     {
-        foreach (var stream in audioFile.Streams)
+        foreach (var stream in mediaFile.Streams)
         {
             if (stream.CodecName == codecName)
                 return true;
@@ -513,9 +523,9 @@ internal class FFmpegService : IAudioFileService
         return false;
     }
 
-    public string GetAudioCodec(IReadOnlyCollection<AudioFileViewModel> audioFiles)
+    public string GetAudioCodec(IReadOnlyCollection<MediaFileViewModel> mediaFiles)
     {
-        foreach (var audioFile in audioFiles)
+        foreach (var audioFile in mediaFiles)
         {
             string codec;
             if ((codec = GetCodecName(audioFile)) != "")

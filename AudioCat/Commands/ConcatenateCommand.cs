@@ -12,10 +12,10 @@ public sealed class StatusEventArgs(IProcessingStats stats) : EventArgs
 }
 public delegate void StatusEventHandler(object sender, StatusEventArgs eventArgs);
 
-public sealed class ConcatenateCommand(IAudioFileService audioFileService, IAudioFilesContainer audioFilesContainer) : CommandBase
+public sealed class ConcatenateCommand(IMediaFileService mediaFileService, IMediaFilesContainer mediaFilesContainer) : CommandBase
 {
-    public IAudioFileService AudioFileService { get; } = audioFileService;
-    private ObservableCollection<AudioFileViewModel> AudioFiles { get; } = audioFilesContainer.Files;
+    public IMediaFileService MediaFileService { get; } = mediaFileService;
+    private ObservableCollection<MediaFileViewModel> MediaFiles { get; } = mediaFilesContainer.Files;
 
     private CancellationTokenSource? Cts { get; set; }
 
@@ -27,10 +27,10 @@ public sealed class ConcatenateCommand(IAudioFileService audioFileService, IAudi
         {
             Cts = new CancellationTokenSource();
 
-            if (AudioFiles.Count == 0)
+            if (MediaFiles.Count == 0)
                 return Response<object>.Failure("No files to concatenate");
 
-            var codec = AudioFileService.GetAudioCodec(AudioFiles);
+            var codec = MediaFileService.GetAudioCodec(MediaFiles);
 
             var outputFileName = SelectionDialog.ChooseFileToSave(
                 codec == "aac" ? "AAC Audio|*.m4b" : "MP3 Audio|*.mp3", 
@@ -39,7 +39,7 @@ public sealed class ConcatenateCommand(IAudioFileService audioFileService, IAudi
             if (outputFileName == "")
                 return Response<object>.Success();
             
-            var concatResult = await AudioFileService.Concatenate(AudioFiles, outputFileName, OnStatusUpdate, CancellationToken.None);
+            var concatResult = await MediaFileService.Concatenate(MediaFiles, outputFileName, OnStatusUpdate, CancellationToken.None);
             return concatResult.IsSuccess
                 ? Response<object>.Success()
                 : Response<object>.Failure(outputFileName, concatResult.Message);
@@ -61,7 +61,7 @@ public sealed class ConcatenateCommand(IAudioFileService audioFileService, IAudi
 
     private string GetSuggestedFileName(string codec)
     {
-        var firstFile = AudioFiles.First().FilePath;
+        var firstFile = MediaFiles.First().FilePath;
 
         var extension = codec == "aac" ? ".m4b" : ".mp3";
 
@@ -79,7 +79,7 @@ public sealed class ConcatenateCommand(IAudioFileService audioFileService, IAudi
     }
 
     private string GetInitialDirectory() => 
-        new FileInfo(AudioFiles.First().FilePath).Directory?.FullName ?? "";
+        new FileInfo(MediaFiles.First().FilePath).Directory?.FullName ?? "";
 
     private void OnStatusUpdate(IProcessingStats stats) => StatusUpdate?.Invoke(this, new StatusEventArgs(stats));
 }

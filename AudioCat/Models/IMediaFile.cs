@@ -31,7 +31,7 @@ public interface IMediaChapter
     IReadOnlyList<KeyValuePair<string, string>> Tags { get; }
 }
 
-public interface IAudioFile
+public interface IMediaFile
 {
     FileInfo File { get; }
     string FileName { get; }

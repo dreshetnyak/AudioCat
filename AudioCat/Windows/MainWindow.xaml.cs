@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using AudioCat.Models;
 using AudioCat.ViewModels;
 using AudioCat.Windows;
@@ -12,13 +13,13 @@ namespace AudioCat;
 public partial class MainWindow : Window
 {
     private MainViewModel ViewModel { get; }
-    private IAudioFileService AudioFileService { get; }
+    private IMediaFileService MediaFileService { get; }
 
-    public MainWindow(MainViewModel viewModel, IAudioFileService audioFileService)
+    public MainWindow(MainViewModel viewModel, IMediaFileService mediaFileService)
     {
         viewModel.FocusFileDataGrid = FocusFileDataGrid;
         ViewModel = viewModel;
-        AudioFileService = audioFileService;
+        MediaFileService = mediaFileService;
         InitializeComponent();
         DataContext = viewModel;
     }
@@ -57,22 +58,25 @@ public partial class MainWindow : Window
         return Result.Success();
     }
     
-    // Code that accepts drag and drop audioFiles
+    // Code that accepts drag and drop mediaFiles
     private void OnDataGridDrop(object sender, DragEventArgs e)
     {
-        if (e.Data.GetData(DataFormats.FileDrop, true) is string[] fileNames && fileNames.Length != 0) 
-            _ = AddFilesAsync(fileNames); // Long operation, we fire the task and forget
+        if (e.Data.GetData(DataFormats.FileDrop, true) is not string[] fileNames || fileNames.Length == 0) 
+            return;
+        var isCtrlPressed = Keyboard.IsKeyDown(Key.LeftCtrl);
+        _ = AddFilesAsync(fileNames, isCtrlPressed); // Long operation, we fire the task and forget
     }
 
-    private async Task AddFilesAsync(IReadOnlyList<string> fileNames)
+    private async Task AddFilesAsync(IReadOnlyList<string> fileNames, bool isCtrlPressed)
     {
         try
         {
             ViewModel.IsUserEntryEnabled = false;
 
-            ViewModel.Files.Clear();
-            var (audioFiles, skippedFiles) = await AudioFileService.GetAudioFiles(fileNames, true, true, CancellationToken.None);
-            foreach (var audioFile in audioFiles)
+            if (!isCtrlPressed)
+                ViewModel.Files.Clear();
+            var (mediaFiles, skippedFiles) = await MediaFileService.GetMediaFiles(fileNames, true, true, CancellationToken.None);
+            foreach (var audioFile in mediaFiles)
                 ViewModel.Files.Add(audioFile);
 
             if (ViewModel.Files.Count > 0)

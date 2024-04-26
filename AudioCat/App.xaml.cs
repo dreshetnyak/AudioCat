@@ -17,8 +17,8 @@ public partial class App : Application
 {
     private ServiceProvider ServiceProvider { get; } =
         new ServiceCollection()
-            .AddSingleton<IAudioFilesContainer, AudioFilesContainer>()
-            .AddSingleton<IAudioFileService, FFmpegService>()
+            .AddSingleton<IMediaFilesContainer, MediaFilesContainer>()
+            .AddSingleton<IMediaFileService, FFmpegService>()
             .AddSingleton<AddFilesCommand>()
             .AddSingleton<AddPathCommand>()
             .AddSingleton<MoveFileCommand>()
@@ -32,11 +32,11 @@ public partial class App : Application
         ServiceProvider.GetService<MainWindow>()?.Show();
     }
 
-    private sealed class AudioFilesContainer : IAudioFilesContainer, INotifyPropertyChanged
+    private sealed class MediaFilesContainer : IMediaFilesContainer, INotifyPropertyChanged
     {
-        private AudioFileViewModel? _selectedFile;
-        public ObservableCollection<AudioFileViewModel> Files { get; } = [];
-        public AudioFileViewModel? SelectedFile
+        private MediaFileViewModel? _selectedFile;
+        public ObservableCollection<MediaFileViewModel> Files { get; } = [];
+        public MediaFileViewModel? SelectedFile
         {
             get => _selectedFile;
             set

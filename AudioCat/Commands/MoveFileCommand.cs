@@ -2,13 +2,13 @@
 
 namespace AudioCat.Commands;
 
-public class MoveFileCommand(IAudioFilesContainer audioFilesContainer) : CommandBase
+public class MoveFileCommand(IMediaFilesContainer mediaFilesContainer) : CommandBase
 {
-    private IAudioFilesContainer AudioFilesContainer { get; } = audioFilesContainer;
+    private IMediaFilesContainer MediaFilesContainer { get; } = mediaFilesContainer;
 
     protected override Task<IResponse<object>> Command(object? parameter)
     {
-        var selectedFile = AudioFilesContainer.SelectedFile;
+        var selectedFile = MediaFilesContainer.SelectedFile;
         if (string.IsNullOrEmpty(selectedFile?.File.FullName))
             return Task.FromResult(Response<object>.Success());
         if (parameter is not string action)
@@ -29,45 +29,45 @@ public class MoveFileCommand(IAudioFilesContainer audioFilesContainer) : Command
         return Task.FromResult(Response<object>.Success());
     }
 
-    private void MoveUp(IAudioFile file)
+    private void MoveUp(IMediaFile file)
     {
         var fileIndex = IndexOf(file);
         if (fileIndex <= 0) 
             return;
         var newFileIndex = fileIndex - 1;
-        var files = AudioFilesContainer.Files;
+        var files = MediaFilesContainer.Files;
         files.Move(fileIndex, newFileIndex);
-        AudioFilesContainer.SelectedFile = files[newFileIndex];
+        MediaFilesContainer.SelectedFile = files[newFileIndex];
     }
 
-    private void MoveDown(IAudioFile file)
+    private void MoveDown(IMediaFile file)
     {
         var fileIndex = IndexOf(file);
-        var files = AudioFilesContainer.Files;
+        var files = MediaFilesContainer.Files;
         if (fileIndex < 0 || fileIndex >= files.Count - 1) 
             return;
         var newFileIndex = fileIndex + 1;
         files.Move(fileIndex, newFileIndex);
-        AudioFilesContainer.SelectedFile = files[newFileIndex];
+        MediaFilesContainer.SelectedFile = files[newFileIndex];
     }
 
-    private void Remove(IAudioFile file)
+    private void Remove(IMediaFile file)
     {
         var fileIndex = IndexOf(file);
         if (fileIndex == -1)
             return;
-        var files = AudioFilesContainer.Files;
+        var files = MediaFilesContainer.Files;
         files.RemoveAt(fileIndex);
         if (files.Count != 0)
-            AudioFilesContainer.SelectedFile = files[fileIndex < files.Count ? fileIndex : files.Count - 1];
+            MediaFilesContainer.SelectedFile = files[fileIndex < files.Count ? fileIndex : files.Count - 1];
     }
 
-    private int IndexOf(IAudioFile file)
+    private int IndexOf(IMediaFile file)
     {
-        var audioFiles = AudioFilesContainer.Files;
-        for (var i = 0; i < audioFiles.Count; i++)
+        var mediaFiles = MediaFilesContainer.Files;
+        for (var i = 0; i < mediaFiles.Count; i++)
         {
-            var audioFile = audioFiles[i];
+            var audioFile = mediaFiles[i];
             if (audioFile == file)
                 return i;
         }

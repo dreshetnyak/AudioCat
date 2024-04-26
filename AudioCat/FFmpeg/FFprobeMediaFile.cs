@@ -4,7 +4,7 @@ using System.Xml.Linq;
 
 namespace AudioCat.FFmpeg;
 
-public class FFprobeAudioFile : IAudioFile
+public class FFprobeMediaFile : IMediaFile
 {
     public FileInfo File { get; private init; }
     public string FileName => File.Name ?? "";
@@ -18,22 +18,22 @@ public class FFprobeAudioFile : IAudioFile
     public IReadOnlyList<IMediaChapter> Chapters { get; private init; } = [];
     public IReadOnlyList<IMediaStream> Streams { get; private init; } = [];
 
-    private FFprobeAudioFile(FileInfo file) { File = file; }
+    private FFprobeMediaFile(FileInfo file) { File = file; }
 
-    public static IResponse<IAudioFile> Create(string fileFullName, string probeXmlResponse)
+    public static IResponse<IMediaFile> Create(string fileFullName, string probeXmlResponse)
     {
         if (string.IsNullOrEmpty(fileFullName))
-            return Response<IAudioFile>.Failure("Missing the file name");
+            return Response<IMediaFile>.Failure("Missing the file name");
         var fileInfo = new FileInfo(fileFullName);
         if (!fileInfo.Exists)
-            return Response<IAudioFile>.Failure($"The file {fileFullName.ToQuoted()} doesn't exist");
+            return Response<IMediaFile>.Failure($"The file {fileFullName.ToQuoted()} doesn't exist");
 
         XElement response;
         try { response = XElement.Parse(probeXmlResponse); }
-        catch (Exception ex) { return Response<IAudioFile>.Failure($"Failed to parse FFprobe response to XML: {ex.Message}"); }
+        catch (Exception ex) { return Response<IMediaFile>.Failure($"Failed to parse FFprobe response to XML: {ex.Message}"); }
 
         var format = response.Element("format");
-        return Response<IAudioFile>.Success(new FFprobeAudioFile(fileInfo)
+        return Response<IMediaFile>.Success(new FFprobeMediaFile(fileInfo)
         {
             FormatName = format?.Attribute("format_name")?.Value,
             FormatDescription = format?.Attribute("format_long_name")?.Value,

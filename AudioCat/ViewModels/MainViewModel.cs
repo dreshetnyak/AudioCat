@@ -25,13 +25,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     #endregion
 
-    private IAudioFileService AudioFileService { get; }
-    private IAudioFilesContainer AudioFilesContainer { get; }
-    public ObservableCollection<AudioFileViewModel> Files { get; } // AudioFilesContainer.Files
-    public AudioFileViewModel? SelectedFile
+    private IMediaFileService MediaFileService { get; }
+    private IMediaFilesContainer MediaFilesContainer { get; }
+    public ObservableCollection<MediaFileViewModel> Files { get; }
+    public MediaFileViewModel? SelectedFile
     {
-        get => AudioFilesContainer.SelectedFile;
-        set => AudioFilesContainer.SelectedFile = value;
+        get => MediaFilesContainer.SelectedFile;
+        set => MediaFilesContainer.SelectedFile = value;
     }
     public Action? FocusFileDataGrid { get; set; }
 
@@ -95,7 +95,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(IsRemoveEnabled));
         }
     }
-    public bool IsConcatenateEnabled => IsUserEntryEnabled && Files.Count > 0;
+    public bool IsConcatenateEnabled => IsUserEntryEnabled && Files.Count > 0 && TotalDuration != TimeSpan.Zero;
     public bool IsCancelEnabled => !IsUserEntryEnabled;
     public bool IsAddPathEnabled => IsUserEntryEnabled;
     public bool IsAddFilesEnabled => IsUserEntryEnabled;
@@ -171,20 +171,20 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
 
     public MainViewModel(
-        IAudioFileService audioFileService,
-        IAudioFilesContainer audioFilesContainer,
+        IMediaFileService mediaFileService,
+        IMediaFilesContainer mediaFilesContainer,
         AddFilesCommand addFilesCommand,
         AddPathCommand addPathCommand,
         MoveFileCommand moveFileCommand,
         ConcatenateCommand concatenate)
     {
-        AudioFileService  = audioFileService;
+        MediaFileService  = mediaFileService;
         
-        AudioFilesContainer = audioFilesContainer;
-        if (audioFilesContainer is INotifyPropertyChanged container)
+        MediaFilesContainer = mediaFilesContainer;
+        if (mediaFilesContainer is INotifyPropertyChanged container)
             container.PropertyChanged += OnSelectedAudioFileChanged;
 
-        Files = audioFilesContainer.Files;
+        Files = mediaFilesContainer.Files;
         AddFiles = addFilesCommand;
         AddPath = addPathCommand;
         MoveSelected = moveFileCommand;
@@ -201,7 +201,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         Files.CollectionChanged += OnFilesCollectionChanged;
 
-        _ = VerifyAudioFileServiceIsAccessible();
+        _ = VerifyMediaFileServiceIsAccessible();
     }
 
     private void OnSelectedAudioFileChanged(object? sender, PropertyChangedEventArgs e)
@@ -214,9 +214,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
         FocusFileDataGrid?.Invoke();
     }
 
-    private async Task VerifyAudioFileServiceIsAccessible()
+    private async Task VerifyMediaFileServiceIsAccessible()
     {
-        var result = await AudioFileService.IsAccessible();
+        var result = await MediaFileService.IsAccessible();
         if (result.IsSuccess)
             IsUserEntryEnabled = true;
         else
@@ -225,7 +225,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void OnSelectTags(object? obj)
     {
-        if (obj is not AudioFileViewModel selectedFile)
+        if (obj is not MediaFileViewModel selectedFile)
             return;
 
         if (selectedFile.IsTagsSource)
@@ -243,7 +243,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void OnSelectCover(object? obj)
     {
-        if (obj is not AudioFileViewModel selectedFile)
+        if (obj is not MediaFileViewModel selectedFile)
             return;
 
         if (selectedFile.IsCoverSource)

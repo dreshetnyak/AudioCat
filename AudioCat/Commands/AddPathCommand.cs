@@ -8,10 +8,10 @@ using AudioCat.Windows;
 
 namespace AudioCat.Commands;
 
-public class AddPathCommand(IAudioFileService audioFileService, IAudioFilesContainer audioFilesContainer) : CommandBase
+public sealed class AddPathCommand(IMediaFileService mediaFileService, IMediaFilesContainer mediaFilesContainer) : CommandBase
 {
-    private IAudioFileService AudioFileService { get; } = audioFileService;
-    private ObservableCollection<AudioFileViewModel> AudioFiles { get; } = audioFilesContainer.Files;
+    private IMediaFileService MediaFileService { get; } = mediaFileService;
+    private ObservableCollection<MediaFileViewModel> MediaFiles { get; } = mediaFilesContainer.Files;
 
     protected override async Task<IResponse<object>> Command(object? parameter)
     {
@@ -21,13 +21,13 @@ public class AddPathCommand(IAudioFileService audioFileService, IAudioFilesConta
             if (path == "")
                 return Response<object>.Success();
 
-            var fileNames = Directory.EnumerateFiles(path, "*.mp3", SearchOption.AllDirectories).ToArray();
+            var fileNames = Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).ToArray();
             var sortedFileNames = Files.Sort(fileNames);
 
-            var (selectMetadata, selectCover) = SelectionFlags.GetFrom(AudioFiles);
-            var (audioFiles, skippedFiles) = await AudioFileService.GetAudioFiles(sortedFileNames, !selectMetadata, !selectCover, CancellationToken.None); // TODO Cancellation support
-            foreach (var file in audioFiles)
-                AudioFiles.Add(file);
+            var (selectMetadata, selectCover) = SelectionFlags.GetFrom(MediaFiles);
+            var (mediaFiles, skippedFiles) = await MediaFileService.GetMediaFiles(sortedFileNames, !selectMetadata, !selectCover, CancellationToken.None); // TODO Cancellation support
+            foreach (var file in mediaFiles)
+                MediaFiles.Add(file);
 
             if (skippedFiles.Count > 0)
                 new SkippedFilesWindow(skippedFiles).ShowDialog();

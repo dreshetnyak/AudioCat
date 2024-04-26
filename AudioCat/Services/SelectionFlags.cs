@@ -10,12 +10,12 @@ namespace AudioCat.Services;
 
 internal static class SelectionFlags
 {
-    public static (bool metadataSelected, bool coverSelected) GetFrom(IEnumerable<AudioFileViewModel> audioFiles) 
+    public static (bool metadataSelected, bool coverSelected) GetFrom(IEnumerable<MediaFileViewModel> mediaFiles) 
     {
         var metadataSelected = false;
         var coverSelected = false;
 
-        foreach (var file in audioFiles)
+        foreach (var file in mediaFiles)
         {
             if (file is { HasTags: true, IsTagsSource: true })
                 metadataSelected = true;

@@ -5,22 +5,22 @@ using AudioCat.Models;
 
 namespace AudioCat.ViewModels;
 
-public sealed class AudioFileViewModel : IAudioFile, INotifyPropertyChanged
+public sealed class MediaFileViewModel : IMediaFile, INotifyPropertyChanged
 {
     private bool _isTagsSource;
     private bool _isCoverSource;
-    private IAudioFile AudioFile { get; }
+    private IMediaFile MediaFile { get; }
 
-    public FileInfo File => AudioFile.File;
-    public string FileName => AudioFile.FileName;
-    public string FilePath => AudioFile.FilePath;
-    public string? FormatName => AudioFile.FormatName;
-    public string? FormatDescription => AudioFile.FormatDescription;
-    public decimal? StartTime => AudioFile.StartTime;
-    public TimeSpan? Duration => AudioFile.Duration;
-    public decimal? Bitrate => AudioFile.Bitrate;
-    public IReadOnlyList<KeyValuePair<string, string>> Tags => AudioFile.Tags;
-    public IReadOnlyList<IMediaChapter> Chapters => AudioFile.Chapters;
+    public FileInfo File => MediaFile.File;
+    public string FileName => MediaFile.FileName;
+    public string FilePath => MediaFile.FilePath;
+    public string? FormatName { get; }
+    public string? FormatDescription => MediaFile.FormatDescription;
+    public decimal? StartTime => MediaFile.StartTime;
+    public TimeSpan? Duration => MediaFile.Duration;
+    public decimal? Bitrate => MediaFile.Bitrate;
+    public IReadOnlyList<KeyValuePair<string, string>> Tags => MediaFile.Tags;
+    public IReadOnlyList<IMediaChapter> Chapters => MediaFile.Chapters;
     public IReadOnlyList<IMediaStream> Streams { get; }
 
     public bool IsTagsSource
@@ -34,7 +34,7 @@ public sealed class AudioFileViewModel : IAudioFile, INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
-    public bool HasTags => AudioFile.Tags.Count > 0;
+    public bool HasTags => MediaFile.Tags.Count > 0;
 
     public bool IsCoverSource
     {
@@ -49,17 +49,20 @@ public sealed class AudioFileViewModel : IAudioFile, INotifyPropertyChanged
     }
     public bool HasCover { get; }
 
-    public AudioFileViewModel(IAudioFile audioFile, bool isTagsSource = false, bool isCoverSource = false)
+    public MediaFileViewModel(IMediaFile mediaFile, bool isTagsSource = false, bool isCoverSource = false)
     {
         _isTagsSource = isTagsSource;
         _isCoverSource = isCoverSource;
-        AudioFile = audioFile;
-        Streams = GetStreams(audioFile);
-        HasCover = HasCoverStream(Streams);
+        MediaFile = mediaFile;
+        Streams = GetStreams(mediaFile);
+        HasCover = HasImageStream(Streams);
+        FormatName = Streams.Count == 1 && HasCover // Only one stream and has a cover - it is an image file
+            ? MediaFile.Streams[0].CodecName
+            : MediaFile.FormatName;
     }
 
     private static IReadOnlyList<string> SupportedImageCodecs { get; } = ["mjpeg", "png"];
-    private static bool HasCoverStream(IEnumerable<IMediaStream> streams)
+    private static bool HasImageStream(IEnumerable<IMediaStream> streams)
     {
         foreach (var stream in streams)
         {
@@ -70,12 +73,12 @@ public sealed class AudioFileViewModel : IAudioFile, INotifyPropertyChanged
         return false;
     }
 
-    private static IMediaStream[] GetStreams(IAudioFile audioFile)
+    private static IMediaStream[] GetStreams(IMediaFile mediaFile)
     {
-        var streamsCount = audioFile.Streams.Count;
+        var streamsCount = mediaFile.Streams.Count;
         var streams = new IMediaStream[streamsCount];
         for (var i = 0; i < streamsCount; i++) 
-            streams[i] = new MediaStreamViewModel(audioFile.Streams[i]);
+            streams[i] = new MediaStreamViewModel(mediaFile.Streams[i]);
         return streams;
     }
 
