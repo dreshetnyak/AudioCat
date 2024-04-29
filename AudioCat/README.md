@@ -2,6 +2,10 @@
 
 A tool for concatenating audio files.
 
+AudioCat v1.6.1
+===============
+Bug. If the cover image was added to the list then it was deleted by the end of concatenation, not it is preserved.
+
 AudioCat v1.6.0
 ===============
 New. Now we can add image files along with audio files, those images will be attached as cover images. 

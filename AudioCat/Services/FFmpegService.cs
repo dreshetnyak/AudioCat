@@ -77,7 +77,9 @@ internal class FFmpegService : IMediaFileService
 
             foreach (var extractedImage in extractedImages)
             {
-                try { await Task.Run(() => File.Delete(extractedImage.imageFile), CancellationToken.None); }
+                if (!extractedImage.IsTemporaryFile)
+                    continue;
+                try { await Task.Run(() => File.Delete(extractedImage.Path), CancellationToken.None); }
                 catch { /* ignore */ }
             }
 
@@ -276,7 +278,7 @@ internal class FFmpegService : IMediaFileService
         }
     }
 
-    private static async Task<IResult> AddImages(string audioFile, IReadOnlyList<(IMediaStream imageStream, string imageFile)> audioFileImages, string outputFile, CancellationToken ctx)
+    private static async Task<IResult> AddImages(string audioFile, IReadOnlyList<ImageFile> audioFileImages, string outputFile, CancellationToken ctx)
     {
         try
         {
@@ -299,11 +301,11 @@ internal class FFmpegService : IMediaFileService
         }
     }
 
-    private static string GetImageFileQuery(IReadOnlyList<(IMediaStream imageStream, string imageFile)> audioFileImages)
+    private static string GetImageFileQuery(IReadOnlyList<ImageFile> audioFileImages)
     {
         var query = new StringBuilder();
-        foreach (var (_, imageFile) in audioFileImages) 
-            query.Append($" -i \"{imageFile}\"");
+        foreach (var imageFile in audioFileImages) 
+            query.Append($" -i \"{imageFile.Path}\"");
         return query.ToString();
     }
 
@@ -315,14 +317,13 @@ internal class FFmpegService : IMediaFileService
         return query.ToString();
     }
 
-    private static string GetMetadataQuery(IReadOnlyList<(IMediaStream imageStream, string imageFile)> audioFileImages)
+    private static string GetMetadataQuery(IReadOnlyList<ImageFile> audioFileImages)
     {
         var query = new StringBuilder();
 
         for (var i = 0; i < audioFileImages.Count; i++)
         {
-            var (imageStream, _) = audioFileImages[i];
-            var tags = imageStream.Tags;
+            var tags = audioFileImages[i].MediaStream.Tags;
             query.Append($" -metadata:s:v:{i} comment=\"Cover (front)\""); // comment has a special meaning for FFmpeg, setting to any not predefined value will cause FFmpeg to change it to "Other".
             if (tags.Count == 0)
                 continue;
@@ -337,13 +338,20 @@ internal class FFmpegService : IMediaFileService
         return query.ToString();
     }
 
-    private static async Task<IReadOnlyList<(IMediaStream imageStream, string imageFile)>> ExtractImages(IEnumerable<MediaFileViewModel> mediaFiles, CancellationToken ctx)
+    private sealed class ImageFile(IMediaStream mediaStream, string path, bool isTemporaryFile)
     {
-        var imageFiles = new List<(IMediaStream imageStream, string imageFile)>();
+        public IMediaStream MediaStream { get; private init; } = mediaStream;
+        public string Path { get; private init; } = path;
+        public bool IsTemporaryFile { get; private init; } = isTemporaryFile;
+    }
+
+    private static async Task<IReadOnlyList<ImageFile>> ExtractImages(IEnumerable<MediaFileViewModel> mediaFiles, CancellationToken ctx)
+    {
+        var imageFiles = new List<ImageFile>();
         foreach (var file in mediaFiles)
         {
             if (IsImageFile(file))
-                imageFiles.Add((file.Streams[0], file.FilePath));
+                imageFiles.Add(new ImageFile(file.Streams[0], file.FilePath, false));
             else if (file.IsCoverSource)
                 imageFiles.AddRange(await ExtractImages(file, ctx));
         }
@@ -351,19 +359,19 @@ internal class FFmpegService : IMediaFileService
         return imageFiles;
     }
 
-    private static async Task<IReadOnlyList<(IMediaStream imageStream, string imageFile)>> ExtractImages(IMediaFile mediaFile, CancellationToken ctx)
+    private static async Task<IReadOnlyList<ImageFile>> ExtractImages(IMediaFile mediaFile, CancellationToken ctx)
     {
         var imageStreams = GetImageStreams(mediaFile);
         if (imageStreams.Count == 0)
             return [];
 
-        var imageFiles = new List<(IMediaStream imageStream, string imageFile)>();
+        var imageFiles = new List<ImageFile>();
         foreach (var imageStream in imageStreams)
         {
             var outputFileName = Path.GetTempFileName();
             var extractResult = await ExtractImageStream(mediaFile.FilePath, outputFileName, imageStream.Index, ctx);
             if (extractResult.IsSuccess)
-                imageFiles.Add((imageStream, outputFileName));
+                imageFiles.Add(new ImageFile(imageStream, outputFileName, true));
             else
             {
                 try { await Task.Run(() => File.Delete(outputFileName), CancellationToken.None); }
