@@ -442,7 +442,7 @@ internal class FFmpegService : IMediaFileService
     private static IReadOnlyList<string> SupportedImageCodecs { get; } = ["mjpeg", "png"];
     public async Task<(IReadOnlyList<MediaFileViewModel> mediaFiles, IReadOnlyList<(string filePath, string skipReason)> skippedFiles)> GetMediaFiles(IReadOnlyList<string> fileNames, bool selectMetadata, bool selectCover, CancellationToken ctx)
     {
-        var sortedFileNames = Files.Sort(fileNames);
+        var sortedFiles = Files.Sort(fileNames);
 
         var codec = "";
         var isTagsSourceSelected = false;
@@ -451,12 +451,19 @@ internal class FFmpegService : IMediaFileService
         var mediaFiles = new List<MediaFileViewModel>(fileNames.Count);
         var skippedFiles = new List<(string filePath, string skipReason)>();
 
-        foreach (var fileName in sortedFileNames)
+        // Start the tasks concurrently
+        var probeTasks = new List<Task<IResponse<IMediaFile>>>(fileNames.Count);
+        foreach (var filePath in sortedFiles) 
+            probeTasks.Add(Probe(filePath, ctx));
+        await Task.WhenAll(probeTasks);
+
+        for (var index = 0; index < probeTasks.Count; index++)
         {
-            var probeResponse = await Probe(fileName, ctx);
+            //IResponse<IMediaFile> probeResponse = await Probe(fileName, ctx);
+            var probeResponse = await probeTasks[index];
             if (probeResponse.IsFailure)
             {
-                skippedFiles.Add((fileName, probeResponse.Message));
+                skippedFiles.Add((sortedFiles[index], probeResponse.Message));
                 continue;
             }
 
@@ -468,7 +475,7 @@ internal class FFmpegService : IMediaFileService
                 var codecSelectResult = SelectCodec(file, ref codec);
                 if (codecSelectResult.IsFailure)
                 {
-                    skippedFiles.Add((fileName, codecSelectResult.Message));
+                    skippedFiles.Add((sortedFiles[index], codecSelectResult.Message));
                     continue;
                 }
 

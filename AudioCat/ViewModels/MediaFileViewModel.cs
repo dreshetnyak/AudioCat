@@ -17,8 +17,8 @@ public sealed class MediaFileViewModel : IMediaFile, INotifyPropertyChanged
     public string? FormatName { get; }
     public string? FormatDescription => MediaFile.FormatDescription;
     public decimal? StartTime => MediaFile.StartTime;
-    public TimeSpan? Duration => MediaFile.Duration;
-    public decimal? Bitrate => MediaFile.Bitrate;
+    public TimeSpan? Duration { get; } 
+    public decimal? Bitrate { get; }
     public IReadOnlyList<KeyValuePair<string, string>> Tags => MediaFile.Tags;
     public IReadOnlyList<IMediaChapter> Chapters => MediaFile.Chapters;
     public IReadOnlyList<IMediaStream> Streams { get; }
@@ -56,9 +56,19 @@ public sealed class MediaFileViewModel : IMediaFile, INotifyPropertyChanged
         MediaFile = mediaFile;
         Streams = GetStreams(mediaFile);
         HasCover = HasImageStream(Streams);
-        FormatName = Streams.Count == 1 && HasCover // Only one stream and has a cover - it is an image file
-            ? MediaFile.Streams[0].CodecName
-            : MediaFile.FormatName;
+        var isImageFile = Streams.Count == 1 && HasCover;
+        if (isImageFile)
+        {
+            FormatName = MediaFile.Streams[0].CodecName;
+            Bitrate = null;
+            Duration = null;
+        }
+        else
+        {
+            FormatName = MediaFile.FormatName;
+            Bitrate = MediaFile.Bitrate;
+            Duration = MediaFile.Duration;
+        }
     }
 
     private static IReadOnlyList<string> SupportedImageCodecs { get; } = ["mjpeg", "png"];

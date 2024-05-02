@@ -2,6 +2,11 @@
 
 A tool for concatenating audio files.
 
+AudioCat v1.7.0
+===============
+New. Now file probing is done in parallel, that can significantly increase files addition speed.
+Bug. The duration and bitrate was shown for JPG files, now it is N/A.
+
 AudioCat v1.6.1
 ===============
 Bug. If the cover image was added to the list then it was deleted by the end of concatenation, not it is preserved.
