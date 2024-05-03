@@ -2,6 +2,11 @@
 
 A tool for concatenating audio files.
 
+AudioCat v1.7.1
+===============
+Fix. The toolbar items is now locked in their places.
+Bug. When adding files by drag-n-drop while pressing Ctrl the tags and image was erroneously selected in the new files.
+
 AudioCat v1.7.0
 ===============
 New. Now file probing is done in parallel, that can significantly increase files addition speed.

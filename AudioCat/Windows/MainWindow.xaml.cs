@@ -75,7 +75,8 @@ public partial class MainWindow : Window
 
             if (!isCtrlPressed)
                 ViewModel.Files.Clear();
-            var (mediaFiles, skippedFiles) = await MediaFileService.GetMediaFiles(fileNames, true, true, CancellationToken.None);
+
+            var (mediaFiles, skippedFiles) = await MediaFileService.GetMediaFiles(fileNames, IsSelectMetadata(), IsSelectCover(), CancellationToken.None);
             foreach (var audioFile in mediaFiles)
                 ViewModel.Files.Add(audioFile);
 
@@ -89,5 +90,29 @@ public partial class MainWindow : Window
         {
             ViewModel.IsUserEntryEnabled = true;
         }
+
+
+    }
+
+    private bool IsSelectMetadata()
+    {
+        foreach (var file in ViewModel.Files)
+        {
+            if (file.IsTagsSource)
+                return false;
+        }
+
+        return true;
+    }
+
+    private bool IsSelectCover()
+    {
+        foreach (var file in ViewModel.Files)
+        {
+            if (file.IsCoverSource)
+                return false;
+        }
+
+        return true;
     }
 }

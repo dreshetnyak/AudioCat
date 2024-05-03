@@ -93,6 +93,7 @@
                     <ToolBarTray
                         Grid.Row="0"
                         DockPanel.Dock="Top"
+                        IsLocked="True"
                         Margin="2,2,2,0">
                         <ToolBar BandIndex="0">
                             <Button
