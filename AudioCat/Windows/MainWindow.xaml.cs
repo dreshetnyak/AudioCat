@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.Runtime.InteropServices;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using AudioCat.Models;
@@ -61,10 +62,18 @@ public partial class MainWindow : Window
     // Code that accepts drag and drop mediaFiles
     private void OnDataGridDrop(object sender, DragEventArgs e)
     {
-        if (e.Data.GetData(DataFormats.FileDrop, true) is not string[] fileNames || fileNames.Length == 0) 
-            return;
-        var isCtrlPressed = Keyboard.IsKeyDown(Key.LeftCtrl);
-        _ = AddFilesAsync(fileNames, isCtrlPressed); // Long operation, we fire the task and forget
+        try
+        {
+            if (e.Data.GetData(DataFormats.FileDrop, true) is not string[] fileNames || fileNames.Length == 0)
+                return;
+
+            var isCtrlPressed = Keyboard.IsKeyDown(Key.LeftCtrl);
+            _ = AddFilesAsync(fileNames, isCtrlPressed); // Long operation, we fire the task and forget
+        }
+        catch (COMException ex) when (ex.ErrorCode == unchecked((int)0x8007007A))
+        {
+            MessageBox.Show(Application.Current.MainWindow!, "The path of the file is too long, please shorten it or drop a different file. Or alternatively configure your OS to allow long paths.", "Path Too Long", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private async Task AddFilesAsync(IReadOnlyList<string> fileNames, bool isCtrlPressed)
