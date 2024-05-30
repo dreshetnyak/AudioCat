@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Input;
 using AudioCat.Commands;
 using AudioCat.Models;
+using AudioCat.Services;
 using AudioCat.Windows;
 
 namespace AudioCat.ViewModels;
@@ -25,10 +26,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     #endregion
 
-    private IMediaFileService MediaFileService { get; }
+    private IMediaFileToolkitService MediaFileToolkitService { get; }
     private IMediaFilesContainer MediaFilesContainer { get; }
-    public ObservableCollection<MediaFileViewModel> Files { get; }
-    public MediaFileViewModel? SelectedFile
+    private IMediaFilesService MediaFilesService { get; }
+
+    public ObservableCollection<IMediaFileViewModel> Files { get; }
+    public IMediaFileViewModel? SelectedFile
     {
         get => MediaFilesContainer.SelectedFile;
         set => MediaFilesContainer.SelectedFile = value;
@@ -171,18 +174,21 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
 
     public MainViewModel(
-        IMediaFileService mediaFileService,
+        IMediaFileToolkitService mediaFileToolkitService,
         IMediaFilesContainer mediaFilesContainer,
+        IMediaFilesService mediaFilesService,
         AddFilesCommand addFilesCommand,
         AddPathCommand addPathCommand,
         MoveFileCommand moveFileCommand,
         ConcatenateCommand concatenate)
     {
-        MediaFileService  = mediaFileService;
+        MediaFileToolkitService  = mediaFileToolkitService;
         
         MediaFilesContainer = mediaFilesContainer;
         if (mediaFilesContainer is INotifyPropertyChanged container)
             container.PropertyChanged += OnSelectedAudioFileChanged;
+
+        MediaFilesService = mediaFilesService;
 
         Files = mediaFilesContainer.Files;
         AddFiles = addFilesCommand;
@@ -201,7 +207,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         Files.CollectionChanged += OnFilesCollectionChanged;
 
-        _ = VerifyMediaFileServiceIsAccessible();
+        _ = VerifyMediaFileServiceIsAccessible()
+            .ContinueWith(AddCliFilesOnStartup);
     }
 
     private void OnSelectedAudioFileChanged(object? sender, PropertyChangedEventArgs e)
@@ -216,11 +223,40 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private async Task VerifyMediaFileServiceIsAccessible()
     {
-        var result = await MediaFileService.IsAccessible();
+        var result = await MediaFileToolkitService.IsAccessible();
         if (result.IsSuccess)
             IsUserEntryEnabled = true;
         else
             MessageBox.Show(result.Message + Environment.NewLine + "The tools 'ffmpeg.exe' and 'ffprobe.exe' are required for the application to work properly. Download the tools and place them in the system path.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+    }
+
+    private async Task AddCliFilesOnStartup(Task _)
+    {
+        if (!IsUserEntryEnabled) // Media Files Service is not accessible
+            return;
+
+        try
+        {
+            IsUserEntryEnabled = false;
+            var args = Environment.GetCommandLineArgs();
+            if (args.Length < 2)
+                return;
+
+            var fileNames = new string[args.Length - 1];
+            for (var i = 0; i < fileNames.Length; i++)
+                fileNames[i] = args[i + 1];
+            
+            var response = await MediaFilesService.AddMediaFiles(fileNames, false); // Long operation, we fire the task and forget
+
+            if (response.SkipFiles.Count > 0)
+                await Application.Current.Dispatcher.InvokeAsync(() => new SkippedFilesWindow(response.SkipFiles).ShowDialog());
+        }
+        catch
+        { /* ignore */ }
+        finally
+        {
+            IsUserEntryEnabled = true;
+        }
     }
 
     private void OnSelectTags(object? obj)

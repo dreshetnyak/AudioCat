@@ -2,9 +2,14 @@
 
 A tool for concatenating audio files.
 
-Known issues.
-When adding a media file, if a tag value contains a new line symbols, ffprobe is unable to start resulting in the app freeze. 
-The issue is present only when attempting to start from a code, when using CLI - it works.
+AudioCat v2.0.0
+===============
+Bug. When adding some files the app would freeze on the probing stage.
+New. Added the switch for enabling or disabling media tags, also adding, deleting and moving them around.
+New. Now dragging files into the app also work with right Control.
+New. Now app accesps files from CLI, or if they are dropped to it.
+Changed the font and the font size for some UI elements.
+The code went through a significant refactoring.
 
 AudioCat v1.7.2
 ===============
@@ -83,7 +88,7 @@ Now handling concatenation errors, displaying them and offering to delete the ou
 Backlog
 =======
 
-Allow adding images.
+Read files from CLI args.
 Generate chapters. Options to generate from file names, from tags as well as passing through existing chapters.
 Pin down tags, streams and chapters.
 Tags, streams and chapters make the presence of content visible.

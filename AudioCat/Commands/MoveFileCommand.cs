@@ -1,4 +1,5 @@
 ﻿using AudioCat.Models;
+using AudioCat.ViewModels;
 
 namespace AudioCat.Commands;
 
@@ -29,7 +30,7 @@ public class MoveFileCommand(IMediaFilesContainer mediaFilesContainer) : Command
         return Task.FromResult(Response<object>.Success());
     }
 
-    private void MoveUp(IMediaFile file)
+    private void MoveUp(IMediaFileViewModel file)
     {
         var fileIndex = IndexOf(file);
         if (fileIndex <= 0) 
@@ -40,7 +41,7 @@ public class MoveFileCommand(IMediaFilesContainer mediaFilesContainer) : Command
         MediaFilesContainer.SelectedFile = files[newFileIndex];
     }
 
-    private void MoveDown(IMediaFile file)
+    private void MoveDown(IMediaFileViewModel file)
     {
         var fileIndex = IndexOf(file);
         var files = MediaFilesContainer.Files;
@@ -51,7 +52,7 @@ public class MoveFileCommand(IMediaFilesContainer mediaFilesContainer) : Command
         MediaFilesContainer.SelectedFile = files[newFileIndex];
     }
 
-    private void Remove(IMediaFile file)
+    private void Remove(IMediaFileViewModel file)
     {
         var fileIndex = IndexOf(file);
         if (fileIndex == -1)
@@ -62,7 +63,7 @@ public class MoveFileCommand(IMediaFilesContainer mediaFilesContainer) : Command
             MediaFilesContainer.SelectedFile = files[fileIndex < files.Count ? fileIndex : files.Count - 1];
     }
 
-    private int IndexOf(IMediaFile file)
+    private int IndexOf(IMediaFileViewModel file)
     {
         var mediaFiles = MediaFilesContainer.Files;
         for (var i = 0; i < mediaFiles.Count; i++)

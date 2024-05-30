@@ -7,10 +7,10 @@ using AudioCat.Windows;
 
 namespace AudioCat.Commands;
 
-public sealed class AddFilesCommand(IMediaFileService mediaFileService, IMediaFilesContainer mediaFilesContainer) : CommandBase
+public sealed class AddFilesCommand(IMediaFilesService mediaFilesService, IMediaFilesContainer mediaFilesContainer) : CommandBase
 {
-    private IMediaFileService MediaFileService { get; } = mediaFileService;
-    private ObservableCollection<MediaFileViewModel> MediaFiles { get; } = mediaFilesContainer.Files;
+    private IMediaFilesService MediaFilesService { get; } = mediaFilesService;
+    private ObservableCollection<IMediaFileViewModel> MediaFiles { get; } = mediaFilesContainer.Files;
 
     protected override async Task<IResponse<object>> Command(object? parameter)
     {
@@ -23,12 +23,12 @@ public sealed class AddFilesCommand(IMediaFileService mediaFileService, IMediaFi
             var sortedFileNames = Files.Sort(fileNames);
 
             var (selectMetadata, selectCover) = SelectionFlags.GetFrom(MediaFiles);
-            var (mediaFiles, skippedFiles) = await MediaFileService.GetMediaFiles(sortedFileNames, !selectMetadata, !selectCover, CancellationToken.None); // TODO Cancellation support
-            foreach (var file in mediaFiles) 
+            var response = await MediaFilesService.GetMediaFiles(sortedFileNames, !selectMetadata, !selectCover, CancellationToken.None); // TODO Cancellation support
+            foreach (var file in response.MediaFiles) 
                 MediaFiles.Add(file);
 
-            if (skippedFiles.Count > 0)
-                new SkippedFilesWindow(skippedFiles).ShowDialog();
+            if (response.SkipFiles.Count > 0)
+                new SkippedFilesWindow(response.SkipFiles).ShowDialog();
 
             return Response<object>.Success();
         }

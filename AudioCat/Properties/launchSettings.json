@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "AudioCat": {
+      "commandName": "Project",
+      "commandLineArgs": "C:\\TEMP\\Trainings\\Freeze\\01.mp3"
+    }
+  }
+}

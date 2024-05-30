@@ -13,6 +13,24 @@ internal static class Extensions
 
     public static long? ToLong(this string str) => long.TryParse(str, NumberStyles.Integer, CultureInfo.CurrentCulture, out var value) ? value : null;
 
+    public static bool IsPrintable(this char ch) => char.GetUnicodeCategory(ch) switch
+    {
+        UnicodeCategory.Control or UnicodeCategory.Format or UnicodeCategory.Surrogate or UnicodeCategory.PrivateUse or UnicodeCategory.OtherNotAssigned => false,
+        _ => true
+    };
+
+    public static string FilterPrintable(this string str)
+    {
+        var nameBuilder = new StringBuilder(str.Length);
+        foreach (var ch in str)
+        {
+            if (ch.IsPrintable())
+                nameBuilder.Append(ch);
+        }
+
+        return nameBuilder.ToString();
+    }
+
     public static TimeSpan? SecondsToTimeSpan(this string str) =>  
         decimal.TryParse(str, NumberStyles.Number, CultureInfo.CurrentCulture, out var value) 
             ? TimeSpan.FromSeconds((double)value)

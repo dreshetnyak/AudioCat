@@ -2,6 +2,12 @@
 
 namespace AudioCat.Models;
 
+public interface IMediaTag
+{
+    string Name { get; }
+    string Value { get; }
+}
+
 public interface IMediaStream
 {
     int Index { get; }
@@ -16,7 +22,7 @@ public interface IMediaStream
     TimeSpan? Duration { get; }
     int? Width { get; }
     int? Height { get; }
-    IReadOnlyList<KeyValuePair<string, string>> Tags { get; }
+    IReadOnlyList<IMediaTag> Tags { get; }
 }
 
 public interface IMediaChapter
@@ -28,7 +34,7 @@ public interface IMediaChapter
     decimal? TimeBaseDivisor { get; }
     TimeSpan? StartTime { get; }
     TimeSpan? EndTime { get; }
-    IReadOnlyList<KeyValuePair<string, string>> Tags { get; }
+    IReadOnlyList<IMediaTag> Tags { get; }
 }
 
 public interface IMediaFile
@@ -41,7 +47,7 @@ public interface IMediaFile
     decimal? StartTime { get; }
     TimeSpan? Duration { get; }
     decimal? Bitrate { get; }
-    IReadOnlyList<KeyValuePair<string, string>> Tags { get; }
+    IReadOnlyList<IMediaTag> Tags { get; }
     IReadOnlyList<IMediaChapter> Chapters { get; }
     IReadOnlyList<IMediaStream> Streams { get; }
 }

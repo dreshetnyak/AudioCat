@@ -13,7 +13,7 @@ public class FFprobeMediaChapter : IMediaChapter
     public decimal? TimeBaseDivisor { get; private init; }
     public TimeSpan? StartTime { get; private init; }
     public TimeSpan? EndTime { get; private init; }
-    public IReadOnlyList<KeyValuePair<string, string>> Tags { get; private init; } = [];
+    public IReadOnlyList<IMediaTag> Tags { get; private init; } = [];
 
     private FFprobeMediaChapter() { }
 

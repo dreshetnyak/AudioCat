@@ -1,4 +1,5 @@
 ﻿using AudioCat.Commands;
+using AudioCat.FFmpeg;
 using AudioCat.Models;
 using AudioCat.Services;
 using AudioCat.ViewModels;
@@ -18,7 +19,8 @@ public partial class App : Application
     private ServiceProvider ServiceProvider { get; } =
         new ServiceCollection()
             .AddSingleton<IMediaFilesContainer, MediaFilesContainer>()
-            .AddSingleton<IMediaFileService, FFmpegService>()
+            .AddSingleton<IMediaFileToolkitService, FFmpegService>()
+            .AddSingleton<IMediaFilesService, MediaFilesService>()
             .AddSingleton<AddFilesCommand>()
             .AddSingleton<AddPathCommand>()
             .AddSingleton<MoveFileCommand>()
@@ -34,9 +36,9 @@ public partial class App : Application
 
     private sealed class MediaFilesContainer : IMediaFilesContainer, INotifyPropertyChanged
     {
-        private MediaFileViewModel? _selectedFile;
-        public ObservableCollection<MediaFileViewModel> Files { get; } = [];
-        public MediaFileViewModel? SelectedFile
+        private IMediaFileViewModel? _selectedFile;
+        public ObservableCollection<IMediaFileViewModel> Files { get; } = [];
+        public IMediaFileViewModel? SelectedFile
         {
             get => _selectedFile;
             set

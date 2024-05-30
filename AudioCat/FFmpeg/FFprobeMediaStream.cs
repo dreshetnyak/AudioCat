@@ -18,7 +18,7 @@ public class FFprobeMediaStream : IMediaStream
     public TimeSpan? Duration { get; private init; }
     public int? Width { get; private init; }
     public int? Height { get; private init; }
-    public IReadOnlyList<KeyValuePair<string, string>> Tags { get; private init; } = [];
+    public IReadOnlyList<IMediaTag> Tags { get; private init; } = [];
 
     private FFprobeMediaStream() { }
 

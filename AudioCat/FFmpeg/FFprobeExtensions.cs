@@ -1,10 +1,17 @@
 ﻿using System.Xml.Linq;
+using AudioCat.Models;
 
 namespace AudioCat.FFmpeg;
 
 internal static class FFprobeExtensions
 {
-    public static IReadOnlyList<KeyValuePair<string, string>> GetTags(this XElement? parentElement)
+    private class MediaTag(string name, string value) : IMediaTag
+    {
+        public string Name { get; } = name;
+        public string Value { get; } = value;
+    }
+
+    public static IReadOnlyList<IMediaTag> GetTags(this XElement? parentElement)
     {
         if (parentElement is not { HasElements: true })
             return [];
@@ -12,14 +19,14 @@ internal static class FFprobeExtensions
         if (tagsContainerElement is not { HasElements: true })
             return [];
 
-        var tags = new List<KeyValuePair<string, string>>();
+        var tags = new List<IMediaTag>();
         foreach (var tagElement in tagsContainerElement.Elements("tag"))
         {
             var key = tagElement.Attribute("key")?.Value;
             if (string.IsNullOrEmpty(key))
                 continue;
             var value = tagElement.Attribute("value")?.Value ?? "";
-            tags.Add(new KeyValuePair<string, string>(key, value));
+            tags.Add(new MediaTag(key, value));
         }
 
         return tags;

@@ -1,11 +1,35 @@
-﻿using System.ComponentModel;
+﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using AudioCat.Models;
 
 namespace AudioCat.ViewModels;
 
-public sealed class MediaFileViewModel : IMediaFile, INotifyPropertyChanged
+public interface IMediaFileViewModel : INotifyPropertyChanged
+{
+    FileInfo File { get; }
+    string FileName { get; }
+    string FilePath { get; }
+    string? FormatName { get; }
+    string? FormatDescription { get; }
+    decimal? StartTime { get; }
+    TimeSpan? Duration { get; }
+    decimal? Bitrate { get; }
+    ObservableCollection<IMediaTagViewModel> Tags { get; }
+    IReadOnlyList<IMediaChapter> Chapters { get; }
+    IReadOnlyList<IMediaStream> Streams { get; }
+
+    bool IsImage { get; }
+
+    bool IsTagsSource { get; set; }
+    bool HasTags { get; }
+
+    bool IsCoverSource { get; set; }
+    bool HasCover { get; }
+}
+
+public sealed class MediaFileViewModel : IMediaFileViewModel
 {
     private bool _isTagsSource;
     private bool _isCoverSource;
@@ -19,9 +43,11 @@ public sealed class MediaFileViewModel : IMediaFile, INotifyPropertyChanged
     public decimal? StartTime => MediaFile.StartTime;
     public TimeSpan? Duration { get; } 
     public decimal? Bitrate { get; }
-    public IReadOnlyList<KeyValuePair<string, string>> Tags => MediaFile.Tags;
+    public ObservableCollection<IMediaTagViewModel> Tags { get; }
     public IReadOnlyList<IMediaChapter> Chapters => MediaFile.Chapters;
     public IReadOnlyList<IMediaStream> Streams { get; }
+
+    public bool IsImage { get; }
 
     public bool IsTagsSource
     {
@@ -56,8 +82,8 @@ public sealed class MediaFileViewModel : IMediaFile, INotifyPropertyChanged
         MediaFile = mediaFile;
         Streams = GetStreams(mediaFile);
         HasCover = HasImageStream(Streams);
-        var isImageFile = Streams.Count == 1 && HasCover;
-        if (isImageFile)
+        IsImage = Streams.Count == 1 && HasCover;
+        if (IsImage)
         {
             FormatName = MediaFile.Streams[0].CodecName;
             Bitrate = null;
@@ -69,9 +95,13 @@ public sealed class MediaFileViewModel : IMediaFile, INotifyPropertyChanged
             Bitrate = MediaFile.Bitrate;
             Duration = MediaFile.Duration;
         }
+
+        Tags = new ObservableCollection<IMediaTagViewModel>();
+        foreach (var tag in MediaFile.Tags) 
+            Tags.Add(TagViewModel.CreateFrom(tag));
     }
 
-    private static IReadOnlyList<string> SupportedImageCodecs { get; } = ["mjpeg", "png"];
+    private static IEnumerable<string> SupportedImageCodecs { get; } = ["mjpeg", "png"];
     private static bool HasImageStream(IEnumerable<IMediaStream> streams)
     {
         foreach (var stream in streams)

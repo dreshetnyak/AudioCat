@@ -1,6 +1,8 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
+using static AudioCat.Services.Process;
 
 namespace AudioCat.Services;
 
@@ -50,39 +52,43 @@ internal static class Process
     {
         using var process = CreateProcess(executable, arguments);
         process.Start();
-        var responseBuilder = new StringBuilder(1024);
-        var outTask = ReadOutputStream();
+        
+        var outErrorTask = ReadOutputStream(process, OutputType.Error, ctx);
+        var outStandardTask = ReadOutputStream(process, OutputType.Standard, ctx);
+
         await process.WaitForExitAsync(ctx);
-        await outTask;
+        var errorOutput = await outErrorTask;
+        var standardOutput = await outStandardTask;
 
-        return responseBuilder.ToString();
+        return outputType == OutputType.Standard 
+            ? standardOutput 
+            : errorOutput;
+    }
 
-        async Task ReadOutputStream()
+    private static async Task<string> ReadOutputStream(System.Diagnostics.Process process, OutputType outputType, CancellationToken ctx)
+    {
+        var responseBuilder = new StringBuilder(1024);
+        TextReader textReader = outputType == OutputType.Error ? process.StandardError : process.StandardOutput;
+        
+        while (!ctx.IsCancellationRequested)
         {
-            // ReSharper disable AccessToDisposedClosure
-            TextReader textReader = outputType == OutputType.Error
-                ? process.StandardError
-                : process.StandardOutput;
-            // ReSharper restore AccessToDisposedClosure
-            while (!ctx.IsCancellationRequested)
+            try
             {
-                try
-                {
-                    var line = await textReader.ReadLineAsync(ctx);
-                    if (line == "")
-                        continue;
-                    if (line == null)
-                        break;
-                    responseBuilder.AppendLine(line);
-                }
-                catch
-                {
+                var line = await textReader.ReadLineAsync(ctx);
+                if (line == "")
+                    continue;
+                if (line == null)
                     break;
-                }
+                responseBuilder.AppendLine(line);
             }
-
-            ctx.ThrowIfCancellationRequested();
+            catch
+            {
+                break;
+            }
         }
+
+        ctx.ThrowIfCancellationRequested();
+        return responseBuilder.ToString();
     }
 
     private static System.Diagnostics.Process CreateProcess(string executable, string arguments)
@@ -91,11 +97,12 @@ internal static class Process
         {
             StartInfo = new ProcessStartInfo
             {
-                FileName = executable,
+                FileName = executable, 
                 Arguments = arguments,
                 CreateNoWindow = true,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
+                RedirectStandardInput = true,
                 RedirectStandardError = true,
                 StandardOutputEncoding = Encoding.UTF8,
                 StandardErrorEncoding = Encoding.UTF8,

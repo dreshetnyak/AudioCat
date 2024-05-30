@@ -1,8 +1,10 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Collections.ObjectModel;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using AudioCat.Models;
+using AudioCat.Services;
 using AudioCat.ViewModels;
 using AudioCat.Windows;
 
@@ -14,13 +16,15 @@ namespace AudioCat;
 public partial class MainWindow : Window
 {
     private MainViewModel ViewModel { get; }
-    private IMediaFileService MediaFileService { get; }
+    private IMediaFileToolkitService MediaFileToolkitService { get; }
+    private IMediaFilesService MediaFilesService { get; }
 
-    public MainWindow(MainViewModel viewModel, IMediaFileService mediaFileService)
+    public MainWindow(MainViewModel viewModel, IMediaFileToolkitService mediaFileToolkitService, IMediaFilesService mediaFilesService)
     {
         viewModel.FocusFileDataGrid = FocusFileDataGrid;
         ViewModel = viewModel;
-        MediaFileService = mediaFileService;
+        MediaFileToolkitService = mediaFileToolkitService;
+        MediaFilesService = mediaFilesService;
         InitializeComponent();
         DataContext = viewModel;
     }
@@ -64,64 +68,69 @@ public partial class MainWindow : Window
     {
         try
         {
-            if (e.Data.GetData(DataFormats.FileDrop, true) is not string[] fileNames || fileNames.Length == 0)
+            if (e.Data.GetData(DataFormats.FileDrop, true) is not string[] fileNames || fileNames.Length == 0) 
                 return;
-
-            var isCtrlPressed = Keyboard.IsKeyDown(Key.LeftCtrl);
-            _ = AddFilesAsync(fileNames, isCtrlPressed); // Long operation, we fire the task and forget
+            var ctrlDown = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
+            Task.Run(async () => await AddDragFiles(fileNames, !ctrlDown));
         }
         catch (COMException ex) when (ex.ErrorCode == unchecked((int)0x8007007A))
         {
             MessageBox.Show(Application.Current.MainWindow!, "The path of the file is too long, please shorten it or drop a different file. Or alternatively configure your OS to allow long paths.", "Path Too Long", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+        catch 
+        { /* ignore */ }
     }
 
-    private async Task AddFilesAsync(IReadOnlyList<string> fileNames, bool isCtrlPressed)
+    private async Task AddDragFiles(IReadOnlyList<string> fileNames, bool clearExisting)
     {
         try
         {
             ViewModel.IsUserEntryEnabled = false;
+            var response = await MediaFilesService.AddMediaFiles(fileNames, clearExisting); // Long operation, we fire the task and forget
 
-            if (!isCtrlPressed)
-                ViewModel.Files.Clear();
-
-            var (mediaFiles, skippedFiles) = await MediaFileService.GetMediaFiles(fileNames, IsSelectMetadata(), IsSelectCover(), CancellationToken.None);
-            foreach (var audioFile in mediaFiles)
-                ViewModel.Files.Add(audioFile);
-
-            if (ViewModel.Files.Count > 0)
-                ViewModel.SelectedFile = ViewModel.Files.First();
-
-            if (skippedFiles.Count > 0) 
-                new SkippedFilesWindow(skippedFiles).ShowDialog();
+            if (response.SkipFiles.Count > 0) 
+                await Application.Current.Dispatcher.InvokeAsync(() => new SkippedFilesWindow(response.SkipFiles).ShowDialog());
         }
+        catch
+        { /* ignore */ }
         finally
         {
             ViewModel.IsUserEntryEnabled = true;
         }
+    }
+    
+    private void OnTagsDataGridKeyUp(object sender, KeyEventArgs eventArgs)
+    {
+        if (sender is not DataGrid { ItemsSource: ObservableCollection<IMediaTagViewModel> tags } dataGrid)
+            return;
 
-
+        switch (eventArgs.Key)
+        {
+            case Key.Insert:
+                if (dataGrid.SelectedIndex >= 0)
+                    tags.Insert(dataGrid.SelectedIndex, new TagViewModel());
+                else
+                    tags.Add(new TagViewModel());
+                EnsureRowSelection(dataGrid);
+                break;
+            case Key.Up:
+                if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Control) || dataGrid.SelectedIndex <= 0)
+                    break;
+                tags.Move(dataGrid.SelectedIndex, dataGrid.SelectedIndex - 1);
+                EnsureRowSelection(dataGrid);
+                break;
+            case Key.Down:
+                if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Control) || dataGrid.SelectedIndex < 0 || dataGrid.SelectedIndex + 1 >= tags.Count)
+                    break;
+                tags.Move(dataGrid.SelectedIndex, dataGrid.SelectedIndex + 1);
+                EnsureRowSelection(dataGrid);
+                break;
+        }
     }
 
-    private bool IsSelectMetadata()
+    private void OnTagsDataGridPreviewKeyDown(object sender, KeyEventArgs eventArgs)
     {
-        foreach (var file in ViewModel.Files)
-        {
-            if (file.IsTagsSource)
-                return false;
-        }
-
-        return true;
-    }
-
-    private bool IsSelectCover()
-    {
-        foreach (var file in ViewModel.Files)
-        {
-            if (file.IsCoverSource)
-                return false;
-        }
-
-        return true;
+        if (eventArgs.Key is Key.Up or Key.Down && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            eventArgs.Handled = true;
     }
 }

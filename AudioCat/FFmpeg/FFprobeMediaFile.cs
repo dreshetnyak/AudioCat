@@ -14,7 +14,7 @@ public class FFprobeMediaFile : IMediaFile
     public decimal? StartTime { get; private init; }
     public TimeSpan? Duration { get; private init; }
     public decimal? Bitrate { get; private init; }
-    public IReadOnlyList<KeyValuePair<string, string>> Tags { get; private init; } = [];
+    public IReadOnlyList<IMediaTag> Tags { get; private init; } = [];
     public IReadOnlyList<IMediaChapter> Chapters { get; private init; } = [];
     public IReadOnlyList<IMediaStream> Streams { get; private init; } = [];
 
@@ -32,15 +32,15 @@ public class FFprobeMediaFile : IMediaFile
         try { response = XElement.Parse(probeXmlResponse); }
         catch (Exception ex) { return Response<IMediaFile>.Failure($"Failed to parse FFprobe response to XML: {ex.Message}"); }
 
-        var format = response.Element("format");
+        var formatElement = response.Element("format");
         return Response<IMediaFile>.Success(new FFprobeMediaFile(fileInfo)
         {
-            FormatName = format?.Attribute("format_name")?.Value,
-            FormatDescription = format?.Attribute("format_long_name")?.Value,
-            StartTime = format?.Attribute("start_time")?.Value.ToDecimal(),
-            Duration = format?.Attribute("duration")?.Value.SecondsToTimeSpan(),
-            Bitrate = format?.Attribute("bit_rate")?.Value.ToDecimal(),
-            Tags = format.GetTags(),
+            FormatName = formatElement?.Attribute("format_name")?.Value,
+            FormatDescription = formatElement?.Attribute("format_long_name")?.Value,
+            StartTime = formatElement?.Attribute("start_time")?.Value.ToDecimal(),
+            Duration = formatElement?.Attribute("duration")?.Value.SecondsToTimeSpan(),
+            Bitrate = formatElement?.Attribute("bit_rate")?.Value.ToDecimal(),
+            Tags = formatElement.GetTags(),
             Chapters = GetChapters(response.Element("chapters")),
             Streams = GetStreams(response.Element("streams"))
         });

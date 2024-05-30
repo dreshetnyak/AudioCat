@@ -5,6 +5,6 @@ namespace AudioCat.Models;
 
 public interface IMediaFilesContainer
 {
-    ObservableCollection<MediaFileViewModel> Files { get; }
-    MediaFileViewModel? SelectedFile { get; set; }
+    ObservableCollection<IMediaFileViewModel> Files { get; }
+    IMediaFileViewModel? SelectedFile { get; set; }
 }

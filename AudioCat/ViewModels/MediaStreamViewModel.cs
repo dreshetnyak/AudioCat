@@ -21,7 +21,7 @@ public sealed class MediaStreamViewModel(IMediaStream mediaStream) : IMediaStrea
     public TimeSpan? Duration => MediaStream.Duration;
     public int? Width => MediaStream.Width;
     public int? Height => MediaStream.Height;
-    public IReadOnlyList<KeyValuePair<string, string>> Tags => MediaStream.Tags;
+    public IReadOnlyList<IMediaTag> Tags => MediaStream.Tags;
 
     public bool Include
     {

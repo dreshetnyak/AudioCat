@@ -3,6 +3,7 @@ using System.IO;
 using AudioCat.Commands;
 using System.Windows;
 using System.Windows.Input;
+using AudioCat.Services;
 
 namespace AudioCat.Windows;
 
@@ -21,7 +22,7 @@ public partial class SkippedFilesWindow : Window
     public ICommand CloseDialog { get; }
     public ObservableCollection<IFileError> SkippedFiles { get; } = [];
 
-    public SkippedFilesWindow(IReadOnlyList<(string filePath, string skipReason)> skippedFiles)
+    public SkippedFilesWindow(IReadOnlyList<IMediaFilesService.ISkipFile> skippedFiles)
     {
         InitializeComponent();
         DataContext = this;
@@ -31,23 +32,22 @@ public partial class SkippedFilesWindow : Window
             SkippedFiles.Add(file);
     }
 
-    private static IEnumerable<IFileError> GetSkippedFiles(
-        IReadOnlyList<(string filePath, string skipReason)> skippedFiles)
+    private static IEnumerable<IFileError> GetSkippedFiles(IReadOnlyList<IMediaFilesService.ISkipFile> skippedFiles)
     {
-        foreach (var (filePath, skipReason) in skippedFiles)
+        foreach (var skippedFile in skippedFiles)
         {
             string fileName;
-            try { fileName = Path.GetFileName(filePath); }
-            catch { fileName = filePath; }
+            try { fileName = Path.GetFileName(skippedFile.Path); }
+            catch { fileName = skippedFile.Path; }
 
             string path;
-            try { path = Path.GetDirectoryName(filePath) ?? filePath; }
-            catch { path = filePath; }
+            try { path = Path.GetDirectoryName(skippedFile.Path) ?? skippedFile.Path; }
+            catch { path = skippedFile.Path; }
                 
             yield return new SkippedFile
             {
                 FileName = fileName,
-                Error = skipReason,
+                Error = skippedFile.Reason,
                 FilePath = path
             };
         }

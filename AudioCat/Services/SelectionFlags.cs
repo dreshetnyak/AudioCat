@@ -1,16 +1,10 @@
-﻿using AudioCat.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using AudioCat.ViewModels;
+﻿using AudioCat.ViewModels;
 
 namespace AudioCat.Services;
 
 internal static class SelectionFlags
 {
-    public static (bool metadataSelected, bool coverSelected) GetFrom(IEnumerable<MediaFileViewModel> mediaFiles) 
+    public static (bool metadataSelected, bool coverSelected) GetFrom(IEnumerable<IMediaFileViewModel> mediaFiles) 
     {
         var metadataSelected = false;
         var coverSelected = false;

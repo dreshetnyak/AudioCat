@@ -12,10 +12,12 @@ public sealed class StatusEventArgs(IProcessingStats stats) : EventArgs
 }
 public delegate void StatusEventHandler(object sender, StatusEventArgs eventArgs);
 
-public sealed class ConcatenateCommand(IMediaFileService mediaFileService, IMediaFilesContainer mediaFilesContainer) : CommandBase
+public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkitService, IMediaFilesService mediaFilesService, IMediaFilesContainer mediaFilesContainer) : CommandBase
 {
-    public IMediaFileService MediaFileService { get; } = mediaFileService;
-    private ObservableCollection<MediaFileViewModel> MediaFiles { get; } = mediaFilesContainer.Files;
+    private IMediaFileToolkitService MediaFileToolkitService { get; } = mediaFileToolkitService;
+    private IMediaFilesService MediaFilesService { get; } = mediaFilesService;
+
+    private ObservableCollection<IMediaFileViewModel> MediaFiles { get; } = mediaFilesContainer.Files;
 
     private CancellationTokenSource? Cts { get; set; }
 
@@ -30,7 +32,7 @@ public sealed class ConcatenateCommand(IMediaFileService mediaFileService, IMedi
             if (MediaFiles.Count == 0)
                 return Response<object>.Failure("No files to concatenate");
 
-            var codec = MediaFileService.GetAudioCodec(MediaFiles);
+            var codec = Services.MediaFilesService.GetAudioCodec(MediaFiles);
 
             var outputFileName = SelectionDialog.ChooseFileToSave(
                 codec == "aac" ? "AAC Audio|*.m4b" : "MP3 Audio|*.mp3", 
@@ -39,7 +41,7 @@ public sealed class ConcatenateCommand(IMediaFileService mediaFileService, IMedi
             if (outputFileName == "")
                 return Response<object>.Success();
             
-            var concatResult = await MediaFileService.Concatenate(MediaFiles, outputFileName, OnStatusUpdate, CancellationToken.None);
+            var concatResult = await MediaFileToolkitService.Concatenate(MediaFiles, outputFileName, OnStatusUpdate, CancellationToken.None);
             return concatResult.IsSuccess
                 ? Response<object>.Success()
                 : Response<object>.Failure(outputFileName, concatResult.Message);

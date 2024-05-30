@@ -5,9 +5,10 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:converters="clr-namespace:AudioCat.Converters"
         xmlns:viewModels="clr-namespace:AudioCat.ViewModels"
+        xmlns:commands="clr-namespace:AudioCat.Commands"
         mc:Ignorable="d"
         Icon="/Cat.ico"
-        Title="Audio Cat Tool v1.7.2" Height="640" Width="1024"
+        Title="Audio Cat Tool v2.0.0" Height="640" Width="1024"
         d:DataContext="{d:DesignInstance viewModels:MainViewModel, IsDesignTimeCreatable=False}">
     <Window.Resources>
         <converters:DurationConverter x:Key="DurationConverter" />
@@ -16,9 +17,18 @@
         <converters:TagsConcatConverter x:Key="TagsConcatConverter" />
         <converters:SampleRateConverter x:Key="SampleRateConverter" />
         <converters:TimeSpanConverter x:Key="TimeSpanConverter" />
+        
+        <Style x:Key="OnOffImage" TargetType="{x:Type Image}">
+            <Setter Property="Source" Value="../Images/On.png" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                    <Setter Property="Source" Value="../Images/Off.png" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
 
         <Style
-            x:Key="TextBoxLeftStyle"
+            x:Key="TextBlockLeftStyle"
             TargetType="{x:Type DataGridCell}">
             <Setter Property="Template">
                 <Setter.Value>
@@ -32,6 +42,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
         <Style
             x:Key="TextBoxCenterStyle"
             TargetType="{x:Type DataGridCell}">
@@ -62,6 +73,8 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <commands:ToggleEnableCommand x:Key="ToggleEnable" />
     </Window.Resources>
     <Grid Margin="3,0,3,0">
         <Grid.RowDefinitions>
@@ -412,7 +425,7 @@
                                 Header="Files"
                                 IsReadOnly="True"
                                 Binding="{Binding FileName}"
-                                CellStyle="{StaticResource TextBoxLeftStyle}"
+                                CellStyle="{StaticResource TextBlockLeftStyle}"
                                 Width="150" />
                             <DataGridTextColumn
                                 Header="Duration"
@@ -438,7 +451,7 @@
                                 Header="Path"
                                 IsReadOnly="True"
                                 Binding="{Binding File.DirectoryName}"
-                                CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                CellStyle="{StaticResource TextBlockLeftStyle}" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
@@ -484,6 +497,8 @@
                                     <TextBox
                                         Text="{Binding DurationText, Mode=OneWay}"
                                         IsReadOnly="True"
+                                        FontFamily="Consolas"
+                                        FontSize="14"
                                         HorizontalContentAlignment="Center" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
@@ -493,6 +508,8 @@
                                     <TextBox
                                         Text="{Binding TotalSizeText, Mode=OneWay}"
                                         IsReadOnly="True"
+                                        FontFamily="Consolas"
+                                        FontSize="14"
                                         HorizontalContentAlignment="Center"
                                         Margin="0,0,0,3" />
                                 </StackPanel>
@@ -518,7 +535,9 @@
                                     Margin="3,0,3,0" />
                                 <TextBox
                                     Text="{Binding SelectedFile.FileName, Mode=OneWay, FallbackValue=''}"
-                                    IsReadOnly="True" />
+                                    IsReadOnly="True" 
+                                    FontFamily="Consolas"
+                                    FontSize="12" />
                             </StackPanel>
 
                             <Grid Grid.Row="1">
@@ -535,6 +554,8 @@
                                     <TextBox
                                         Text="{Binding SelectedFile.Duration, Mode=OneWay, FallbackValue='', Converter={StaticResource DurationConverter}}"
                                         IsReadOnly="True"
+                                        FontFamily="Consolas"
+                                        FontSize="12"
                                         HorizontalContentAlignment="Center"
                                         Margin="0,0,0,3" />
                                 </StackPanel>
@@ -546,6 +567,8 @@
                                     <TextBox
                                         Text="{Binding SelectedFile.File.Length, Mode=OneWay, FallbackValue='', Converter={StaticResource BytesCountConverter}}"
                                         IsReadOnly="True"
+                                        FontFamily="Consolas"
+                                        FontSize="12"
                                         HorizontalContentAlignment="Center"
                                         Margin="0,0,0,3" />
                                 </StackPanel>
@@ -577,8 +600,7 @@
                                             IsExpanded="{Binding IsTagsExpanded}">
                                             <DataGrid
                                                 HeadersVisibility="Column"
-                                                IsReadOnly="True"
-                                                CanUserAddRows="False"
+                                                CanUserAddRows="True"
                                                 AlternationCount="2"
                                                 SelectionMode="Extended"
                                                 SelectionUnit="FullRow"
@@ -588,20 +610,99 @@
                                                 BorderBrush="DarkGray"
                                                 AlternatingRowBackground="SeaShell"
                                                 ItemsSource="{Binding SelectedFile.Tags, Mode=OneWay, FallbackValue=''}"
+                                                KeyUp="OnTagsDataGridKeyUp"
+                                                PreviewKeyDown="OnTagsDataGridPreviewKeyDown"
                                                 AllowDrop="False"
                                                 CanUserSortColumns="True"
                                                 Margin="2,1,2,5">
+                                                <DataGrid.Resources>
+                                                    <DataTemplate x:Key="ToggleTagTemplate" DataType="{x:Type viewModels:IMediaTagViewModel}">
+                                                        <Button 
+                                                            Command="{StaticResource ToggleEnable}"
+                                                            CommandParameter="{Binding}"
+                                                            Background="Transparent" 
+                                                            BorderBrush="Transparent" 
+                                                            ToolTip="Enable or disable the tag">
+                                                            <Button.Style>
+                                                                <Style TargetType="{x:Type Button}">
+                                                                    <Setter Property="Template">
+                                                                        <Setter.Value>
+                                                                            <ControlTemplate TargetType="Button">
+                                                                                <Border>
+                                                                                    <Border.Style>
+                                                                                        <Style TargetType="{x:Type Border}">
+                                                                                            <Style.Triggers>
+                                                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                                                    <Setter Property="Background" Value="Transparent"/>
+                                                                                                </Trigger>
+                                                                                            </Style.Triggers>
+                                                                                        </Style>
+                                                                                    </Border.Style>
+                                                                                    <Grid Background="Transparent">
+                                                                                        <ContentPresenter></ContentPresenter>
+                                                                                    </Grid>
+                                                                                </Border>
+                                                                            </ControlTemplate>
+                                                                        </Setter.Value>
+                                                                    </Setter>
+                                                                </Style>
+                                                            </Button.Style>
+                                                            <Image Style="{StaticResource OnOffImage}" RenderOptions.BitmapScalingMode="Fant" Height="16" Margin="3,0,3,0"/>
+                                                        </Button>
+                                                    </DataTemplate>
+                                                </DataGrid.Resources>
                                                 <DataGrid.Columns>
-                                                    <DataGridTextColumn
-                                                        Header="Name"
-                                                        IsReadOnly="True"
-                                                        Binding="{Binding Key, Mode=OneWay}"
-                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
-                                                    <DataGridTextColumn
-                                                        Header="Value"
-                                                        IsReadOnly="True"
-                                                        Binding="{Binding Value, Mode=OneWay}"
-                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                    <DataGridTemplateColumn 
+                                                        CellTemplate="{StaticResource ToggleTagTemplate}" 
+                                                        CanUserResize="False" />
+
+                                                    <DataGridTemplateColumn Header="Name">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock
+                                                                    Text="{Binding Name, Mode=OneWay}"
+                                                                    VerticalAlignment="Center"
+                                                                    HorizontalAlignment="Left"
+                                                                    Margin="2,0,2,0"
+                                                                    d:DataContext="{d:DesignInstance viewModels:IMediaTagViewModel}" />
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                        <DataGridTemplateColumn.CellEditingTemplate>
+                                                            <DataTemplate>
+                                                                <TextBox
+                                                                    Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                                                    FocusManager.FocusedElement="{Binding RelativeSource={RelativeSource Self}}"
+                                                                    VerticalContentAlignment="Center"
+                                                                    HorizontalContentAlignment="Left"
+                                                                    BorderThickness="0"
+                                                                    d:DataContext="{d:DesignInstance viewModels:IMediaTagViewModel}" />
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellEditingTemplate>
+                                                    </DataGridTemplateColumn>
+
+                                                    <DataGridTemplateColumn Header="Value">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock
+                                                                    Text="{Binding Value, Mode=OneWay}"
+                                                                    VerticalAlignment="Center"
+                                                                    HorizontalAlignment="Left"
+                                                                    Margin="2,0,2,0"
+                                                                    d:DataContext="{d:DesignInstance viewModels:IMediaTagViewModel}" />
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                        <DataGridTemplateColumn.CellEditingTemplate>
+                                                            <DataTemplate>
+                                                                <TextBox
+                                                                    Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                                                    FocusManager.FocusedElement="{Binding RelativeSource={RelativeSource Self}}"
+                                                                    VerticalContentAlignment="Center"
+                                                                    HorizontalContentAlignment="Left"
+                                                                    BorderThickness="0"
+                                                                    d:DataContext="{d:DesignInstance viewModels:IMediaTagViewModel}" />
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellEditingTemplate>
+                                                    </DataGridTemplateColumn>
                                                 </DataGrid.Columns>
                                             </DataGrid>
                                         </Expander>
@@ -644,12 +745,12 @@
                                                         Header="Codec"
                                                         IsReadOnly="True"
                                                         Binding="{Binding CodecName, Mode=OneWay}"
-                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                        CellStyle="{StaticResource TextBlockLeftStyle}" />
                                                     <DataGridTextColumn
                                                         Header="Codec Desc."
                                                         IsReadOnly="True"
                                                         Binding="{Binding CodecDescription, Mode=OneWay}"
-                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                        CellStyle="{StaticResource TextBlockLeftStyle}" />
                                                     <DataGridTextColumn
                                                         Header="Codec Type"
                                                         IsReadOnly="True"
@@ -659,7 +760,7 @@
                                                         Header="Codec Tag"
                                                         IsReadOnly="True"
                                                         Binding="{Binding CodecTag, Mode=OneWay}"
-                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                        CellStyle="{StaticResource TextBlockLeftStyle}" />
                                                     <DataGridTextColumn
                                                         Header="Sample Rate"
                                                         IsReadOnly="True"
@@ -679,12 +780,12 @@
                                                         Header="Start Time"
                                                         IsReadOnly="True"
                                                         Binding="{Binding StartTime, Mode=OneWay, Converter={StaticResource TimeSpanConverter}}"
-                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                        CellStyle="{StaticResource TextBlockLeftStyle}" />
                                                     <DataGridTextColumn
                                                         Header="Duration"
                                                         IsReadOnly="True"
                                                         Binding="{Binding Duration, Mode=OneWay, Converter={StaticResource DurationConverter}}"
-                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                        CellStyle="{StaticResource TextBlockLeftStyle}" />
                                                     <DataGridTextColumn
                                                         Header="Width"
                                                         IsReadOnly="True"
@@ -699,7 +800,7 @@
                                                         Header="Tags"
                                                         IsReadOnly="True"
                                                         Binding="{Binding Tags, Mode=OneWay, Converter={StaticResource TagsConcatConverter}}"
-                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                        CellStyle="{StaticResource TextBlockLeftStyle}" />
                                                 </DataGrid.Columns>
                                             </DataGrid>
                                         </Expander>
@@ -737,22 +838,22 @@
                                                         Header="Id"
                                                         IsReadOnly="True"
                                                         Binding="{Binding Id, Mode=OneWay}"
-                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                        CellStyle="{StaticResource TextBlockLeftStyle}" />
                                                     <DataGridTextColumn
                                                         Header="Start"
                                                         IsReadOnly="True"
                                                         Binding="{Binding StartTime, Mode=OneWay, Converter={StaticResource DurationConverter}}"
-                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                        CellStyle="{StaticResource TextBlockLeftStyle}" />
                                                     <DataGridTextColumn
                                                         Header="End"
                                                         IsReadOnly="True"
                                                         Binding="{Binding EndTime, Mode=OneWay, Converter={StaticResource DurationConverter}}"
-                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                        CellStyle="{StaticResource TextBlockLeftStyle}" />
                                                     <DataGridTextColumn
                                                         Header="Tags"
                                                         IsReadOnly="True"
                                                         Binding="{Binding Tags, Mode=OneWay, Converter={StaticResource TagsConcatConverter}}"
-                                                        CellStyle="{StaticResource TextBoxLeftStyle}" />
+                                                        CellStyle="{StaticResource TextBlockLeftStyle}" />
                                                 </DataGrid.Columns>
                                             </DataGrid>
                                         </Expander>
