@@ -8,7 +8,7 @@
         xmlns:commands="clr-namespace:AudioCat.Commands"
         mc:Ignorable="d"
         Icon="/Cat.ico"
-        Title="Audio Cat Tool v2.0.0" Height="640" Width="1024"
+        Title="Audio Cat Tool v2.1.0" Height="640" Width="1024"
         d:DataContext="{d:DesignInstance viewModels:MainViewModel, IsDesignTimeCreatable=False}">
     <Window.Resources>
         <converters:DurationConverter x:Key="DurationConverter" />
@@ -599,6 +599,7 @@
                                             Header="Tags"
                                             IsExpanded="{Binding IsTagsExpanded}">
                                             <DataGrid
+                                                x:Name="TagsDataGrid"
                                                 HeadersVisibility="Column"
                                                 CanUserAddRows="True"
                                                 AlternationCount="2"
@@ -651,6 +652,29 @@
                                                         </Button>
                                                     </DataTemplate>
                                                 </DataGrid.Resources>
+                                                <DataGrid.ContextMenu>
+                                                    <ContextMenu>
+                                                        <MenuItem 
+                                                            Header="Fix All: ISO-8859-1 to Win-1251" 
+                                                            Command="{Binding FixAllIso8859ToWin1251}">
+                                                            <MenuItem.Icon>
+                                                                <Image 
+                                                                    Source="../Images/Encoding.png" 
+                                                                    RenderOptions.BitmapScalingMode="Fant" />
+                                                            </MenuItem.Icon>
+                                                        </MenuItem>
+                                                        <MenuItem 
+                                                            Header="Fix Selected: ISO-8859-1 to Win-1251" 
+                                                            Command="{Binding FixSelectedIso8859ToWin1251}"
+                                                            CommandParameter="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                                            <MenuItem.Icon>
+                                                                <Image 
+                                                                    Source="../Images/Encoding.png" 
+                                                                    RenderOptions.BitmapScalingMode="Fant" />
+                                                            </MenuItem.Icon>
+                                                        </MenuItem>
+                                                    </ContextMenu>
+                                                </DataGrid.ContextMenu>
                                                 <DataGrid.Columns>
                                                     <DataGridTemplateColumn 
                                                         CellTemplate="{StaticResource ToggleTagTemplate}" 

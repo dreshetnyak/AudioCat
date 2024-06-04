@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Windows;
 
 namespace AudioCat;
@@ -31,6 +32,8 @@ public partial class App : Application
 
     private void OnStartup(object sender, StartupEventArgs e)
     {
+        try { Encoding.RegisterProvider(CodePagesEncodingProvider.Instance); }
+        catch {/* ignore */ }
         ServiceProvider.GetService<MainWindow>()?.Show();
     }
 

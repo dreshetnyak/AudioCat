@@ -1,8 +1,10 @@
 ﻿using System.Collections.ObjectModel;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Shapes;
 using AudioCat.Models;
 using AudioCat.Services;
 using AudioCat.ViewModels;
@@ -86,6 +88,10 @@ public partial class MainWindow : Window
         try
         {
             ViewModel.IsUserEntryEnabled = false;
+
+            if (fileNames.IsAllDirectories())
+                fileNames = await GetFilesFromDirectories(fileNames);
+
             var response = await MediaFilesService.AddMediaFiles(fileNames, clearExisting); // Long operation, we fire the task and forget
 
             if (response.SkipFiles.Count > 0) 
@@ -97,6 +103,50 @@ public partial class MainWindow : Window
         {
             ViewModel.IsUserEntryEnabled = true;
         }
+    }
+
+    private static async Task<IReadOnlyList<string>> GetFilesFromDirectories(IReadOnlyList<string> directories)
+    {
+        if (directories.Count == 0)
+            return [];
+
+        var files = new List<string>(1024);
+        var sortedDirs = Files.Sort(directories);
+        foreach (var dir in sortedDirs)
+        {
+            var dirFiles = await GetFilesFromDirectory(dir);
+            if (dirFiles.Count > 0)
+                files.AddRange(Files.Sort(dirFiles));
+        }
+
+        return files;
+    }
+
+    private static async Task<IReadOnlyList<string>> GetFilesFromDirectory(string directory)
+    {
+        var subDirectories = new List<string>();
+        foreach (var subDirectory in Directory.EnumerateDirectories(directory, "*", SearchOption.TopDirectoryOnly))
+        {
+            subDirectories.Add(subDirectory);
+            await Task.Yield();
+        }
+
+        var subDirFiles = await GetFilesFromDirectories(subDirectories);
+        var files = subDirFiles.Count > 0
+            ? new List<string>(subDirFiles)
+            : new List<string>(1024);
+
+        var dirFiles = new List<string>(1024);
+        foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly))
+        {
+            dirFiles.Add(file);
+            await Task.Yield();
+        }
+
+        if (dirFiles.Count > 0)
+            files.AddRange(Files.Sort(dirFiles));
+
+        return files;
     }
     
     private void OnTagsDataGridKeyUp(object sender, KeyEventArgs eventArgs)

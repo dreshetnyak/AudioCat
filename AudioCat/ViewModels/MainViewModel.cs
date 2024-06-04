@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using AudioCat.Commands;
 using AudioCat.Models;
@@ -149,6 +150,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ICommand MoveSelected { get; }
     public ICommand SelectTags { get; }
     public ICommand SelectCover { get; }
+    public ICommand FixAllIso8859ToWin1251 { get; }
+    public ICommand FixSelectedIso8859ToWin1251 { get; }
 
     public int ProgressPercentage
     {
@@ -172,7 +175,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
-
+    
     public MainViewModel(
         IMediaFileToolkitService mediaFileToolkitService,
         IMediaFilesContainer mediaFilesContainer,
@@ -204,6 +207,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
         Cancel = new RelayCommand(concatenate.Cancel);
         SelectTags = new RelayParameterCommand(OnSelectTags);
         SelectCover = new RelayParameterCommand(OnSelectCover);
+
+        FixAllIso8859ToWin1251 = new RelayParameterCommand(OnFixAllTagsEncoding);
+        FixSelectedIso8859ToWin1251 = new RelayParameterCommand(OnFixSelectedTagEncoding);
 
         Files.CollectionChanged += OnFilesCollectionChanged;
 
@@ -292,6 +298,39 @@ public sealed class MainViewModel : INotifyPropertyChanged
             return;
 
         selectedFile.IsCoverSource = !selectedFile.IsCoverSource;
+    }
+
+    private void OnFixAllTagsEncoding(object? _)
+    {
+        var selectedFile = MediaFilesContainer.SelectedFile;
+        if (selectedFile == null || selectedFile.Tags.Count == 0)
+            return;
+
+        var iso8859 = Encoding.GetEncoding("ISO-8859-1");
+        var win1251 = Encoding.GetEncoding("Windows-1251");
+        foreach (var tag in selectedFile.Tags)
+        {
+            tag.Name = win1251.GetString(iso8859.GetBytes(tag.Name));
+            tag.Value = win1251.GetString(iso8859.GetBytes(tag.Value));
+        }
+    }
+
+    private void OnFixSelectedTagEncoding(object? dataGridObject)
+    {
+        var selectedFile = MediaFilesContainer.SelectedFile;
+        if (selectedFile == null || selectedFile.Tags.Count == 0 || dataGridObject is not DataGrid dataGrid)
+            return;
+
+        var selectedTagIndex = dataGrid.SelectedIndex;
+        if (selectedTagIndex < 0 || selectedTagIndex >= selectedFile.Tags.Count)
+            return;
+
+        var iso8859 = Encoding.GetEncoding("ISO-8859-1");
+        var win1251 = Encoding.GetEncoding("Windows-1251");
+
+        var tag = selectedFile.Tags[selectedTagIndex];
+        tag.Name = win1251.GetString(iso8859.GetBytes(tag.Name));
+        tag.Value = win1251.GetString(iso8859.GetBytes(tag.Value));
     }
 
     private void OnStarting(object? sender, EventArgs e)
