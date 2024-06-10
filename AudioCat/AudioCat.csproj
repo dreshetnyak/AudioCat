@@ -25,12 +25,16 @@
     <None Remove="Images\Execute.png" />
     <None Remove="Images\ExecuteGray.png" />
     <None Remove="Images\Ignore.png" />
-    <None Remove="Images\Off.png" />
+    <None Remove="Images\NewFiles.png" />
+    <None Remove="Images\NewFilesGray.png" />
+    <None Remove="Images\NewTag.png" />
+    <None Remove="Images\NewTagGray.png" />
     <None Remove="Images\Ok.png" />
     <None Remove="Images\OkGray.png" />
-    <None Remove="Images\On.png" />
     <None Remove="Images\Remove.png" />
     <None Remove="Images\RemoveGray.png" />
+    <None Remove="Images\ToggleOff.png" />
+    <None Remove="Images\ToggleOn.png" />
     <None Remove="Images\Up.png" />
     <None Remove="Images\UpGray.png" />
   </ItemGroup>
@@ -60,12 +64,16 @@
     <Resource Include="Images\Execute.png" />
     <Resource Include="Images\ExecuteGray.png" />
     <Resource Include="Images\Ignore.png" />
-    <Resource Include="Images\Off.png" />
+    <Resource Include="Images\NewFiles.png" />
+    <Resource Include="Images\NewFilesGray.png" />
+    <Resource Include="Images\NewTag.png" />
+    <Resource Include="Images\NewTagGray.png" />
     <Resource Include="Images\Ok.png" />
     <Resource Include="Images\OkGray.png" />
-    <Resource Include="Images\On.png" />
     <Resource Include="Images\Remove.png" />
     <Resource Include="Images\RemoveGray.png" />
+    <Resource Include="Images\ToggleOff.png" />
+    <Resource Include="Images\ToggleOn.png" />
     <Resource Include="Images\Up.png" />
     <Resource Include="Images\UpGray.png" />
   </ItemGroup>

@@ -3,7 +3,7 @@ using AudioCat.ViewModels;
 
 namespace AudioCat.Commands;
 
-public class MoveFileCommand(IMediaFilesContainer mediaFilesContainer) : CommandBase
+public sealed class MoveFileCommand(IMediaFilesContainer mediaFilesContainer) : CommandBase
 {
     private IMediaFilesContainer MediaFilesContainer { get; } = mediaFilesContainer;
 

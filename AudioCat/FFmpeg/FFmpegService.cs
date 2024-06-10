@@ -1,9 +1,9 @@
-﻿using System.Collections.Concurrent;
-using AudioCat.Models;
+﻿using AudioCat.Models;
 using AudioCat.Services;
 using System.IO;
 using System.Text;
 using AudioCat.ViewModels;
+using System.Collections.ObjectModel;
 
 namespace AudioCat.FFmpeg;
 
@@ -32,17 +32,13 @@ internal class FFmpegService : IMediaFileToolkitService
         }
     }
 
-    public async Task<IResult> Concatenate(IReadOnlyList<IMediaFileViewModel> mediaFiles, string outputFileName, Action<IProcessingStats> onStatusUpdate, CancellationToken ctx)
+    public async Task<IResult> Concatenate(IReadOnlyList<IMediaFileViewModel> mediaFiles, IConcatParams concatParams, string outputFileName, Action<IProcessingStats> onStatusUpdate, CancellationToken ctx)
     {
         var errorMessage = new StringBuilder();
         try
         {
-            //await ScanTest(onStatusUpdate);
-
-            //return Result.Success();
-
             var extractImagesTask = ExtractImages(mediaFiles, ctx);
-            var metadataFileTask = CreateMetadataFile(mediaFiles, false, ctx); //TODO Adding chapters
+            var metadataFileTask = CreateMetadataFile(mediaFiles, concatParams, ctx);
             var listFileTask = CreateFilesListFile(mediaFiles);
 
             var listFile = await listFileTask;
@@ -91,9 +87,17 @@ internal class FFmpegService : IMediaFileToolkitService
 
             #endregion
 
-            return errorMessage.Length == 0
-                ? Result.Success()
-                : Result.Failure(errorMessage.ToString());
+            if (errorMessage.Length == 0)
+                return Result.Success();
+
+            var outputFile = new FileInfo(outputFileName);
+            if (outputFile is { Exists: true, Length: 0 })
+            {
+                try { await Task.Run(() => File.Delete(outputFileName), CancellationToken.None); }
+                catch { /* ignore */ }
+            }
+
+            return Result.Failure(errorMessage.ToString());
         }
         catch (Exception ex)
         {
@@ -150,144 +154,64 @@ internal class FFmpegService : IMediaFileToolkitService
         static string EscapeFilePath(string path) => path.Replace("\\", "/").Replace("'", "'\\''");
     }
 
-    private static async Task<string> CreateMetadataFile(IReadOnlyList<IMediaFileViewModel> mediaFiles, bool addChapters, CancellationToken ctx)
+    private const string METADATA_FILE_START = ";FFMETADATA1\n";
+    private static async Task<string> CreateMetadataFile(IReadOnlyList<IMediaFileViewModel> mediaFiles, IConcatParams concatParams, CancellationToken ctx)
     {
-        var file = mediaFiles.FirstOrDefault(mediaFile => mediaFile.IsTagsSource);
-        if (file == null)
+        var tagsMetadata = concatParams.TagsEnabled ? GetTagsMetadata(mediaFiles) : ""; 
+        var chaptersMetadata = concatParams.ChaptersEnabled ? GetChaptersMetadata(mediaFiles) : "";
+        if (tagsMetadata.Length == 0 && chaptersMetadata.Length == 0)
             return "";
 
         var metadataFile = Path.GetTempFileName();
-        //var extractResult = await ExtractMetadata(file.FilePath, metadataFile, ctx);
-        var extractResult = await WriteMetadataToFile(file, metadataFile, ctx);
-        if (extractResult.IsSuccess)
+        try
         {
-            if (addChapters)
-                await AddChapters(mediaFiles, metadataFile, ctx);
+            var utf8WithoutBom = new UTF8Encoding(false);
+            await using var writer = new StreamWriter(metadataFile, false, utf8WithoutBom);
+            await writer.WriteAsync(METADATA_FILE_START);
+            if (tagsMetadata.Length > 0)
+                await writer.WriteAsync(tagsMetadata);
+            if (chaptersMetadata.Length > 0)
+                await writer.WriteAsync(chaptersMetadata);
+
             return metadataFile;
         }
-
-        try { await Task.Run(() => File.Delete(metadataFile), CancellationToken.None); }
-        catch { /* ignore */ }
-
-        return "";
+        catch
+        {
+            try { await Task.Run(() => File.Delete(metadataFile), CancellationToken.None); }
+            catch { /* ignore */ }
+            return "";
+        }
     }
 
-    private static async Task<IResult> WriteMetadataToFile(IMediaFileViewModel mediaFile, string outputFile, CancellationToken ctx)
+    private static string GetTagsMetadata(IEnumerable<IMediaFileViewModel> mediaFiles)
     {
-        var metadata = CreateMetadata(mediaFile);
-        if (metadata == "")
-            return Result.Failure();
-        try { await File.WriteAllTextAsync(outputFile, metadata, ctx); }
-        catch { return Result.Failure(); }
-        return Result.Success();
+        var mediaFile = mediaFiles.FirstOrDefault(mediaFile => mediaFile.IsTagsSource);
+        return mediaFile != null
+            ? GetTagsMetadata(mediaFile.Tags)
+            : "";
     }
 
-    private const string METADATA_FILE_START = ";FFMETADATA1\n";
-    private static string CreateMetadata(IMediaFileViewModel mediaFile)
+    private static string GetTagsMetadata(IEnumerable<IMediaTagViewModel> tags)
     {
-        var metadata = new StringBuilder(8192);
-        metadata.Append(METADATA_FILE_START);
-
-        foreach (var tag in mediaFile.Tags)
+        var tagsMetadata = new StringBuilder(8192);
+        foreach (var tag in tags)
         {
             if (!tag.IsEnabled)
                 continue;
             var name = tag.Name.FilterPrintable().Trim();
             if (name == "")
                 continue;
-            
-            metadata.Append(name);
-            metadata.Append('=');
-            metadata.Append(FilterValue(tag.Value));
-            metadata.Append('\n');
+
+            tagsMetadata.Append(name);
+            tagsMetadata.Append('=');
+            tagsMetadata.Append(FilterMetadataValue(tag.Value));
+            tagsMetadata.Append('\n');
         }
 
-        return metadata.Length > METADATA_FILE_START.Length ? metadata.ToString() : "";
-
-        static string FilterValue(string name)
-        {
-            var valueBuilder = new StringBuilder(name.Length);
-            foreach (var ch in name)
-            {
-                switch (ch)
-                {
-                    case '\r':
-                        break;
-                    case '\n':
-                        valueBuilder.Append('\\');
-                        valueBuilder.Append('\n');
-                        break;
-                    case '\t':
-                        valueBuilder.Append('\t');
-                        break;
-                    default:
-                        if (ch.IsPrintable())
-                            valueBuilder.Append(ch);
-                        break;
-                }
-            }
-
-            return valueBuilder.ToString();
-        }
+        return tagsMetadata.ToString();
     }
 
-    private static async Task<IResult> ExtractMetadata(string fileFullName, string outputFile, CancellationToken ctx)
-    {
-        var errorMessage = new StringBuilder();
-        await Process.Run(
-            "ffmpeg.exe",
-            $"-hide_banner -y -loglevel error -i \"{fileFullName}\" -f ffmetadata \"{outputFile}\"",
-            OnError,
-            Process.OutputType.Error,
-            ctx);
-
-        if (errorMessage.Length != 0 &&
-            !IsErrorToIgnore(errorMessage.ToString()))
-            return Result.Failure(errorMessage.ToString());
-
-        var fileInfo = new FileInfo(outputFile);
-        if (fileInfo.Length == 0)
-            return Result.Failure();
-
-        await DiscardChapters(outputFile);
-
-        return Result.Success();
-
-        void OnError(string statusLine)
-        {
-            if (errorMessage.Length != 0)
-                errorMessage.Append(Environment.NewLine);
-            errorMessage.Append(statusLine.Trim());
-        }
-    }
-
-    private static async Task DiscardChapters(string metadataFile)
-    {
-        string[] fileLines;
-        try { fileLines = await File.ReadAllLinesAsync(metadataFile); }
-        catch { return; }
-
-        var chapterFound = false;
-        var fileContent = new StringBuilder();
-        foreach (var fileLine in fileLines)
-        {
-            if (fileLine == "[CHAPTER]")
-            {
-                chapterFound = true;
-                break;
-            }
-
-            fileContent.AppendLine(fileLine);
-        }
-
-        if (!chapterFound)
-            return;
-
-        try { await File.WriteAllTextAsync(metadataFile, fileContent.ToString()); }
-        catch { /* ignore */ }
-    }
-
-    private static async Task AddChapters(IReadOnlyList<IMediaFileViewModel> mediaFiles, string metadataFile, CancellationToken ctx)
+    private static string GetChaptersMetadata(IEnumerable<IMediaFileViewModel> mediaFiles)
     {
         var startTime = TimeSpan.Zero;
         var chapters = new StringBuilder();
@@ -297,51 +221,71 @@ internal class FFmpegService : IMediaFileToolkitService
                 continue;
 
             foreach (var chapter in file.Chapters)
-            {
-                ctx.ThrowIfCancellationRequested();
-                AddChapter(chapter);
-            }
+                chapters.Append(GetChapterMetadata(chapter, startTime));
 
             startTime = startTime.Add(file.Duration.Value);
-            ctx.ThrowIfCancellationRequested();
         }
 
-        if (chapters.Length != 0)
-            await File.AppendAllTextAsync(metadataFile, chapters.ToString(), CancellationToken.None);
+        return chapters.ToString();
+    }
 
-        return;
+    private static string GetChapterMetadata(IMediaChapter chapter, TimeSpan startTime)
+    {
+        if (!chapter.Start.HasValue ||
+            !chapter.End.HasValue ||
+            chapter.TimeBaseDivident is not > 0 ||
+            chapter.TimeBaseDivisor is not > 0 ||
+            chapter.Tags.Count == 0)
+            return "";
 
-        void AddChapter(IMediaChapter chapter)
+        var divident = chapter.TimeBaseDivident.Value;
+        var divisor = chapter.TimeBaseDivisor.Value;
+        var multiplier = divident / divisor;
+
+        var startSeconds = chapter.Start.Value * multiplier;
+        var relativeStart = TimeSpan.FromSeconds((double)startSeconds);
+        var absoluteStart = relativeStart.Add(startTime);
+
+        var endSeconds = chapter.End.Value * multiplier;
+        var relativeEnd = TimeSpan.FromSeconds((double)endSeconds);
+        var absoluteEnd = relativeEnd.Add(startTime);
+
+        var calculatedStart = (long)((decimal)absoluteStart.TotalSeconds * 1000m);
+        var calculatedEnd = (long)((decimal)absoluteEnd.TotalSeconds * 1000m);
+
+        var chapters = new StringBuilder(256);
+        chapters.Append("[CHAPTER]\n");
+        chapters.Append("TIMEBASE=1/1000\n");
+        chapters.Append($"START={calculatedStart}\n");
+        chapters.Append($"END={calculatedEnd}\n");
+        foreach (var tag in chapter.Tags)
+            chapters.Append($"{tag.Name}={tag.Value}\n");
+
+        return chapters.ToString();
+    }
+
+    private static string FilterMetadataValue(string name)
+    {
+        var valueBuilder = new StringBuilder(name.Length);
+        foreach (var ch in name)
         {
-            if (!chapter.Start.HasValue ||
-                !chapter.End.HasValue ||
-                chapter.TimeBaseDivident is not > 0 ||
-                chapter.TimeBaseDivisor is not > 0 ||
-                chapter.Tags.Count == 0)
-                return;
-
-            var divident = chapter.TimeBaseDivident.Value;
-            var divisor = chapter.TimeBaseDivisor.Value;
-            var multiplier = divident / divisor;
-
-            var startSeconds = chapter.Start.Value * multiplier;
-            var relativeStart = TimeSpan.FromSeconds((double)startSeconds);
-            var absoluteStart = relativeStart.Add(startTime);
-
-            var endSeconds = chapter.End.Value * multiplier;
-            var relativeEnd = TimeSpan.FromSeconds((double)endSeconds);
-            var absoluteEnd = relativeEnd.Add(startTime);
-
-            var calculatedStart = (long)((decimal)absoluteStart.TotalSeconds * 1000m);
-            var calculatedEnd = (long)((decimal)absoluteEnd.TotalSeconds * 1000m);
-
-            chapters.AppendLine("[CHAPTER]");
-            chapters.AppendLine("TIMEBASE=1/1000");
-            chapters.AppendLine($"START={calculatedStart}");
-            chapters.AppendLine($"END={calculatedEnd}");
-            foreach (var tag in chapter.Tags)
-                chapters.AppendLine($"{tag.Name}={tag.Value}");
+            switch (ch)
+            {
+                case '\r': break;
+                case '\n': valueBuilder.Append("\\\n"); break;
+                case '\t': valueBuilder.Append('\t'); break;
+                case '=': valueBuilder.Append("\\="); break;
+                case ';': valueBuilder.Append("\\;"); break;
+                case '#': valueBuilder.Append("\\#"); break;
+                case '\\': valueBuilder.Append(@"\\"); break;
+                default:
+                    if (ch.IsPrintable())
+                        valueBuilder.Append(ch);
+                    break;
+            }
         }
+
+        return valueBuilder.ToString();
     }
 
     private static async Task<IResult> AddImages(string audioFile, IReadOnlyList<ImageFile> audioFileImages, string outputFile, CancellationToken ctx)
@@ -353,7 +297,7 @@ internal class FFmpegService : IMediaFileToolkitService
             var metadataQuery = GetMetadataQuery(audioFileImages);
             var response = await Process.Run(
                 "ffmpeg.exe",
-                $"-hide_banner -y -loglevel error -i \"{audioFile}\"{imageFilesQuery} -c copy -map 0{mappingQuery}{metadataQuery} -disposition:v attached_pic \"{outputFile}\"",
+                $"-hide_banner -y -loglevel error -i \"{audioFile}\"{imageFilesQuery} -c copy -map 0:a{mappingQuery}{metadataQuery} -disposition:v attached_pic \"{outputFile}\"",
                 Process.OutputType.Error,
                 ctx);
 

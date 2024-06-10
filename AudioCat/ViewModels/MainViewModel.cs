@@ -13,7 +13,7 @@ using AudioCat.Windows;
 
 namespace AudioCat.ViewModels;
 
-public sealed class MainViewModel : INotifyPropertyChanged
+public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 {
     #region Backing Fields
     private bool _isUserEntryEnabled;
@@ -24,7 +24,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private bool _isTagsExpanded;
     private bool _isStreamsExpanded;
     private bool _isChaptersExpanded;
-
+    private bool _tagsEnabled = true;
+    private bool _chaptersEnabled = true;
+    
     #endregion
 
     private IMediaFileToolkitService MediaFileToolkitService { get; }
@@ -37,6 +39,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         get => MediaFilesContainer.SelectedFile;
         set => MediaFilesContainer.SelectedFile = value;
     }
+
     public Action? FocusFileDataGrid { get; set; }
 
     private void UpdateExpanders()
@@ -45,7 +48,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             IsTagsExpanded = SelectedFile.Tags.Count > 0;
             IsStreamsExpanded = SelectedFile.Streams.Count > 0;
-            IsChaptersExpanded = SelectedFile.Chapters.Count > 0;
+            IsChaptersExpanded = ChaptersEnabled && SelectedFile.Chapters.Count > 0;
         }
         else
             IsTagsExpanded = IsStreamsExpanded = IsChaptersExpanded = false;
@@ -97,6 +100,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(IsMoveUpEnabled));
             OnPropertyChanged(nameof(IsMoveDownEnabled));
             OnPropertyChanged(nameof(IsRemoveEnabled));
+            OnPropertyChanged(nameof(IsChaptersFromTagsEnabled));
+            OnPropertyChanged(nameof(IsChaptersFromFilesEnabled));
         }
     }
     public bool IsConcatenateEnabled => IsUserEntryEnabled && Files.Count > 0 && TotalDuration != TimeSpan.Zero;
@@ -142,6 +147,61 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    public string TagsCount =>
+        SelectedFile != null 
+            ? SelectedFile.Tags.Count > 0 
+                ? SelectedFile.Tags.Count > 1 ? $"{SelectedFile.Tags.Count:N0} tags" : "1 tag"
+                : "No tags"
+            : "";
+    public string StreamsCount =>
+        SelectedFile != null
+            ? SelectedFile.Streams.Count > 0 
+                ? SelectedFile.Streams.Count > 1 ? $"{SelectedFile.Streams.Count:N0} streams" : "1 stream"
+                : "No streams"
+            : "";
+    public string ChaptersCount =>
+        SelectedFile != null
+            ? SelectedFile.Chapters.Count > 0 
+                ? SelectedFile.Chapters.Count > 1 ? $"{SelectedFile.Chapters.Count:N0} chapters" : "1 chapter"
+                : "No chapters"
+            : "";
+
+    public bool TagsEnabled
+    {
+        get => _tagsEnabled;
+        set
+        {
+            if (value == _tagsEnabled) 
+                return;
+            _tagsEnabled = value;
+            OnPropertyChanged();
+            IsTagsExpanded = value && SelectedFile is { Tags.Count: > 0 };
+            OnPropertyChanged(nameof(TagsVisibility));
+            OnPropertyChanged(nameof(IsChaptersFromTagsEnabled));
+        }
+    }
+    public Visibility TagsVisibility => TagsEnabled && SelectedFile is { IsImage: false } ? Visibility.Visible : Visibility.Collapsed;
+
+    public bool ChaptersEnabled
+    {
+        get => _chaptersEnabled;
+        set
+        {
+            if (value == _chaptersEnabled) 
+                return;
+            _chaptersEnabled = value;
+            OnPropertyChanged();
+            IsChaptersExpanded = value && SelectedFile is { Chapters.Count: > 0 };
+            OnPropertyChanged(nameof(ChaptersVisibility));
+            OnPropertyChanged(nameof(IsChaptersFromFilesEnabled));
+            OnPropertyChanged(nameof(IsChaptersFromTagsEnabled));
+        }
+    }
+    public Visibility ChaptersVisibility => ChaptersEnabled && SelectedFile is { IsImage: false } ? Visibility.Visible : Visibility.Collapsed;
+
+    public bool IsChaptersFromTagsEnabled => IsUserEntryEnabled && Files.Count > 0 && ChaptersEnabled && TagsEnabled;
+    public bool IsChaptersFromFilesEnabled => IsUserEntryEnabled && Files.Count > 0 && ChaptersEnabled;
+
     public ICommand Concatenate { get; }
     public ICommand Cancel { get; }
     public ICommand AddPath { get; }
@@ -152,7 +212,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ICommand SelectCover { get; }
     public ICommand FixAllIso8859ToWin1251 { get; }
     public ICommand FixSelectedIso8859ToWin1251 { get; }
+    public ICommand ToggleTagsEnabled { get; }
+    public ICommand ToggleChaptersEnabled { get; }
+    public ICommand CreateChaptersFromFiles { get; }
+    public ICommand CreateChaptersFromTags { get; }
 
+    public double TaskBarProgress
+    {
+        get => ProgressPercentage / 10000d;
+        set => throw new NotSupportedException();
+    }
     public int ProgressPercentage
     {
         get => _progressPercentage;
@@ -162,6 +231,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 return;
             _progressPercentage = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(TaskBarProgress));
         }
     }
     public string ProgressText
@@ -183,7 +253,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
         AddFilesCommand addFilesCommand,
         AddPathCommand addPathCommand,
         MoveFileCommand moveFileCommand,
-        ConcatenateCommand concatenate)
+        ConcatenateCommand concatenate,
+        CreateChaptersFromFilesCommand createChaptersFromFiles,
+        CreateChaptersFromTagsCommand createChaptersFromTags)
     {
         MediaFileToolkitService  = mediaFileToolkitService;
         
@@ -203,6 +275,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
         concatenate.StatusUpdate += OnStatusUpdate;
         Concatenate = concatenate;
 
+        createChaptersFromFiles.Finished += OnCreateChaptersFinished;
+        CreateChaptersFromFiles = createChaptersFromFiles;
+
+        createChaptersFromTags.Finished += OnCreateChaptersFinished;
+        CreateChaptersFromTags = createChaptersFromTags;
+
         ClearPaths = new RelayCommand(Files.Clear);
         Cancel = new RelayCommand(concatenate.Cancel);
         SelectTags = new RelayParameterCommand(OnSelectTags);
@@ -211,20 +289,46 @@ public sealed class MainViewModel : INotifyPropertyChanged
         FixAllIso8859ToWin1251 = new RelayParameterCommand(OnFixAllTagsEncoding);
         FixSelectedIso8859ToWin1251 = new RelayParameterCommand(OnFixSelectedTagEncoding);
 
+        ToggleTagsEnabled = new RelayCommand(OnToggleTagsEnabled);
+        ToggleChaptersEnabled = new RelayCommand(OnToggleChaptersEnabled);
+
         Files.CollectionChanged += OnFilesCollectionChanged;
 
         _ = VerifyMediaFileServiceIsAccessible()
             .ContinueWith(AddCliFilesOnStartup);
     }
 
+    private ObservableCollection<IMediaTagViewModel>? SelectedFileTags { get; set; }
     private void OnSelectedAudioFileChanged(object? sender, PropertyChangedEventArgs e)
     {
         OnPropertyChanged(nameof(SelectedFile));
         OnPropertyChanged(nameof(IsMoveUpEnabled));
         OnPropertyChanged(nameof(IsMoveDownEnabled));
         OnPropertyChanged(nameof(IsRemoveEnabled));
+        OnPropertyChanged(nameof(TagsVisibility));
+        OnPropertyChanged(nameof(ChaptersVisibility));
         UpdateExpanders();
+        OnPropertyChanged(nameof(TagsCount));
+        OnPropertyChanged(nameof(StreamsCount));
+        OnPropertyChanged(nameof(ChaptersCount));
+        
+        if (SelectedFileTags != null)
+        {
+            SelectedFileTags.CollectionChanged -= OnSelectedFileTagsChanged;
+            SelectedFileTags = null;
+        }
+        if (SelectedFile != null)
+        {
+            SelectedFileTags = SelectedFile.Tags;
+            SelectedFileTags.CollectionChanged += OnSelectedFileTagsChanged;
+        }
+        
         FocusFileDataGrid?.Invoke();
+    }
+
+    private void OnSelectedFileTagsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(TagsCount));
     }
 
     private async Task VerifyMediaFileServiceIsAccessible()
@@ -283,7 +387,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             currentFile.IsTagsSource = currentFile == selectedFile;
     }
 
-    private void OnSelectCover(object? obj)
+    private static void OnSelectCover(object? obj)
     {
         if (obj is not MediaFileViewModel selectedFile)
             return;
@@ -332,6 +436,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
         tag.Name = win1251.GetString(iso8859.GetBytes(tag.Name));
         tag.Value = win1251.GetString(iso8859.GetBytes(tag.Value));
     }
+
+    private void OnToggleTagsEnabled() =>
+        TagsEnabled = !TagsEnabled;
+
+    private void OnToggleChaptersEnabled() => 
+        ChaptersEnabled = !ChaptersEnabled;
 
     private void OnStarting(object? sender, EventArgs e)
     {
@@ -389,6 +499,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
             ProgressPercentage = GetProgressPercentage(stats.Time);
     }
 
+    private void OnCreateChaptersFinished(object sender, ResponseEventArgs eventArgs)
+    {
+        IsChaptersExpanded = ChaptersEnabled && SelectedFile is { Chapters.Count: > 0 };
+        OnPropertyChanged(nameof(ChaptersCount));
+    }
+
     private void OnFilesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         OnPropertyChanged(nameof(IsConcatenateEnabled));
@@ -396,6 +512,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsMoveUpEnabled));
         OnPropertyChanged(nameof(IsMoveDownEnabled));
         OnPropertyChanged(nameof(IsRemoveEnabled));
+        OnPropertyChanged(nameof(IsChaptersFromTagsEnabled));
+        OnPropertyChanged(nameof(IsChaptersFromFilesEnabled));
         TotalSize = GetFilesTotalSize();
         TotalDuration = GetTotalDuration();
     }

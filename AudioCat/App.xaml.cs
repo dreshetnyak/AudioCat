@@ -26,6 +26,8 @@ public partial class App : Application
             .AddSingleton<AddPathCommand>()
             .AddSingleton<MoveFileCommand>()
             .AddSingleton<ConcatenateCommand>()
+            .AddSingleton<CreateChaptersFromFilesCommand>()
+            .AddSingleton<CreateChaptersFromTagsCommand>()
             .AddSingleton<MainWindow>()
             .AddSingleton<MainViewModel>()
             .BuildServiceProvider();

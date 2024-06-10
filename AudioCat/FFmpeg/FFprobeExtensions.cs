@@ -5,12 +5,6 @@ namespace AudioCat.FFmpeg;
 
 internal static class FFprobeExtensions
 {
-    private class MediaTag(string name, string value) : IMediaTag
-    {
-        public string Name { get; } = name;
-        public string Value { get; } = value;
-    }
-
     public static IReadOnlyList<IMediaTag> GetTags(this XElement? parentElement)
     {
         if (parentElement is not { HasElements: true })

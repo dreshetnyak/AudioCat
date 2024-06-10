@@ -17,7 +17,7 @@ public interface IMediaFileViewModel : INotifyPropertyChanged
     TimeSpan? Duration { get; }
     decimal? Bitrate { get; }
     ObservableCollection<IMediaTagViewModel> Tags { get; }
-    IReadOnlyList<IMediaChapter> Chapters { get; }
+    ObservableCollection<IMediaChapterViewModel> Chapters { get; }
     IReadOnlyList<IMediaStream> Streams { get; }
 
     bool IsImage { get; }
@@ -44,7 +44,7 @@ public sealed class MediaFileViewModel : IMediaFileViewModel
     public TimeSpan? Duration { get; } 
     public decimal? Bitrate { get; }
     public ObservableCollection<IMediaTagViewModel> Tags { get; }
-    public IReadOnlyList<IMediaChapter> Chapters => MediaFile.Chapters;
+    public ObservableCollection<IMediaChapterViewModel> Chapters { get; }
     public IReadOnlyList<IMediaStream> Streams { get; }
 
     public bool IsImage { get; }
@@ -99,6 +99,10 @@ public sealed class MediaFileViewModel : IMediaFileViewModel
         Tags = new ObservableCollection<IMediaTagViewModel>();
         foreach (var tag in MediaFile.Tags) 
             Tags.Add(TagViewModel.CreateFrom(tag));
+
+        Chapters = new ObservableCollection<IMediaChapterViewModel>();
+        foreach (var chapter in MediaFile.Chapters)
+            Chapters.Add(ChapterViewModel.CreateFrom(chapter));
     }
 
     private static IEnumerable<string> SupportedImageCodecs { get; } = ["mjpeg", "png"];

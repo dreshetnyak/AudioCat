@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Shapes;
 using AudioCat.Models;
 using AudioCat.Services;
 using AudioCat.ViewModels;
@@ -176,6 +175,16 @@ public partial class MainWindow : Window
                 EnsureRowSelection(dataGrid);
                 break;
         }
+    }
+
+    private void OnTagsDataGridMouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not DataGrid { ItemsSource: ObservableCollection<IMediaTagViewModel> tags } dataGrid || dataGrid.Items.Count > 0)
+            return;
+        if (dataGrid.SelectedIndex >= 0)
+            tags.Insert(dataGrid.SelectedIndex, new TagViewModel());
+        else
+            tags.Add(new TagViewModel());
     }
 
     private void OnTagsDataGridPreviewKeyDown(object sender, KeyEventArgs eventArgs)

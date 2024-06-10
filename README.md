@@ -8,12 +8,34 @@
 
 ## Version History
 
-### AudioCat 2.1.0
-New. Added a popup menu to the tags grid that has an option to fix the tags Cyrillic encoding.<br>
-New. Now the app accepts a drop of directories.
+### AudioCat 3.0.0
+New. Now if the tags grid is empty a new tag can be added by double click on the grid header.<br>
+Fix. In some cases when concatenation fails an empty output file was created, now app deletes it.<br>
+Bug. Multiple tags selection was allowed leading to inconsistent tags manipulation results.<br>
+Fix. Ordering columns now disabled.<br>
+New. Added the total files count.<br>
+Fix. Adjusted the hight of the selected file data fields.<br>
+Fix. Ordering by column is now disabled for streams and chapters grid.<br>
+Fix. Set a minimal size for the right side panel.<br>
+Bug. Adding an image would fail if m4b file contained chapters.<br>
+New. Concatenation progress is now reflected in the app icon on the task bar.<br>
+Bug. Chapters tags were not displayed.<br>
+New. Chapters tags is now replaced with title field which is editable.<br>
+New. Chapters are now properly time adjusted, concatenated and added to the output.<br>
+New. Now chapters output can be disabled using a switch on the expander.<br>
+New. Replaced switch icons.<br>
+New. Tags output can be enabled or disabled.<br>
+Bug. If the output file was not created the concatenation would fail with "file not found" instead of the real error.<br>
+Bug. Media tags value escaping was missing some characters that must be escaped.<br>
+Bug. Writing media tags could fail due to a BOM that was written to the metadata file.<br>
+New. Added the count for Tags, Streams and Chapters.
 
 <details>
 <summary>Previous versions</summary>
+
+### AudioCat 2.1.0
+New. Added a popup menu to the tags grid that has an option to fix the tags Cyrillic encoding.<br>
+New. Now the app accepts a drop of directories.
 
 ### AudioCat v2.0.0
 Bug. When adding some files the app would freeze on the probing stage.<br>

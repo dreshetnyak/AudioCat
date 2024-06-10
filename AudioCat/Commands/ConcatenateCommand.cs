@@ -14,6 +14,14 @@ public delegate void StatusEventHandler(object sender, StatusEventArgs eventArgs
 
 public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkitService, IMediaFilesService mediaFilesService, IMediaFilesContainer mediaFilesContainer) : CommandBase
 {
+    #region Internal Types
+    private class ConcatParams(bool tagsEnabled, bool chaptersEnabled) : IConcatParams
+    {
+        public bool TagsEnabled { get; } = tagsEnabled;
+        public bool ChaptersEnabled { get; } = chaptersEnabled;
+    }
+    #endregion
+
     private IMediaFileToolkitService MediaFileToolkitService { get; } = mediaFileToolkitService;
     private IMediaFilesService MediaFilesService { get; } = mediaFilesService;
 
@@ -40,8 +48,9 @@ public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkit
                 GetInitialDirectory());
             if (outputFileName == "")
                 return Response<object>.Success();
-            
-            var concatResult = await MediaFileToolkitService.Concatenate(MediaFiles, outputFileName, OnStatusUpdate, CancellationToken.None);
+
+            var concatParams = parameter is IConcatParams cp ? cp : new ConcatParams(true, true);
+            var concatResult = await MediaFileToolkitService.Concatenate(MediaFiles, concatParams, outputFileName, OnStatusUpdate, CancellationToken.None);
             return concatResult.IsSuccess
                 ? Response<object>.Success()
                 : Response<object>.Failure(outputFileName, concatResult.Message);
