@@ -297,7 +297,7 @@ internal class FFmpegService : IMediaFileToolkitService
             var metadataQuery = GetMetadataQuery(audioFileImages);
             var response = await Process.Run(
                 "ffmpeg.exe",
-                $"-hide_banner -y -loglevel error -i \"{audioFile}\"{imageFilesQuery} -c copy -map 0:a{mappingQuery}{metadataQuery} -disposition:v attached_pic \"{outputFile}\"",
+                $"-hide_banner -y -loglevel error -i \"{audioFile}\"{imageFilesQuery} -c copy -map 0:a{mappingQuery}{metadataQuery} -id3v2_version 3 -write_id3v1 1 -disposition:v attached_pic \"{outputFile}\"",
                 Process.OutputType.Error,
                 ctx);
 
@@ -361,7 +361,10 @@ internal class FFmpegService : IMediaFileToolkitService
         foreach (var mediaFile in mediaFiles)
         {
             if (mediaFile.IsImage)
-                imageFiles.Add(new ImageFile(mediaFile.Streams[0], mediaFile.FilePath, false));
+            {
+                if (mediaFile.IsCoverSource)
+                    imageFiles.Add(new ImageFile(mediaFile.Streams[0], mediaFile.FilePath, false));
+            }
             else if (mediaFile.IsCoverSource)
                 imageFiles.AddRange(await ExtractImages(mediaFile, ctx));
         }

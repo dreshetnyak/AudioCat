@@ -8,6 +8,13 @@
 
 ## Version History
 
+### AudioCat 3.0.1
+Bug. When attaching a cover image in some cases the resulting file could have an invalid media tags.<br>
+Bug. If a cover image in the list was unselected it would get added to the output anyway.
+
+<details>
+<summary>Previous versions</summary>
+
 ### AudioCat 3.0.0
 New. Now if the tags grid is empty a new tag can be added by double click on the grid header.<br>
 Fix. In some cases when concatenation fails an empty output file was created, now app deletes it.<br>
@@ -29,9 +36,6 @@ Bug. If the output file was not created the concatenation would fail with "file 
 Bug. Media tags value escaping was missing some characters that must be escaped.<br>
 Bug. Writing media tags could fail due to a BOM that was written to the metadata file.<br>
 New. Added the count for Tags, Streams and Chapters.
-
-<details>
-<summary>Previous versions</summary>
 
 ### AudioCat 2.1.0
 New. Added a popup menu to the tags grid that has an option to fix the tags Cyrillic encoding.<br>
