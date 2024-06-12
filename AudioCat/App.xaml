@@ -9,6 +9,7 @@
             x:Key="TextBlockLeftStyle"
             TargetType="{x:Type DataGridCell}">
             <Setter Property="Template">
+                
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type DataGridCell}">
                         <Grid Background="{TemplateBinding Background}">

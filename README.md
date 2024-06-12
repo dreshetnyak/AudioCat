@@ -8,12 +8,17 @@
 
 ## Version History
 
-### AudioCat 3.0.1
-Bug. When attaching a cover image in some cases the resulting file could have an invalid media tags.<br>
-Bug. If a cover image in the list was unselected it would get added to the output anyway.
+### AudioCat 3.0.2
+Bug. Cover image extraction could return an error despite that the image was extracted successfully.<br>
+Fix. Added GEOB error to the skipped errors list to be ignored.<br>
+Bug. If unable to extract an image the app would not show any error.
 
 <details>
 <summary>Previous versions</summary>
+
+### AudioCat 3.0.1
+Bug. When attaching a cover image in some cases the resulting file could have an invalid media tags.<br>
+Bug. If a cover image in the list was unselected it would get added to the output anyway.
 
 ### AudioCat 3.0.0
 New. Now if the tags grid is empty a new tag can be added by double click on the grid header.<br>

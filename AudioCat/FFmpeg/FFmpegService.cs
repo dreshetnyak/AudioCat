@@ -3,7 +3,6 @@ using AudioCat.Services;
 using System.IO;
 using System.Text;
 using AudioCat.ViewModels;
-using System.Collections.ObjectModel;
 
 namespace AudioCat.FFmpeg;
 
@@ -43,7 +42,9 @@ internal class FFmpegService : IMediaFileToolkitService
 
             var listFile = await listFileTask;
             var metadataFile = await metadataFileTask;
-            var extractedImages = await extractImagesTask;
+            var (extractedImages, imageExtractionErrors) = await extractImagesTask;
+            if (!string.IsNullOrEmpty(imageExtractionErrors))
+                errorMessage.Append(imageExtractionErrors);
 
             var hasImages = extractedImages.Count > 0;
             var outputToFile = hasImages ? await GenerateTempOutputFileFrom(outputFileName) : outputFileName;
@@ -355,8 +356,9 @@ internal class FFmpegService : IMediaFileToolkitService
         public bool IsTemporaryFile { get; } = isTemporaryFile;
     }
 
-    private static async Task<IReadOnlyList<ImageFile>> ExtractImages(IEnumerable<IMediaFileViewModel> mediaFiles, CancellationToken ctx)
+    private static async Task<(IReadOnlyList<ImageFile> imageFiles, string errors)> ExtractImages(IEnumerable<IMediaFileViewModel> mediaFiles, CancellationToken ctx)
     {
+        var errors = new StringBuilder();
         var imageFiles = new List<ImageFile>();
         foreach (var mediaFile in mediaFiles)
         {
@@ -366,18 +368,23 @@ internal class FFmpegService : IMediaFileToolkitService
                     imageFiles.Add(new ImageFile(mediaFile.Streams[0], mediaFile.FilePath, false));
             }
             else if (mediaFile.IsCoverSource)
-                imageFiles.AddRange(await ExtractImages(mediaFile, ctx));
+            {
+                var (extractedImageFiles, extractionErrors) = await ExtractImages(mediaFile, ctx);
+                imageFiles.AddRange(extractedImageFiles);
+                errors.Append(extractionErrors);
+            }
         }
 
-        return imageFiles;
+        return (imageFiles, errors.ToString());
     }
 
-    private static async Task<IReadOnlyList<ImageFile>> ExtractImages(IMediaFileViewModel mediaFile, CancellationToken ctx)
+    private static async Task<(IReadOnlyList<ImageFile> imageFiles, string errors)> ExtractImages(IMediaFileViewModel mediaFile, CancellationToken ctx)
     {
         var imageStreams = GetImageStreams(mediaFile);
         if (imageStreams.Count == 0)
-            return [];
+            return ([], "");
 
+        var errors = new StringBuilder();
         var imageFiles = new List<ImageFile>();
         foreach (var imageStream in imageStreams)
         {
@@ -387,12 +394,27 @@ internal class FFmpegService : IMediaFileToolkitService
                 imageFiles.Add(new ImageFile(imageStream, outputFileName, true));
             else
             {
+                var imageFile = new FileInfo(outputFileName);
+                if (!imageFile.Exists)
+                {
+                    errors.AppendLine(extractResult.Message);
+                    continue;
+                }
+
+                if (imageFile.Length > 0 && await IsValidMediaFile(outputFileName, ctx))
+                {
+                    // If we got error, but the extracted file validates just fine, use the extracted file.
+                    imageFiles.Add(new ImageFile(imageStream, outputFileName, true));
+                    continue;
+                }
+
+                errors.AppendLine(extractResult.Message);
                 try { await Task.Run(() => File.Delete(outputFileName), CancellationToken.None); }
                 catch { /* ignore */ }
             }
         }
 
-        return imageFiles;
+        return (imageFiles, errors.ToString());
     }
 
     private static IReadOnlyList<string> KnownImageCodecs { get; } = ["mjpeg", "png"];
@@ -432,13 +454,32 @@ internal class FFmpegService : IMediaFileToolkitService
         }
     }
 
+    private static async Task<bool> IsValidMediaFile(string sourceFileName, CancellationToken ctx)
+    {
+        try
+        {
+            var response = await Process.Run(
+                "ffmpeg.exe",
+                $"-hide_banner -y -loglevel error -i \"{sourceFileName}\" -f null -",
+                Process.OutputType.Error,
+                ctx);
+
+            return string.IsNullOrEmpty(response);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private static IReadOnlyList<string> ErrorsToIgnore { get; } =
     [
         "Invalid PNG signature",
         "    Last message repeated ",
         "Incorrect BOM value\r\nError reading comment frame, skipped",
         "Incorrect BOM value",
-        "Error reading comment frame, skipped"
+        "Error reading comment frame, skipped",
+        "Error reading frame GEOB, skipped"
     ];
     private static bool IsErrorToIgnore(string response)
     {
