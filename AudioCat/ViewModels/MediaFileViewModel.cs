@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -60,7 +61,7 @@ public sealed class MediaFileViewModel : IMediaFileViewModel
             OnPropertyChanged();
         }
     }
-    public bool HasTags => MediaFile.Tags.Count > 0;
+    public bool HasTags => Tags.Count > 0;
 
     public bool IsCoverSource
     {
@@ -103,6 +104,15 @@ public sealed class MediaFileViewModel : IMediaFileViewModel
         Chapters = new ObservableCollection<IMediaChapterViewModel>();
         foreach (var chapter in MediaFile.Chapters)
             Chapters.Add(ChapterViewModel.CreateFrom(chapter));
+
+        Tags.CollectionChanged += OnTagsCollectionChanged;
+    }
+
+    private void OnTagsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs _)
+    {
+        if (!HasTags && IsTagsSource)
+            IsTagsSource = false;
+        OnPropertyChanged(nameof(HasTags));
     }
 
     private static IEnumerable<string> SupportedImageCodecs { get; } = ["mjpeg", "png"];

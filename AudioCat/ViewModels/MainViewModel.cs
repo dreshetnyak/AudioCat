@@ -26,7 +26,8 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
     private bool _isChaptersExpanded;
     private bool _tagsEnabled = true;
     private bool _chaptersEnabled = true;
-    
+    private string _selectedCodec = "";
+
     #endregion
 
     private IMediaFileToolkitService MediaFileToolkitService { get; }
@@ -38,6 +39,16 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
     {
         get => MediaFilesContainer.SelectedFile;
         set => MediaFilesContainer.SelectedFile = value;
+    }
+    public string SelectedCodec
+    {
+        get => _selectedCodec;
+        set
+        {
+            if (value == _selectedCodec) return;
+            _selectedCodec = value;
+            OnPropertyChanged();
+        }
     }
 
     public Action? FocusFileDataGrid { get; set; }
@@ -182,6 +193,8 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
     }
     public Visibility TagsVisibility => TagsEnabled && SelectedFile is { IsImage: false } ? Visibility.Visible : Visibility.Collapsed;
 
+    public Visibility StreamsVisibility => SelectedFile != null ? Visibility.Visible : Visibility.Collapsed;
+
     public bool ChaptersEnabled
     {
         get => _chaptersEnabled;
@@ -306,6 +319,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         OnPropertyChanged(nameof(IsMoveDownEnabled));
         OnPropertyChanged(nameof(IsRemoveEnabled));
         OnPropertyChanged(nameof(TagsVisibility));
+        OnPropertyChanged(nameof(StreamsVisibility));
         OnPropertyChanged(nameof(ChaptersVisibility));
         UpdateExpanders();
         OnPropertyChanged(nameof(TagsCount));
@@ -440,8 +454,13 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
     private void OnToggleTagsEnabled() =>
         TagsEnabled = !TagsEnabled;
 
-    private void OnToggleChaptersEnabled() => 
-        ChaptersEnabled = !ChaptersEnabled;
+    private void OnToggleChaptersEnabled()
+    {
+        if (Settings.CodecsThatDoesNotSupportChapters.Has(SelectedCodec))
+            ChaptersEnabled = false;
+        else
+            ChaptersEnabled = !ChaptersEnabled;
+    }
 
     private void OnStarting(object? sender, EventArgs e)
     {
@@ -505,6 +524,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         OnPropertyChanged(nameof(ChaptersCount));
     }
 
+    private bool ChaptersWasDisabledByCodec { get; set; } 
     private void OnFilesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         OnPropertyChanged(nameof(IsConcatenateEnabled));
@@ -516,6 +536,17 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         OnPropertyChanged(nameof(IsChaptersFromFilesEnabled));
         TotalSize = GetFilesTotalSize();
         TotalDuration = GetTotalDuration();
+        SelectedCodec = Services.MediaFilesService.GetAudioCodec(Files);
+        if (Settings.CodecsThatDoesNotSupportChapters.Has(SelectedCodec))
+        {
+            ChaptersEnabled = false;
+            ChaptersWasDisabledByCodec = true;
+        }
+        else if (ChaptersWasDisabledByCodec)
+        {
+            ChaptersEnabled = true;
+            ChaptersWasDisabledByCodec = false;
+        }
     }
 
     private long GetFilesTotalSize()

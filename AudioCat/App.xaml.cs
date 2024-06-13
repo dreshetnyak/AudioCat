@@ -4,9 +4,6 @@ using AudioCat.Models;
 using AudioCat.Services;
 using AudioCat.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows;
 
@@ -37,26 +34,5 @@ public partial class App : Application
         try { Encoding.RegisterProvider(CodePagesEncodingProvider.Instance); }
         catch {/* ignore */ }
         ServiceProvider.GetService<MainWindow>()?.Show();
-    }
-
-    private sealed class MediaFilesContainer : IMediaFilesContainer, INotifyPropertyChanged
-    {
-        private IMediaFileViewModel? _selectedFile;
-        public ObservableCollection<IMediaFileViewModel> Files { get; } = [];
-        public IMediaFileViewModel? SelectedFile
-        {
-            get => _selectedFile;
-            set
-            {
-                _selectedFile = value;
-                OnPropertyChanged();
-            }
-        }
-
-        #region INotifyPropertyChanged Implementation
-        public event PropertyChangedEventHandler? PropertyChanged;
-        private void OnPropertyChanged([CallerMemberName] string? propertyName = null) => 
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        #endregion
     }
 }

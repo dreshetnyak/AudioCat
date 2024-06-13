@@ -1,5 +1,9 @@
-﻿using AudioCat.Models;
+﻿using System.Collections.ObjectModel;
+using System.IO;
+using System.Windows.Threading;
+using AudioCat.Models;
 using AudioCat.ViewModels;
+using AudioCat.Windows;
 
 namespace AudioCat.Services;
 
@@ -20,7 +24,7 @@ public interface IMediaFilesService
 
     #endregion
 
-    Task<IGetMediaFilesResponse> GetMediaFiles(IReadOnlyList<string> fileNames, bool selectMetadata, bool selectCover, CancellationToken ctx);
+    Task<IGetMediaFilesResponse> GetMediaFiles(IReadOnlyList<string> fileNames, bool selectMetadata, bool selectCover, string selectedCodec = "", CancellationToken ctx = default);
     Task<IGetMediaFilesResponse> AddMediaFiles(IReadOnlyList<string> fileNames, bool clearExisting);
 }
 
@@ -44,13 +48,10 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
     private IMediaFilesContainer MediaFilesContainer { get; } = mediaFilesContainer;
     private IMediaFileToolkitService MediaFileToolkitService { get; } = mediaFileToolkitService;
 
-    private static IEnumerable<string> SupportedAudioCodecs { get; } = ["mp3", "aac"];
-    private static IEnumerable<string> SupportedImageCodecs { get; } = ["mjpeg", "png"];
-
     #region GetMediaFiles
-    public async Task<IMediaFilesService.IGetMediaFilesResponse> GetMediaFiles(IReadOnlyList<string> fileNames, bool selectMetadata, bool selectCover, CancellationToken ctx)
+    public async Task<IMediaFilesService.IGetMediaFilesResponse> GetMediaFiles(IReadOnlyList<string> fileNames, bool selectMetadata, bool selectCover, string selectedCodec = "", CancellationToken ctx = default)
     {
-        var codec = "";
+        var codec = selectedCodec;
         var isTagsSourceSelected = false;
         var isCoverSourceSelected = false;
 
@@ -134,7 +135,7 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
     {
         foreach (var stream in mediaFileStreams)
         {
-            if (SupportedAudioCodecs.Contains(stream.CodecName))
+            if (Settings.SupportedAudioCodecs.Contains(stream.CodecName))
                 return stream.CodecName ?? "";
         }
 
@@ -153,11 +154,10 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
     }
 
     private static bool IsImageFile(IMediaFile mediaFile) =>
-        mediaFile.Streams.Count == 1 && SupportedImageCodecs.Contains(mediaFile.Streams[0].CodecName);
+        mediaFile.Streams.Count == 1 && Settings.SupportedImageCodecs.Contains(mediaFile.Streams[0].CodecName);
     #endregion
 
     #region AddMediaFiles
-
     public async Task<IMediaFilesService.IGetMediaFilesResponse> AddMediaFiles(IReadOnlyList<string> fileNames, bool clearExisting)
     {
         var uiDispatcher = System.Windows.Application.Current.Dispatcher;
@@ -166,8 +166,49 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
         if (clearExisting)
             uiDispatcher.Invoke(files.Clear);
 
-        var response = await GetMediaFiles(fileNames, IsSelectMetadata(), IsSelectCover(), CancellationToken.None);
-        foreach (var audioFile in response.MediaFiles)
+        var selectedCodec = files.Count > 0 
+            ? GetAudioCodec(files) 
+            : "";
+
+        var (metadataSelected, coverSelected) = SelectionFlags.GetFrom(files);
+
+        var response = await GetMediaFiles(fileNames, !metadataSelected, !coverSelected, selectedCodec, CancellationToken.None);
+
+        if (selectedCodec == "")
+            selectedCodec = GetAudioCodec(response.MediaFiles);
+        if (Settings.CodecsThatDoesNotSupportImages.Has(selectedCodec))
+        {
+            if (files.Any(file => file.IsImage))
+                response = SkipFiles(response, selectedCodec);
+            else if (response.MediaFiles.Any(file => file.IsImage))
+                response = SkipImages(response, selectedCodec);
+        }
+
+        var mediaFiles = response.MediaFiles;
+        var duplicates = GetDuplicates(files, mediaFiles);
+        if (duplicates.Count > 0)
+        {
+            var duplicatesToAdd = uiDispatcher.Invoke(() =>
+            {
+                var duplicateFilesWindow = new DuplicateFilesWindow(duplicates);
+                duplicateFilesWindow.ShowDialog();
+                return duplicateFilesWindow.SelectedDuplicateFiles;
+            });
+
+            if (duplicatesToAdd.Count != duplicates.Count)
+            {
+                var mediaFilesWithoutDuplicates = new List<IMediaFileViewModel>(mediaFiles.Count);
+                foreach (var file in mediaFiles)
+                {
+                    if (duplicates.All(duplicate => duplicate.FilePath != file.FilePath) || duplicatesToAdd.Any(duplicate => duplicate.FilePath == file.FilePath))
+                        mediaFilesWithoutDuplicates.Add(file);
+                }
+
+                mediaFiles = mediaFilesWithoutDuplicates;
+            }
+        }
+        
+        foreach (var audioFile in mediaFiles)
             uiDispatcher.Invoke(() => files.Add(audioFile));
 
         if (files.Count > 0)
@@ -176,36 +217,63 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
         return response;
     }
 
-    private bool IsSelectMetadata()
+    private static IMediaFilesService.IGetMediaFilesResponse SkipImages(IMediaFilesService.IGetMediaFilesResponse response, string codec)
     {
-        foreach (var file in MediaFilesContainer.Files)
+        var updatedSkipFiles = new List<IMediaFilesService.ISkipFile>(response.SkipFiles);
+        var updatedFiles = new List<IMediaFileViewModel>(response.MediaFiles.Count);
+        foreach (var file in response.MediaFiles)
         {
-            if (file.IsTagsSource)
-                return false;
+            if (!file.IsImage)
+                updatedFiles.Add(file);
+            else
+                updatedSkipFiles.Add(new SkipFile(file.FileName, $"Images are not supported together with the '{codec}' codec media files."));
         }
 
-        return true;
+        return new GetMediaFilesResponse(updatedFiles, updatedSkipFiles);
     }
 
-    private bool IsSelectCover()
+    private static IMediaFilesService.IGetMediaFilesResponse SkipFiles(IMediaFilesService.IGetMediaFilesResponse response, string codec)
     {
-        foreach (var file in MediaFilesContainer.Files)
+        var updatedSkipFiles = new List<IMediaFilesService.ISkipFile>(response.SkipFiles);
+        var updatedFiles = new List<IMediaFileViewModel>(response.MediaFiles.Count);
+        foreach (var file in response.MediaFiles)
         {
-            if (file.IsCoverSource)
-                return false;
+            if (file.IsImage)
+                updatedFiles.Add(file);
+            else
+                updatedSkipFiles.Add(new SkipFile(file.FileName, $"The '{codec}' codec media files are not supported together with images."));
         }
 
-        return true;
+        return new GetMediaFilesResponse(updatedFiles, updatedSkipFiles);
     }
+
+    private static IReadOnlyList<IMediaFileViewModel> GetDuplicates(IReadOnlyList<IMediaFileViewModel> existingFiles, IReadOnlyList<IMediaFileViewModel> mediaFiles)
+    {
+        var duplicateFiles = new List<IMediaFileViewModel>(mediaFiles.Count);
+        foreach (var newFile in mediaFiles)
+        {
+            foreach (var existingFile in existingFiles)
+            {
+                if (newFile.File.FullName.IsNot(existingFile.File.FullName))
+                    continue;
+                duplicateFiles.Add(existingFile);
+                break;
+            }
+        }
+
+        return duplicateFiles;
+    }
+
+
 
     #endregion
-    
+
     public static string GetAudioCodec(IReadOnlyCollection<IMediaFileViewModel> mediaFiles)
     {
-        foreach (var audioFile in mediaFiles)
+        foreach (var file in mediaFiles)
         {
-            string codec;
-            if ((codec = GetCodecName(audioFile.Streams)) != "")
+            var codec = GetCodecName(file.Streams);
+            if (!string.IsNullOrEmpty(codec))
                 return codec;
         }
 

@@ -8,13 +8,25 @@
 
 ## Version History
 
+### AudioCat 3.1.0
+Bug. Tags insertion by pressing Insert would interfere with pasting using Ctrl+Insert.<br>
+New. Now Ctrl+Concatenate will set the output file name to the name of the first file in the list.<br>
+Bug. When a file doesn't have tags and you add one, the tags source selection icon for the file was hidden anyway.<br>
+Bug. When all tags has been deleted the file would be still considered a tags source and the icon would still be displayed.<br>
+Bug. When adding files with drag and drop, the app would accept the files of a different codecs than the files that are already in the list.<br>
+Bug. The dialog for selecting files to add would default to mp3 files even if the files already present are of a different codec.<br>
+Fix. Renamed "File" to "Selected File" in the right panel.<br>
+New. Added support for OGG Vorbis and WMA files concatenation.<br>
+Bug. When no files are loaded or selected the empty streams expander was shown.<br>
+New. If we are adding a file that is already in the list a warning message box will be shown.
+
+<details>
+<summary>Previous versions</summary>
+
 ### AudioCat 3.0.2
 Bug. Cover image extraction could return an error despite that the image was extracted successfully.<br>
 Fix. Added GEOB error to the skipped errors list to be ignored.<br>
 Bug. If unable to extract an image the app would not show any error.
-
-<details>
-<summary>Previous versions</summary>
 
 ### AudioCat 3.0.1
 Bug. When attaching a cover image in some cases the resulting file could have an invalid media tags.<br>

@@ -24,11 +24,7 @@ public sealed class AddPathCommand(IMediaFilesService mediaFilesService, IMediaF
             var fileNames = Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).ToArray();
             var sortedFileNames = Files.Sort(fileNames);
 
-            var (selectMetadata, selectCover) = SelectionFlags.GetFrom(MediaFiles);
-            var response = await MediaFilesService.GetMediaFiles(sortedFileNames, !selectMetadata, !selectCover, CancellationToken.None); // TODO Cancellation support
-            foreach (var file in response.MediaFiles)
-                MediaFiles.Add(file);
-
+            var response = await MediaFilesService.AddMediaFiles(sortedFileNames, false);
             if (response.SkipFiles.Count > 0)
                 new SkippedFilesWindow(response.SkipFiles).ShowDialog();
 

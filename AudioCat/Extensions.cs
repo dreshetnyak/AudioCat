@@ -33,6 +33,10 @@ internal static class Extensions
     public static bool Is(this string left, string right) =>
         left.Equals(right, StringComparison.OrdinalIgnoreCase);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool IsNot(this string left, string right) =>
+        !left.Equals(right, StringComparison.OrdinalIgnoreCase);
+
     public static bool Has(this IEnumerable<string> enumerable, string str)
     {
         foreach (var item in enumerable)

@@ -46,18 +46,30 @@ internal class FFmpegService : IMediaFileToolkitService
             if (!string.IsNullOrEmpty(imageExtractionErrors))
                 errorMessage.Append(imageExtractionErrors);
 
-            var hasImages = extractedImages.Count > 0;
-            var outputToFile = hasImages ? await GenerateTempOutputFileFrom(outputFileName) : outputFileName;
-            var args = metadataFile != ""
-                ? $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -i \"{metadataFile}\" -map_metadata 1 -vn -c copy -id3v2_version 3 -write_id3v1 1 -update true \"{outputToFile}\""
-                : $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -vn -c copy -update true \"{outputToFile}\"";
+            var codec = MediaFilesService.GetAudioCodec(mediaFiles);
+            var twoStepsConcat = Settings.CodecsWithTwoStepsConcat.Has(codec) && metadataFile != "";
 
-            await Process.Run(
-                "ffmpeg.exe",
-                args,
-                OnStatus,
-                Process.OutputType.Error,
-                ctx);
+            var hasImages = extractedImages.Count > 0;
+            var outputToFile = hasImages || twoStepsConcat
+                ? await GenerateTempOutputFileFrom(outputFileName) 
+                : outputFileName;
+
+            var args1 = GetConcatArgs(codec, listFile, !twoStepsConcat ? metadataFile : "", outputToFile);
+            await Process.Run("ffmpeg.exe", args1, OnStatus, Process.OutputType.Error, ctx);
+
+            if (twoStepsConcat)
+            {
+                try { await Task.Run(() => File.Delete(listFile), CancellationToken.None); }
+                catch { /* ignore */ }
+
+                listFile = await CreateFilesListFile([outputToFile]);
+                outputToFile = hasImages
+                    ? await GenerateTempOutputFileFrom(outputFileName)
+                    : outputFileName;
+
+                var args2 = GetConcatArgs(codec, listFile, metadataFile, outputToFile);
+                await Process.Run("ffmpeg.exe", args2, OnStatus, Process.OutputType.Error, ctx);
+            }
 
             if (hasImages)
             {
@@ -119,6 +131,18 @@ internal class FFmpegService : IMediaFileToolkitService
             status.StartsWith('[') || !StatusLineContent.Any(status.Contains);
     }
 
+    private static string GetConcatArgs(string codec, string listFile, string metadataFile, string outputToFile)
+    {
+        if (Settings.CodecsWithTwoStepsConcat.Has(codec)) // For Vorbis we first save it discarding tags, then in the second step we add the tags
+            return metadataFile == ""
+                ? $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -map_metadata -1 -vn -c copy -update true \"{outputToFile}\""
+                : $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -i \"{metadataFile}\" -map_metadata 1 -vn -c copy -update true \"{outputToFile}\"";
+        
+        return metadataFile != ""
+            ? $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -i \"{metadataFile}\" -map_metadata 1 -vn -c copy -id3v2_version 3 -write_id3v1 1 -update true \"{outputToFile}\""
+            : $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -vn -c copy -update true \"{outputToFile}\"";
+    }
+
     private static async Task<string> GenerateTempOutputFileFrom(string outputFileName)
     {
         var tryCount = 0;
@@ -138,15 +162,27 @@ internal class FFmpegService : IMediaFileToolkitService
 
     private static async Task<string> CreateFilesListFile(IEnumerable<IMediaFileViewModel> mediaFiles)
     {
+        return await CreateFilesListFile(GetFullFileNames());
+        
+        IEnumerable<string> GetFullFileNames()
+        {
+            foreach (var mediaFile in mediaFiles)
+                yield return mediaFile.File.FullName;
+        }
+    }
+
+    private static async Task<string> CreateFilesListFile(IEnumerable<string> files)
+    {
         var listFile = Path.GetTempFileName();
         var sb = new StringBuilder();
-        sb.AppendLine("ffconcat version 1.0");
-        foreach (var mediaFile in mediaFiles)
+        sb.Append("ffconcat version 1.0\n");
+        foreach (var file in files)
         {
-            if (mediaFile.IsImage)
+            var fileInfo = new FileInfo(file);
+            if (!fileInfo.Exists)
                 continue;
-            var fileName = EscapeFilePath(mediaFile.File.FullName);
-            sb.AppendLine($"file \'{fileName}\'");
+            var fileName = EscapeFilePath(fileInfo.FullName);
+            sb.Append($"file \'{fileName}\'\n");
         }
 
         await File.WriteAllTextAsync(listFile, sb.ToString());

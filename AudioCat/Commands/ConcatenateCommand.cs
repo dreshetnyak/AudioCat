@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.IO;
+using System.Windows.Input;
 using AudioCat.Models;
 using AudioCat.Services;
 using AudioCat.ViewModels;
@@ -12,7 +13,7 @@ public sealed class StatusEventArgs(IProcessingStats stats) : EventArgs
 }
 public delegate void StatusEventHandler(object sender, StatusEventArgs eventArgs);
 
-public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkitService, IMediaFilesService mediaFilesService, IMediaFilesContainer mediaFilesContainer) : CommandBase
+public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkitService, IMediaFilesContainer mediaFilesContainer) : CommandBase
 {
     #region Internal Types
     private class ConcatParams(bool tagsEnabled, bool chaptersEnabled) : IConcatParams
@@ -23,7 +24,6 @@ public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkit
     #endregion
 
     private IMediaFileToolkitService MediaFileToolkitService { get; } = mediaFileToolkitService;
-    private IMediaFilesService MediaFilesService { get; } = mediaFilesService;
 
     private ObservableCollection<IMediaFileViewModel> MediaFiles { get; } = mediaFilesContainer.Files;
 
@@ -40,16 +40,18 @@ public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkit
             if (MediaFiles.Count == 0)
                 return Response<object>.Failure("No files to concatenate");
 
-            var codec = Services.MediaFilesService.GetAudioCodec(MediaFiles);
+            var codec = MediaFilesService.GetAudioCodec(MediaFiles);
 
+            var firstFile = new FileInfo((MediaFiles.FirstOrDefault(file => !file.IsImage) ?? MediaFiles.First()).FilePath);
+            var initialDirectory = GetInitialDirectory(firstFile);
             var outputFileName = SelectionDialog.ChooseFileToSave(
-                codec == "aac" ? "AAC Audio|*.m4b" : "MP3 Audio|*.mp3", 
-                GetSuggestedFileName(codec), 
-                GetInitialDirectory());
+                GetExtensionFilter(codec), 
+                GetSuggestedFileName(codec, firstFile),
+                initialDirectory);
             if (outputFileName == "")
                 return Response<object>.Success();
 
-            var concatParams = parameter is IConcatParams cp ? cp : new ConcatParams(true, true);
+            var concatParams = parameter as IConcatParams ?? new ConcatParams(true, true);
             var concatResult = await MediaFileToolkitService.Concatenate(MediaFiles, concatParams, outputFileName, OnStatusUpdate, CancellationToken.None);
             return concatResult.IsSuccess
                 ? Response<object>.Success()
@@ -70,27 +72,34 @@ public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkit
         catch { /* ignore */ }
     }
 
-    private string GetSuggestedFileName(string codec)
-    {
-        var firstFile = MediaFiles.First().FilePath;
+    private static string GetExtensionFilter(string codec) =>
+        codec switch
+        {
+            "aac" => "AAC Audio|*.m4b",
+            "mp3" => "MP3 Audio|*.mp3",
+            "wmav2" => "Windows Media Audio|*.wma",
+            "vorbis" => "OGG Vorbis|*.ogg",
+            _ => "Other Files|*.*"
+        };
 
-        var extension = codec == "aac" ? ".m4b" : ".mp3";
+    private static string GetSuggestedFileName(string codec, FileInfo firstFile) =>
+        (Keyboard.Modifiers.HasFlag(ModifierKeys.Control)
+            ? Path.GetFileNameWithoutExtension(firstFile.Name)
+            : firstFile.Directory?.Name ?? "") + GetExtension(codec);
 
-        var fileInfo = new FileInfo(firstFile);
-        var suggestedName = fileInfo.Directory?.Name ?? "";
-        if (suggestedName != "")
-            return suggestedName + extension;
-            
-        suggestedName = fileInfo.Name;
-        if (suggestedName == "")
-            return extension;
-        var withoutExtension = Path.GetFileNameWithoutExtension(suggestedName);
+    private static string GetExtension(string codec) =>
+        codec switch
+        {
+            "aac" => ".m4b",
+            "mp3" => ".mp3",
+            "wmav2" => ".wma",
+            "vorbis" => ".ogg",
+            _ => ""
+        };
 
-        return withoutExtension + ".Cat" + extension;
-    }
+    private static string GetInitialDirectory(FileInfo firstFile) =>
+        firstFile.Directory?.FullName ?? "";
 
-    private string GetInitialDirectory() => 
-        new FileInfo(MediaFiles.First().FilePath).Directory?.FullName ?? "";
-
-    private void OnStatusUpdate(IProcessingStats stats) => StatusUpdate?.Invoke(this, new StatusEventArgs(stats));
+    private void OnStatusUpdate(IProcessingStats stats) => 
+        StatusUpdate?.Invoke(this, new StatusEventArgs(stats));
 }

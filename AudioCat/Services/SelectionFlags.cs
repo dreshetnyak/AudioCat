@@ -16,7 +16,7 @@ internal static class SelectionFlags
             if (file is { HasCover: true, IsCoverSource: true })
                 coverSelected = true;
             if (metadataSelected && coverSelected)
-                break;
+                return (true, true);
         }
 
         return (metadataSelected, coverSelected);

@@ -6,7 +6,7 @@
         xmlns:viewModels="clr-namespace:AudioCat.ViewModels"
         mc:Ignorable="d"
         Icon="/Cat.ico"
-        Title="Audio Cat Tool v3.0.2" Height="640" Width="1024"
+        Title="Audio Cat Tool v3.1.0" Height="640" Width="1024"
         d:DataContext="{d:DesignInstance viewModels:MainViewModel, IsDesignTimeCreatable=False}">
     <Window.TaskbarItemInfo>
         <TaskbarItemInfo ProgressValue="{Binding TaskBarProgress, Mode=OneWay}" ProgressState="Normal" />
@@ -684,7 +684,7 @@
 
                     <GroupBox
                         Grid.Row="1"
-                        Header="File"
+                        Header="Selected File"
                         Margin="2,0,2,0">
                         <Grid Margin="0">
                             <Grid.RowDefinitions>
@@ -916,6 +916,7 @@
 
                                     <Border
                                         Grid.Row="1"
+                                        Visibility="{Binding StreamsVisibility}"
                                         ToolTip="Media streams"
                                         BorderBrush="LightGray"
                                         BorderThickness="1"

@@ -92,7 +92,6 @@ public partial class MainWindow : Window
                 fileNames = await GetFilesFromDirectories(fileNames);
 
             var response = await MediaFilesService.AddMediaFiles(fileNames, clearExisting); // Long operation, we fire the task and forget
-
             if (response.SkipFiles.Count > 0) 
                 await Application.Current.Dispatcher.InvokeAsync(() => new SkippedFilesWindow(response.SkipFiles).ShowDialog());
         }
@@ -132,7 +131,7 @@ public partial class MainWindow : Window
 
         var subDirFiles = await GetFilesFromDirectories(subDirectories);
         var files = subDirFiles.Count > 0
-            ? new List<string>(subDirFiles)
+            ? [..subDirFiles]
             : new List<string>(1024);
 
         var dirFiles = new List<string>(1024);
@@ -156,6 +155,8 @@ public partial class MainWindow : Window
         switch (eventArgs.Key)
         {
             case Key.Insert:
+                if (Keyboard.Modifiers != ModifierKeys.None)
+                    break;
                 if (dataGrid.SelectedIndex >= 0)
                     tags.Insert(dataGrid.SelectedIndex, new TagViewModel());
                 else

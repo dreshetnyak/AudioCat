@@ -33,6 +33,8 @@ public class FFprobeMediaFile : IMediaFile
         catch (Exception ex) { return Response<IMediaFile>.Failure($"Failed to parse FFprobe response to XML: {ex.Message}"); }
 
         var formatElement = response.Element("format");
+        var streamsElement = response.Element("streams");
+        var streams = GetStreams(streamsElement);
         return Response<IMediaFile>.Success(new FFprobeMediaFile(fileInfo)
         {
             FormatName = formatElement?.Attribute("format_name")?.Value,
@@ -40,10 +42,25 @@ public class FFprobeMediaFile : IMediaFile
             StartTime = formatElement?.Attribute("start_time")?.Value.ToDecimal(),
             Duration = formatElement?.Attribute("duration")?.Value.SecondsToTimeSpan(),
             Bitrate = formatElement?.Attribute("bit_rate")?.Value.ToDecimal(),
-            Tags = formatElement.GetTags(),
+            Tags = GetFileTags(formatElement, streamsElement, streams),
             Chapters = GetChapters(response.Element("chapters")),
-            Streams = GetStreams(response.Element("streams"))
+            Streams = streams
         });
+    }
+
+    private static IReadOnlyList<IMediaTag> GetFileTags(XElement? formatElement, XElement? streamsElement, IReadOnlyList<IMediaStream> streams)
+    {
+        var tags = formatElement.GetTags();
+        if (tags.Count > 0 || streamsElement == null)
+            return tags;
+
+        foreach (var streamElement in streamsElement.Elements("stream"))
+        {
+            if (Settings.CodecsWithTagsInStream.Has(streamElement.Attribute("codec_name")?.Value ?? ""))
+                return streamElement.GetTags();
+        }
+
+        return tags;
     }
 
     private static IReadOnlyList<IMediaChapter> GetChapters(XElement? chaptersContainerElement)
