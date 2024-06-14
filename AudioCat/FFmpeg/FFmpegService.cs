@@ -194,8 +194,12 @@ internal class FFmpegService : IMediaFileToolkitService
     private const string METADATA_FILE_START = ";FFMETADATA1\n";
     private static async Task<string> CreateMetadataFile(IReadOnlyList<IMediaFileViewModel> mediaFiles, IConcatParams concatParams, CancellationToken ctx)
     {
-        var tagsMetadata = concatParams.TagsEnabled ? GetTagsMetadata(mediaFiles) : ""; 
-        var chaptersMetadata = concatParams.ChaptersEnabled ? GetChaptersMetadata(mediaFiles) : "";
+        var tagsMetadata = concatParams.TagsEnabled 
+            ? GetTagsMetadata(mediaFiles) 
+            : ""; 
+        var chaptersMetadata = concatParams.ChaptersEnabled 
+            ? GetChaptersMetadata(mediaFiles) 
+            : "";
         if (tagsMetadata.Length == 0 && chaptersMetadata.Length == 0)
             return "";
 
@@ -222,7 +226,7 @@ internal class FFmpegService : IMediaFileToolkitService
 
     private static string GetTagsMetadata(IEnumerable<IMediaFileViewModel> mediaFiles)
     {
-        var mediaFile = mediaFiles.FirstOrDefault(mediaFile => mediaFile.IsTagsSource);
+        var mediaFile = mediaFiles.GetTagsSourceFile();
         return mediaFile != null
             ? GetTagsMetadata(mediaFile.Tags)
             : "";
@@ -300,7 +304,7 @@ internal class FFmpegService : IMediaFileToolkitService
 
         return chapters.ToString();
     }
-
+    
     private static string FilterMetadataValue(string name)
     {
         var valueBuilder = new StringBuilder(name.Length);

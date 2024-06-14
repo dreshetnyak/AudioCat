@@ -1,4 +1,3 @@
-
 # Audio Cat Tool 
 
 **Audio Cat Tool** is a utility for con**cat**enating audio files. It provides a user interface for [FFMpeg](https://ffmpeg.org/) CLI tools (which are required for proper functioning). The tool supports MP3 and AAC encodings, which can be packaged in various audio container formats. It does not re-encode the audio; instead, it performs demuxing and remuxing, ensuring there is no loss in audio quality. Additionally, it allows for the preservation of media tags and cover images. Tags can be edited, and cover images can be added from image files.
@@ -7,6 +6,16 @@
 ![Screenshot](App.png)
 
 ## Version History
+
+### AudioCat 3.2.0
+New. Added support for WAV (pcm_s16le, pcm_u8) and FLAC files.<br>
+
+#### Known issues.
+The supported tags are specific to a particular file format. As a result, if you set a tag and the output format doesn't support it, it may be missing in the output file.
+Some of the formats does not support chapters, the cue sheets is in the implmentation backlog.
+
+<details>
+<summary>Previous versions</summary>
 
 ### AudioCat 3.1.0
 Bug. Tags insertion by pressing Insert would interfere with pasting using Ctrl+Insert.<br>
@@ -19,9 +28,6 @@ Fix. Renamed "File" to "Selected File" in the right panel.<br>
 New. Added support for OGG Vorbis and WMA files concatenation.<br>
 Bug. When no files are loaded or selected the empty streams expander was shown.<br>
 New. If we are adding a file that is already in the list a warning message box will be shown.
-
-<details>
-<summary>Previous versions</summary>
 
 ### AudioCat 3.0.2
 Bug. Cover image extraction could return an error despite that the image was extracted successfully.<br>

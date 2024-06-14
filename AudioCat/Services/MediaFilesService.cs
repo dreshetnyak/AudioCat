@@ -1,7 +1,4 @@
-﻿using System.Collections.ObjectModel;
-using System.IO;
-using System.Windows.Threading;
-using AudioCat.Models;
+﻿using AudioCat.Models;
 using AudioCat.ViewModels;
 using AudioCat.Windows;
 

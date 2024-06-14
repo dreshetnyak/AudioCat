@@ -45,7 +45,7 @@ public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkit
             var firstFile = new FileInfo((MediaFiles.FirstOrDefault(file => !file.IsImage) ?? MediaFiles.First()).FilePath);
             var initialDirectory = GetInitialDirectory(firstFile);
             var outputFileName = SelectionDialog.ChooseFileToSave(
-                GetExtensionFilter(codec), 
+                Settings.GetSaveFileExtensionFilter(codec), 
                 GetSuggestedFileName(codec, firstFile),
                 initialDirectory);
             if (outputFileName == "")
@@ -72,30 +72,10 @@ public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkit
         catch { /* ignore */ }
     }
 
-    private static string GetExtensionFilter(string codec) =>
-        codec switch
-        {
-            "aac" => "AAC Audio|*.m4b",
-            "mp3" => "MP3 Audio|*.mp3",
-            "wmav2" => "Windows Media Audio|*.wma",
-            "vorbis" => "OGG Vorbis|*.ogg",
-            _ => "Other Files|*.*"
-        };
-
     private static string GetSuggestedFileName(string codec, FileInfo firstFile) =>
         (Keyboard.Modifiers.HasFlag(ModifierKeys.Control)
             ? Path.GetFileNameWithoutExtension(firstFile.Name)
-            : firstFile.Directory?.Name ?? "") + GetExtension(codec);
-
-    private static string GetExtension(string codec) =>
-        codec switch
-        {
-            "aac" => ".m4b",
-            "mp3" => ".mp3",
-            "wmav2" => ".wma",
-            "vorbis" => ".ogg",
-            _ => ""
-        };
+            : firstFile.Directory?.Name ?? "") + Settings.GetSuggestedFileNameExtension(codec);
 
     private static string GetInitialDirectory(FileInfo firstFile) =>
         firstFile.Directory?.FullName ?? "";

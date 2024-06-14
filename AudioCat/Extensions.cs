@@ -141,4 +141,26 @@ internal static class Extensions
 
         return false;
     }
+
+    public static IMediaFileViewModel? GetTagsSourceFile(this IEnumerable<IMediaFileViewModel> files)
+    {
+        foreach (var file in files)
+        {
+            if (file is { HasTags: true, IsTagsSource: true })
+                return file;
+        }
+
+        return null;
+    }
+
+    public static string? GetValue(this IEnumerable<NameValue> enumerable, string name)
+    {
+        foreach (var item in enumerable)
+        {
+            if (item.Name.Is(name))
+                return item.Value;
+        }
+
+        return null;
+    }
 }

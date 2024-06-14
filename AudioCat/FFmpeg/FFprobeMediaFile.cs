@@ -6,9 +6,9 @@ namespace AudioCat.FFmpeg;
 
 public class FFprobeMediaFile : IMediaFile
 {
-    public FileInfo File { get; private init; }
-    public string FileName => File.Name ?? "";
-    public string FilePath => File.FullName ?? "";
+    public FileInfo File { get; }
+    public string FileName => File.Name;
+    public string FilePath => File.FullName;
     public string? FormatName { get; private init; }
     public string? FormatDescription { get; private init; }
     public decimal? StartTime { get; private init; }
@@ -42,13 +42,13 @@ public class FFprobeMediaFile : IMediaFile
             StartTime = formatElement?.Attribute("start_time")?.Value.ToDecimal(),
             Duration = formatElement?.Attribute("duration")?.Value.SecondsToTimeSpan(),
             Bitrate = formatElement?.Attribute("bit_rate")?.Value.ToDecimal(),
-            Tags = GetFileTags(formatElement, streamsElement, streams),
+            Tags = GetFileTags(formatElement, streamsElement),
             Chapters = GetChapters(response.Element("chapters")),
             Streams = streams
         });
     }
 
-    private static IReadOnlyList<IMediaTag> GetFileTags(XElement? formatElement, XElement? streamsElement, IReadOnlyList<IMediaStream> streams)
+    private static IReadOnlyList<IMediaTag> GetFileTags(XElement? formatElement, XElement? streamsElement)
     {
         var tags = formatElement.GetTags();
         if (tags.Count > 0 || streamsElement == null)
