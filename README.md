@@ -7,8 +7,8 @@
 
 ## Version History
 
-### AudioCat 3.2.0
-New. Added support for WAV (pcm_s16le, pcm_u8) and FLAC files.<br>
+### AudioCat 3.2.1
+Bug. If a cover image was present then the concatenation process would most likely fail with 'non-monotonical' error, and the image would be missing in the output.
 
 #### Known issues.
 The supported tags are specific to a particular file format. As a result, if you set a tag and the output format doesn't support it, it may be missing in the output file.
@@ -16,6 +16,9 @@ Some of the formats does not support chapters, the cue sheets is in the implment
 
 <details>
 <summary>Previous versions</summary>
+
+### AudioCat 3.2.0
+New. Added support for WAV (pcm_s16le, pcm_u8) and FLAC files.<br>
 
 ### AudioCat 3.1.0
 Bug. Tags insertion by pressing Insert would interfere with pasting using Ctrl+Insert.<br>

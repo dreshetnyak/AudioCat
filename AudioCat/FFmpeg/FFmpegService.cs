@@ -1,8 +1,10 @@
-﻿using AudioCat.Models;
+﻿using System.Diagnostics;
+using AudioCat.Models;
 using AudioCat.Services;
 using System.IO;
 using System.Text;
 using AudioCat.ViewModels;
+using Process = AudioCat.Services.Process;
 
 namespace AudioCat.FFmpeg;
 
@@ -14,9 +16,11 @@ internal class FFmpegService : IMediaFileToolkitService
     {
         try
         {
+            var args = $"-hide_banner -show_format -show_chapters -show_streams -show_private_data -print_format xml -i \"{fileFullName}\"";
+            Debug.WriteLine($"ffmpeg.exe {args}");
             var probeResponse = await Process.Run(
                 "ffprobe.exe",
-                $"-hide_banner -show_format -show_chapters -show_streams -show_private_data -print_format xml -i \"{fileFullName}\"",
+                args,
                 Process.OutputType.Standard,
                 ctx);
 
@@ -55,6 +59,7 @@ internal class FFmpegService : IMediaFileToolkitService
                 : outputFileName;
 
             var args1 = GetConcatArgs(codec, listFile, !twoStepsConcat ? metadataFile : "", outputToFile);
+            Debug.WriteLine($"ffmpeg.exe {args1}");
             await Process.Run("ffmpeg.exe", args1, OnStatus, Process.OutputType.Error, ctx);
 
             if (twoStepsConcat)
@@ -62,12 +67,13 @@ internal class FFmpegService : IMediaFileToolkitService
                 try { await Task.Run(() => File.Delete(listFile), CancellationToken.None); }
                 catch { /* ignore */ }
 
-                listFile = await CreateFilesListFile([outputToFile]);
+                listFile = await CreateFilesListFile(outputToFile);
                 outputToFile = hasImages
                     ? await GenerateTempOutputFileFrom(outputFileName)
                     : outputFileName;
 
                 var args2 = GetConcatArgs(codec, listFile, metadataFile, outputToFile);
+                Debug.WriteLine($"ffmpeg.exe {args2}");
                 await Process.Run("ffmpeg.exe", args2, OnStatus, Process.OutputType.Error, ctx);
             }
 
@@ -160,37 +166,37 @@ internal class FFmpegService : IMediaFileToolkitService
         return "";
     }
 
+    private const string FILES_LIST_HEADER = "ffconcat version 1.0\n";
     private static async Task<string> CreateFilesListFile(IEnumerable<IMediaFileViewModel> mediaFiles)
-    {
-        return await CreateFilesListFile(GetFullFileNames());
-        
-        IEnumerable<string> GetFullFileNames()
-        {
-            foreach (var mediaFile in mediaFiles)
-                yield return mediaFile.File.FullName;
-        }
-    }
-
-    private static async Task<string> CreateFilesListFile(IEnumerable<string> files)
     {
         var listFile = Path.GetTempFileName();
         var sb = new StringBuilder();
-        sb.Append("ffconcat version 1.0\n");
-        foreach (var file in files)
+        sb.AppendLine(FILES_LIST_HEADER);
+        foreach (var mediaFile in mediaFiles)
         {
-            var fileInfo = new FileInfo(file);
-            if (!fileInfo.Exists)
+            if (mediaFile.IsImage)
                 continue;
-            var fileName = EscapeFilePath(fileInfo.FullName);
-            sb.Append($"file \'{fileName}\'\n");
+            var fileName = EscapeFileListFilePath(mediaFile.File.FullName);
+            sb.AppendLine($"file \'{fileName}\'");
         }
 
         await File.WriteAllTextAsync(listFile, sb.ToString());
         return listFile;
-
-        static string EscapeFilePath(string path) => path.Replace("\\", "/").Replace("'", "'\\''");
     }
 
+    private static async Task<string> CreateFilesListFile(string file)
+    {
+        var fileInfo = new FileInfo(file);
+        if (!fileInfo.Exists)
+            return "";
+        var listFile = Path.GetTempFileName();
+        var fileContent = $"{FILES_LIST_HEADER}file '{EscapeFileListFilePath(fileInfo.FullName)}'\n";
+        await File.WriteAllTextAsync(listFile, fileContent);
+        return listFile;
+    }
+
+    private static string EscapeFileListFilePath(string path) => path.Replace("\\", "/").Replace("'", "'\\''");
+    
     private const string METADATA_FILE_START = ";FFMETADATA1\n";
     private static async Task<string> CreateMetadataFile(IReadOnlyList<IMediaFileViewModel> mediaFiles, IConcatParams concatParams, CancellationToken ctx)
     {
@@ -336,9 +342,11 @@ internal class FFmpegService : IMediaFileToolkitService
             var imageFilesQuery = GetImageFileQuery(audioFileImages);
             var mappingQuery = GetMappingQuery(audioFileImages.Count);
             var metadataQuery = GetMetadataQuery(audioFileImages);
+            var args = $"-hide_banner -y -loglevel error -i \"{audioFile}\"{imageFilesQuery} -c copy -map 0:a{mappingQuery}{metadataQuery} -id3v2_version 3 -write_id3v1 1 -disposition:v attached_pic \"{outputFile}\"";
+            Debug.WriteLine($"ffmpeg.exe {args}");
             var response = await Process.Run(
                 "ffmpeg.exe",
-                $"-hide_banner -y -loglevel error -i \"{audioFile}\"{imageFilesQuery} -c copy -map 0:a{mappingQuery}{metadataQuery} -id3v2_version 3 -write_id3v1 1 -disposition:v attached_pic \"{outputFile}\"",
+                args,
                 Process.OutputType.Error,
                 ctx);
 
@@ -474,9 +482,11 @@ internal class FFmpegService : IMediaFileToolkitService
     {
         try
         {
+            var args = $"-hide_banner -y -loglevel error -i \"{sourceFileName}\" -map 0:{sourceStreamIndex} -update true -c copy -f image2 \"{outputFileName}\"";
+            Debug.WriteLine($"ffmpeg.exe {args}");
             var response = await Process.Run(
                 "ffmpeg.exe",
-                $"-hide_banner -y -loglevel error -i \"{sourceFileName}\" -map 0:{sourceStreamIndex} -update true -c copy -f image2 \"{outputFileName}\"",
+                args,
                 Process.OutputType.Error,
                 ctx);
 
@@ -498,9 +508,10 @@ internal class FFmpegService : IMediaFileToolkitService
     {
         try
         {
+            var args = $"-hide_banner -y -loglevel error -i \"{sourceFileName}\" -f null -";
             var response = await Process.Run(
                 "ffmpeg.exe",
-                $"-hide_banner -y -loglevel error -i \"{sourceFileName}\" -f null -",
+                args,
                 Process.OutputType.Error,
                 ctx);
 
