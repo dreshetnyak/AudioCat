@@ -277,6 +277,8 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
             container.PropertyChanged += OnSelectedAudioFileChanged;
 
         MediaFilesService = mediaFilesService;
+        mediaFileToolkitService.Status += OnStatusUpdate;
+        mediaFileToolkitService.Progress += OnProgressUpdate;
 
         Files = mediaFilesContainer.Files;
         AddFiles = addFilesCommand;
@@ -285,7 +287,6 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
         concatenate.Starting += OnStarting;
         concatenate.Finished += OnFinished;
-        concatenate.StatusUpdate += OnStatusUpdate;
         Concatenate = concatenate;
 
         createChaptersFromFiles.Finished += OnCreateChaptersFinished;
@@ -464,7 +465,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
     private void OnStarting(object? sender, EventArgs e)
     {
-        ProgressPercentage = PROGRESS_BAR_MAX_VALUE;
+        ProgressPercentage = Constants.PROGRESS_BAR_MAX_VALUE;
         IsUserEntryEnabled = false;
     }
 
@@ -483,40 +484,11 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         }
     }
 
-    private void OnStatusUpdate(object sender, StatusEventArgs eventArgs)
-    {
-        var stats = eventArgs.Stats;
-        const string prefix = "Processing: ";
-        var sb = new StringBuilder(prefix);
+    private void OnStatusUpdate(object sender, MessageEventArgs eventArgs) => 
+        ProgressText = eventArgs.Message;
 
-        if (stats.Size is > 0)
-            sb.Append($"Size: {stats.Size.Value / 1024:N0}KiB");
-        if (stats.Time != default)
-        {
-            if (sb.Length > prefix.Length)
-                sb.Append("; ");
-            sb.Append($"Time: {Math.Truncate(stats.Time.TotalHours):00}:{stats.Time.Minutes:00}:{stats.Time.Seconds:00}");
-        }
-        if (stats.Bitrate is > 0)
-        {
-            if (sb.Length > prefix.Length)
-                sb.Append("; ");
-            sb.Append($"Bitrate: {stats.Bitrate:0.0}Kb/s");
-        }
-        if (stats.Speed is > 0)
-        {
-            if (sb.Length > prefix.Length)
-                sb.Append("; ");
-            sb.Append($"Speed: {stats.Speed:N0}x");
-        }
-
-        if (sb.Length == prefix.Length)
-            sb.Append("...");
-
-        ProgressText = sb.ToString();
-        if (stats.Time != TimeSpan.Zero)
-            ProgressPercentage = GetProgressPercentage(stats.Time);
-    }
+    private void OnProgressUpdate(object sender, ProgressEventArgs eventArgs) => 
+        ProgressPercentage = eventArgs.Progress.CalculatePercentage();
 
     private void OnCreateChaptersFinished(object sender, ResponseEventArgs eventArgs)
     {
@@ -534,8 +506,8 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         OnPropertyChanged(nameof(IsRemoveEnabled));
         OnPropertyChanged(nameof(IsChaptersFromTagsEnabled));
         OnPropertyChanged(nameof(IsChaptersFromFilesEnabled));
-        TotalSize = GetFilesTotalSize();
-        TotalDuration = GetTotalDuration();
+        TotalSize = Files.GetFilesTotalSize();
+        TotalDuration = Files.GetTotalDuration();
         SelectedCodec = Services.MediaFilesService.GetAudioCodec(Files);
         if (Settings.CodecsThatDoesNotSupportChapters.Has(SelectedCodec))
         {
@@ -547,38 +519,6 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
             ChaptersEnabled = true;
             ChaptersWasDisabledByCodec = false;
         }
-    }
-
-    private long GetFilesTotalSize()
-    {
-        var totalSize = 0L;
-        foreach (var file in Files)
-            totalSize += file.File.Length;
-        return totalSize;
-    }
-
-    private TimeSpan GetTotalDuration()
-    {
-        var totalDuration = TimeSpan.Zero;
-        foreach (var file in Files)
-        {
-            if (file.Duration.HasValue)
-                totalDuration = totalDuration.Add(file.Duration.Value);
-        }
-        return totalDuration;
-    }
-
-    private const int PROGRESS_BAR_MAX_VALUE = 10000;
-    private int GetProgressPercentage(TimeSpan processedDuration)
-    {
-        if (TotalDuration == TimeSpan.Zero)
-            return PROGRESS_BAR_MAX_VALUE;
-        var percentage = (int)((decimal)processedDuration.TotalSeconds * PROGRESS_BAR_MAX_VALUE / (decimal)TotalDuration.TotalSeconds);
-        if (percentage < 0)
-            percentage = 0;
-        if (percentage > PROGRESS_BAR_MAX_VALUE)
-            percentage = PROGRESS_BAR_MAX_VALUE;
-        return percentage;
     }
 
     #region INotifyPropertyChanged Implementation

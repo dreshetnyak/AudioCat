@@ -1,5 +1,7 @@
 ﻿using AudioCat.Models;
+using System;
 using System.Globalization;
+using System.Text;
 
 namespace AudioCat.FFmpeg;
 
@@ -76,5 +78,37 @@ public sealed class FFmpegStats(string message) : IProcessingStats
         return startOffset < message.Length
             ? message.AsSpan(startOffset, endOffset - startOffset)
             : default;
+    }
+
+    public override string ToString()
+    {
+        const string prefix = "Processing: ";
+        var sb = new StringBuilder(prefix);
+
+        if (Size is > 0)
+            sb.Append($"Size: {Size.Value / 1024:N0}KiB");
+        if (Time != default)
+        {
+            if (sb.Length > prefix.Length)
+                sb.Append("; ");
+            sb.Append($"Time: {Math.Truncate(Time.TotalHours):00}:{Time.Minutes:00}:{Time.Seconds:00}");
+        }
+        if (Bitrate is > 0)
+        {
+            if (sb.Length > prefix.Length)
+                sb.Append("; ");
+            sb.Append($"Bitrate: {Bitrate:0.0}Kb/s");
+        }
+        if (Speed is > 0)
+        {
+            if (sb.Length > prefix.Length)
+                sb.Append("; ");
+            sb.Append($"Speed: {Speed:N0}x");
+        }
+
+        if (sb.Length == prefix.Length)
+            sb.Append("...");
+
+        return sb.ToString();
     }
 }

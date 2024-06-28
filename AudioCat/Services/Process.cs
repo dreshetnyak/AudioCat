@@ -1,8 +1,6 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Text;
-using static AudioCat.Services.Process;
 
 namespace AudioCat.Services;
 
@@ -10,17 +8,17 @@ internal static class Process
 {
     public enum OutputType { Standard, Error }
 
-    public static async Task Run(string executable, string arguments, Action<string> onOutput, OutputType outputType, CancellationToken ctx)
+    public static async Task Run(string executable, string arguments, Func<string, Task> onOutput, OutputType outputType, CancellationToken ctx)
     {
         using var process = CreateProcess(executable, arguments);
         process.Start();
-        var outTask = ReadOutputStream();
+        var outTask = ReadOutStream();
         await process.WaitForExitAsync(ctx);
         await outTask;
 
         return;
 
-        async Task ReadOutputStream()
+        async Task ReadOutStream()
         {
             // ReSharper disable AccessToDisposedClosure
             TextReader textReader = outputType == OutputType.Error
@@ -36,7 +34,8 @@ internal static class Process
                         continue;
                     if (line == null)
                         break;
-                    onOutput(line);
+                    try { await onOutput(line); }
+                    catch { /* ignore */ }
                 }
                 catch
                 {

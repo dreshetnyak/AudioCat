@@ -1,7 +1,23 @@
-﻿namespace AudioCat;
+﻿using AudioCat.Models;
+
+namespace AudioCat;
 
 internal static class Settings
 {
+    public static IReadOnlyList<string> ErrorsToIgnore { get; } =
+    [
+        "Invalid PNG signature",
+        "    Last message repeated ",
+        "Incorrect BOM value\r\nError reading comment frame, skipped",
+        "Incorrect BOM value",
+        "Error reading comment frame, skipped",
+        "Error reading frame GEOB, skipped"
+    ];
+    public static IReadOnlyList<string> RemuxOnErrors { get; } =
+    [
+        "non monotonically increasing dts"
+    ];
+
     public static IEnumerable<string> SupportedAudioCodecs { get; } = 
     [
         "mp3", 
@@ -13,10 +29,26 @@ internal static class Settings
         "flac"
     ];
     public static IEnumerable<string> SupportedImageCodecs { get; } = ["mjpeg", "png"];
-    public static IEnumerable<string> CodecsWithTwoStepsConcat { get; } = ["vorbis"];
+    public static IEnumerable<string> CodecsWithTwoStepsConcat { get; } = ["vorbis"]; // Concat and embedding of metadata must be done in two separate steps
     public static IEnumerable<string> CodecsWithTagsInStream { get; } = ["vorbis"]; // In OGG Vorbis files the tags are placed in the stream
-    public static IEnumerable<string> CodecsThatDoesNotSupportChapters { get; } = ["vorbis", "pcm_s16le", "pcm_u8"];
+    public static IEnumerable<string> CodecsThatDoesNotSupportChapters { get; } = ["vorbis", "pcm_s16le", "pcm_u8", "flac"];
     public static IEnumerable<string> CodecsThatDoesNotSupportImages { get; } = ["vorbis", "pcm_s16le", "pcm_u8"];
+
+    private static string DefaultEncodingCommand { get; } = "-c copy";
+    private static IEnumerable<NameValue> CodecEncodingCommands { get; } =
+    [
+        new NameValue("flac", "-c:a flac")
+    ];
+    public static string GetEncodingCommand(string codec)
+    {
+        foreach (var codecCommand in CodecEncodingCommands)
+        {
+            if (codecCommand.Name.Is(codec))
+                return codecCommand.Value;
+        }
+
+        return DefaultEncodingCommand;
+    }
 
     public static string GetSaveFileExtensionFilter(string codec) =>
         codec switch

@@ -7,18 +7,27 @@
 
 ## Version History
 
-### AudioCat 3.2.1
-Bug. If a cover image was present then the concatenation process would most likely fail with 'non-monotonical' error, and the image would be missing in the output.
+### AudioCat 4.0.0
+New. Concatenation now detects some remux-recoverable errors and performs remuxing.<br>
+New. Added a status update for the image attachment stage, before it appeared to be frozen without any status during this stage.<br>
+New. FLAC concatenation is changed to use re-encoding instead of concat.<br>
+Fix. Trim start and end spaces from a suggested file name.<br>
+Bug. Disabled chapters support for FLAC format as the formai itself doesn't support it.<br>
+Bug. File list could contain BOM, that could cause concatenation failure.<br>
+Bug. When generating files list the app was outputting an extra new line after the header.
 
-#### Known issues.
-The supported tags are specific to a particular file format. As a result, if you set a tag and the output format doesn't support it, it may be missing in the output file.
-Some of the formats does not support chapters, the cue sheets is in the implmentation backlog.
+#### Notes.
+**Tags support.** The supported tags are specific to a particular file format. As a result, if you set a tag and the output format doesn't support it, it may be missing in the output file.
+**Chapters support.** Some of the formats, like OGG, WAV and FLAC, does not support chapters. The cue sheets is in the implementation backlog, but the cue sheets format is a bit of a hot mess, a lot of testing needs to be done to make sure that the resulting files are understood by all (or most) audio players.
+**FLAC format.** The FFmpeg concatenation of FLAC files is buggy; it copies the audio streams without adjusting the DTS timestamps, so the resulting file will always have a *"non-monotonically increasing DTS"* issue. As a workaround, instead of using 'concat', the app performs a FLAC-to-FLAC re-encoding. Since FLAC is a lossless codec, this still complies with the app's 'no re-encoding' goal.
 
 <details>
 <summary>Previous versions</summary>
+### AudioCat 3.2.1
+Bug. If a cover image was present then the concatenation process would most likely fail with 'non-monotonical' error, and the image would be missing in the output.
 
 ### AudioCat 3.2.0
-New. Added support for WAV (pcm_s16le, pcm_u8) and FLAC files.<br>
+New. Added support for WAV (pcm_s16le, pcm_u8) and FLAC files.
 
 ### AudioCat 3.1.0
 Bug. Tags insertion by pressing Insert would interfere with pasting using Ctrl+Insert.<br>

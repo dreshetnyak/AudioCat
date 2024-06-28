@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using AudioCat.Models;
 using AudioCat.Services;
 using System.IO;
@@ -8,10 +9,14 @@ using Process = AudioCat.Services.Process;
 
 namespace AudioCat.FFmpeg;
 
-internal class FFmpegService : IMediaFileToolkitService
+internal sealed class FFmpegService : IMediaFileToolkitService
 {
     private static IReadOnlyList<string> StatusLineContent { get; } = ["size=", "time=", "bitrate=", "speed="];
-    
+
+    public event ProgressEventHandler? Progress;
+    public event MessageEventHandler? Status;
+    public event MessageEventHandler? Error;
+
     public async Task<IResponse<IMediaFile>> Probe(string fileFullName, CancellationToken ctx)
     {
         try
@@ -35,33 +40,82 @@ internal class FFmpegService : IMediaFileToolkitService
         }
     }
 
-    public async Task<IResult> Concatenate(IReadOnlyList<IMediaFileViewModel> mediaFiles, IConcatParams concatParams, string outputFileName, Action<IProcessingStats> onStatusUpdate, CancellationToken ctx)
+    public async Task Concatenate(IReadOnlyList<IMediaFileViewModel> mediaFiles, IConcatParams concatParams, string outputFileName, CancellationToken ctx)
     {
-        var errorMessage = new StringBuilder();
+        TimeSpan totalDuration;
+        var concatErrors = new StringBuilder();
         try
         {
+            await OnStatus("Starting...");
+
+            var listFileTask = CreateFilesListFile(mediaFiles);
             var extractImagesTask = ExtractImages(mediaFiles, ctx);
             var metadataFileTask = CreateMetadataFile(mediaFiles, concatParams, ctx);
-            var listFileTask = CreateFilesListFile(mediaFiles);
-
-            var listFile = await listFileTask;
-            var metadataFile = await metadataFileTask;
-            var (extractedImages, imageExtractionErrors) = await extractImagesTask;
-            if (!string.IsNullOrEmpty(imageExtractionErrors))
-                errorMessage.Append(imageExtractionErrors);
+            var totalDurationTask = Task.Run(mediaFiles.GetTotalDuration, ctx);
 
             var codec = MediaFilesService.GetAudioCodec(mediaFiles);
+
+            var listFile = await listFileTask;
+            var (extractedImages, imageExtractionErrors) = await extractImagesTask;
+            if (!string.IsNullOrEmpty(imageExtractionErrors))
+                await OnError($"Image extraction errors:{Environment.NewLine}{imageExtractionErrors}");
+
+            var metadataFile = await metadataFileTask;
             var twoStepsConcat = Settings.CodecsWithTwoStepsConcat.Has(codec) && metadataFile != "";
 
             var hasImages = extractedImages.Count > 0;
             var outputToFile = hasImages || twoStepsConcat
-                ? await GenerateTempOutputFileFrom(outputFileName) 
+                ? await GenerateTempOutputFileFrom(Path.GetExtension(outputFileName)) 
                 : outputFileName;
 
-            var args1 = GetConcatArgs(codec, listFile, !twoStepsConcat ? metadataFile : "", outputToFile);
-            Debug.WriteLine($"ffmpeg.exe {args1}");
-            await Process.Run("ffmpeg.exe", args1, OnStatus, Process.OutputType.Error, ctx);
+            IReadOnlyList<string>? remuxedFiles = null;
+            totalDuration = await totalDurationTask;
+            do
+            {
+                var args1 = GetFFmpegArgs(codec, listFile, !twoStepsConcat ? metadataFile : "", outputToFile);
+                Debug.WriteLine($"ffmpeg.exe {args1}");
+                await Process.Run("ffmpeg.exe", args1, status => OnConcatStatus(status, totalDuration), Process.OutputType.Error, ctx);
 
+                var concatErrorsStr = concatErrors.ToString();
+                concatErrors.Clear();
+
+                if (concatErrorsStr == "")
+                    break;
+                
+                if (remuxedFiles != null || !Settings.RemuxOnErrors.IsIn(concatErrorsStr)) //If not a remuxable error 
+                {
+                    await OnError(concatErrorsStr);
+                    break;
+                }
+
+                #region Remuxing files
+                // Some of the audio files have minor issues in them, like "non-monotonically increasing dts", if we try to concatenate them 'as is' FFMpeg will return errors
+                // and I don't really know if the resulting output will play well. We need to remux the files to fix these errors. By remuxing I mean to copy the streams to
+                // a new file for each file individually, this will fix the errors and allow to concatenation to terminate clean. To remux we run concatenation command with
+                // a single input file, we output it to a temporary file. Then we concatenate the temporary files.
+
+                await OnStatus("Remuxing files...");
+                var remuxResponse = await RemuxFiles(mediaFiles, OnProgress, ctx);
+                if (remuxResponse.IsFailure)
+                {
+                    //concatErrors.AppendMessage(remuxResponse.Message);
+                    await OnError($"Remuxing errors:{Environment.NewLine}{remuxResponse.Message}");
+                }
+                if (remuxResponse.Data == null)
+                {
+                    await OnError("Remuxing failed with an unrecoverable error, aborting.");
+                    break;
+                }
+
+                remuxedFiles = remuxResponse.Data!;
+                try { await Task.Run(() => File.Delete(listFile), CancellationToken.None); }
+                catch { /* ignore */ }
+                listFile = await CreateFilesListFile(remuxedFiles);
+
+                #endregion
+            } while (true);
+
+            #region Second Step of Concatenation
             if (twoStepsConcat)
             {
                 try { await Task.Run(() => File.Delete(listFile), CancellationToken.None); }
@@ -69,22 +123,33 @@ internal class FFmpegService : IMediaFileToolkitService
 
                 listFile = await CreateFilesListFile(outputToFile);
                 outputToFile = hasImages
-                    ? await GenerateTempOutputFileFrom(outputFileName)
+                    ? await GenerateTempOutputFileFrom(Path.GetExtension(outputFileName))
                     : outputFileName;
 
-                var args2 = GetConcatArgs(codec, listFile, metadataFile, outputToFile);
+                var args2 = GetFFmpegArgs(codec, listFile, metadataFile, outputToFile);
                 Debug.WriteLine($"ffmpeg.exe {args2}");
-                await Process.Run("ffmpeg.exe", args2, OnStatus, Process.OutputType.Error, ctx);
+                await Process.Run("ffmpeg.exe", args2, status => OnConcatStatus(status, totalDuration), Process.OutputType.Error, ctx);
             }
+            #endregion
 
+            #region Attach Images
             if (hasImages)
             {
+                await OnStatus(extractedImages.Count == 1 ? "Appending cover image..." : "Appending cover images...");
                 var imagesResult = await AddImages(outputToFile, extractedImages, outputFileName, ctx);
                 if (imagesResult.IsFailure)
-                    errorMessage.AppendLine(imagesResult.Message);
+                    await OnError($"Image embedding errors:{Environment.NewLine}{imagesResult.Message}");
             }
+            #endregion
+
+            //var cue = Cue.Create(mediaFiles, codec, outputFileName);
+            //var dir = new FileInfo(outputFileName).Directory!.FullName;
+            //var fileName = Path.GetFileNameWithoutExtension(outputFileName);
+            //var filePath = Path.Combine(dir, fileName + ".cue");
+            //await File.WriteAllTextAsync(filePath, cue, new UTF8Encoding(false), ctx);
 
             #region Delete Temporary Files
+            await OnStatus("Cleaning up...");
             // Delete the list file
             try { await Task.Run(() => File.Delete(listFile), CancellationToken.None); }
             catch { /* ignore */ }
@@ -104,59 +169,219 @@ internal class FFmpegService : IMediaFileToolkitService
                 catch { /* ignore */ }
             }
 
+            if (remuxedFiles != null)
+            {
+                foreach (var remuxedFile in remuxedFiles)
+                {
+                    try { await Task.Run(() => File.Delete(remuxedFile), CancellationToken.None); }
+                    catch { /* ignore */ }
+                }
+            }
+
             #endregion
 
-            if (errorMessage.Length == 0)
-                return Result.Success();
-
+            #region Delete Output File is it is Empty
             var outputFile = new FileInfo(outputFileName);
             if (outputFile is { Exists: true, Length: 0 })
             {
                 try { await Task.Run(() => File.Delete(outputFileName), CancellationToken.None); }
                 catch { /* ignore */ }
             }
-
-            return Result.Failure(errorMessage.ToString());
+            #endregion
         }
         catch (Exception ex)
         {
-            return Result.Failure(ex.Message);
+            await OnError($"Concatenation exception:{Environment.NewLine}{ex.Message}");
+            return;
         }
 
-        void OnStatus(string status)
+        return;
+
+        async Task OnConcatStatus(string status, TimeSpan total)
         {
-            if (IsErrorToIgnore(status))
+            if (Settings.ErrorsToIgnore.IsIn(status))
                 return;
             if (IsErrorMessage(status))
-                errorMessage.AppendLine(status);
+                concatErrors.AppendMessage(status);
             else
-                onStatusUpdate(new FFmpegStats(status));
+            {
+                var stats = new FFmpegStats(status);
+                await Task.Run(() => OnProgress(new Progress(total, stats.Time)), CancellationToken.None);
+                await Task.Run(() => OnStatus(stats.ToString()), CancellationToken.None);
+            }
+        }
+    }
+    
+
+    private static bool IsErrorMessage(string status) =>
+        status.StartsWith('[') || !StatusLineContent.Any(status.Contains);
+
+    private class RemuxProgress(IMediaFileViewModel file, IProcessingStats? stats = null)
+    {
+        public IMediaFileViewModel File { get; } = file;
+        public IProcessingStats? Stats { get; set; } = stats;
+    }
+
+    private static async Task<IResponse<IReadOnlyList<string>>> RemuxFiles(IReadOnlyList<IMediaFileViewModel> mediaFiles, Func<Progress, Task> onProgress, CancellationToken ctx)
+    {
+        var sync = new object();
+        var errors = new StringBuilder();
+        var remuxedFiles = new ConcurrentBag<(IMediaFileViewModel, string)>();
+        using var statusMessages = new BlockingCollection<RemuxProgress>();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ctx);
+        // ReSharper disable AccessToDisposedClosure
+        using var progressTrackingTask = Task.Run(async () => await ProgressTracking(mediaFiles, statusMessages, onProgress, cts.Token), CancellationToken.None);
+        // ReSharper restore AccessToDisposedClosure
+        
+        foreach (var file in mediaFiles.AsParallel().WithDegreeOfParallelism(Environment.ProcessorCount))
+        {
+            if (file.IsImage)
+                continue;
+            var remuxResponse = await RemuxFile(file, status => statusMessages.Add(status, CancellationToken.None), ctx);
+            remuxedFiles.Add((file, remuxResponse.Data!));
+            if (remuxResponse.IsFailure)
+                lock (sync) errors.AppendMessage(remuxResponse.Message);
         }
 
-        static bool IsErrorMessage(string status) =>
-            status.StartsWith('[') || !StatusLineContent.Any(status.Contains);
+        await cts.CancelAsync();
+
+        if (errors.Length > 0 && IsUnrecoverableError()) 
+            await DeleteAllTempFiles();
+
+        var sortedRemuxedFiles = SortRemuxedFiles();
+
+        try { await progressTrackingTask; }
+        catch { /* ignore */ }
+        
+        return errors.Length == 0
+            ? Response<IReadOnlyList<string>>.Success(sortedRemuxedFiles)
+            : Response<IReadOnlyList<string>>.Failure(sortedRemuxedFiles, errors.ToString());
+
+        #region Local Methods
+        bool IsUnrecoverableError()
+        {
+            foreach (var (_, remuxedFile) in remuxedFiles)
+            {
+                var fileInfo = new FileInfo(remuxedFile);
+                if (!fileInfo.Exists || fileInfo.Length == 0)
+                    return true;
+            }
+
+            return false;
+        }
+
+        async Task DeleteAllTempFiles()
+        {
+            foreach (var (_, remuxedFile) in remuxedFiles)
+            {
+                var fileInfo = new FileInfo(remuxedFile);
+                if (!fileInfo.Exists)
+                    continue;
+                try { await Task.Run(() => File.Delete(fileInfo.FullName), CancellationToken.None); }
+                catch { /* ignore */ }
+            }
+        }
+
+        IReadOnlyList<string> SortRemuxedFiles()
+        {
+            var sortedFiles = new List<string>(mediaFiles.Count);
+            foreach (var mediaFile in mediaFiles)
+            {
+                foreach (var (remuxedMediaFile, remuxedFile) in remuxedFiles)
+                {
+                    if (remuxedMediaFile != mediaFile)
+                        continue;
+                    sortedFiles.Add(remuxedFile);
+                    break;
+                }
+            }
+
+            return sortedFiles;
+        }
+        #endregion
+    }
+    
+    private static async Task ProgressTracking(IReadOnlyList<IMediaFileViewModel> mediaFiles, BlockingCollection<RemuxProgress> statusMessages, Func<Progress, Task> onProgress, CancellationToken ctx)
+    {
+        var totalDuration = mediaFiles.GetTotalDuration();
+        var filesTracking = new RemuxProgress[mediaFiles.Count];
+        for (var index = 0; index < mediaFiles.Count; index++) 
+            filesTracking[index] = new RemuxProgress(mediaFiles[index]);
+        
+        do 
+        {
+            var statusUpdate = statusMessages.Take(ctx);
+            foreach (var fileTracking in filesTracking)
+            {
+                if (fileTracking.File != statusUpdate.File)
+                    continue;
+                fileTracking.Stats = statusUpdate.Stats;
+                var completedDuration = GetCompletedDuration(filesTracking);
+                await onProgress(new Progress(totalDuration, completedDuration));
+                break;
+            }
+        } while (!ctx.IsCancellationRequested);
+        ctx.ThrowIfCancellationRequested();
     }
 
-    private static string GetConcatArgs(string codec, string listFile, string metadataFile, string outputToFile)
+    private static TimeSpan GetCompletedDuration(IEnumerable<RemuxProgress> filesTracking)
     {
+        var completedDuration = TimeSpan.Zero;
+        foreach (var fileTacking in filesTracking)
+        {
+            var fileStats = fileTacking.Stats;
+            if (fileStats != null)
+                completedDuration = completedDuration.Add(fileStats.Time);
+        }
+
+        return completedDuration;
+    }
+    
+    private static async Task<IResponse<string>> RemuxFile(IMediaFileViewModel mediaFile, Action<RemuxProgress> onStatus, CancellationToken ctx)
+    {
+        var errors = new StringBuilder();
+        var filesList = await CreateFilesListFile([mediaFile]);
+        var outputToFile = await GenerateTempOutputFileFrom(mediaFile.File.Extension);
+        var args = $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{filesList}\" -vn -c:a copy -update true \"{outputToFile}\"";
+        Debug.WriteLine($"ffmpeg.exe {args}");
+        await Process.Run("ffmpeg.exe", args, OnStatus, Process.OutputType.Error, ctx);
+
+        return errors.Length == 0
+            ? Response<string>.Success(outputToFile)
+            : Response<string>.Failure(outputToFile, errors.ToString());
+
+        async Task OnStatus(string status)
+        {
+            if (Settings.ErrorsToIgnore.IsIn(status))
+                return;
+            if (IsErrorMessage(status))
+                errors.AppendMessage(status);
+            else
+                await Task.Run(() => onStatus(new RemuxProgress(mediaFile, new FFmpegStats(status))), CancellationToken.None);
+        }
+    }
+
+    private static string GetFFmpegArgs(string codec, string listFile, string metadataFile, string outputToFile)
+    {
+        var encodingCommand = Settings.GetEncodingCommand(codec);
         if (Settings.CodecsWithTwoStepsConcat.Has(codec)) // For Vorbis we first save it discarding tags, then in the second step we add the tags
             return metadataFile == ""
-                ? $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -map_metadata -1 -vn -c copy -update true \"{outputToFile}\""
-                : $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -i \"{metadataFile}\" -map_metadata 1 -vn -c copy -update true \"{outputToFile}\"";
+                ? $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -map_metadata -1 -vn {encodingCommand} -update true \"{outputToFile}\""
+                : $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -i \"{metadataFile}\" -map_metadata 1 -vn {encodingCommand} -update true \"{outputToFile}\"";
         
         return metadataFile != ""
-            ? $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -i \"{metadataFile}\" -map_metadata 1 -vn -c copy -id3v2_version 3 -write_id3v1 1 -update true \"{outputToFile}\""
-            : $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -vn -c copy -update true \"{outputToFile}\"";
+            ? $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -i \"{metadataFile}\" -map_metadata 1 -vn {encodingCommand} -id3v2_version 3 -write_id3v1 1 -update true \"{outputToFile}\""
+            : $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -vn {encodingCommand} -update true \"{outputToFile}\"";
     }
 
-    private static async Task<string> GenerateTempOutputFileFrom(string outputFileName)
+    private static async Task<string> GenerateTempOutputFileFrom(string fileExtension)
     {
         var tryCount = 0;
         while (tryCount++ < 3)
         {
             try
             {
-                var filePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + Path.GetExtension(outputFileName));
+                var filePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + fileExtension);
                 await File.WriteAllBytesAsync(filePath, []);
                 return filePath;
             }
@@ -170,17 +395,29 @@ internal class FFmpegService : IMediaFileToolkitService
     private static async Task<string> CreateFilesListFile(IEnumerable<IMediaFileViewModel> mediaFiles)
     {
         var listFile = Path.GetTempFileName();
-        var sb = new StringBuilder();
-        sb.AppendLine(FILES_LIST_HEADER);
+        var sb = new StringBuilder(FILES_LIST_HEADER);
         foreach (var mediaFile in mediaFiles)
         {
             if (mediaFile.IsImage)
                 continue;
             var fileName = EscapeFileListFilePath(mediaFile.File.FullName);
-            sb.AppendLine($"file \'{fileName}\'");
+            sb.Append($"file \'{fileName}\'\n");
+        }
+        
+        await File.WriteAllTextAsync(listFile, sb.ToString(), new UTF8Encoding(false));
+        return listFile;
+    }
+    private static async Task<string> CreateFilesListFile(IReadOnlyList<string> remuxedFiles)
+    {
+        var listFile = Path.GetTempFileName();
+        var sb = new StringBuilder(FILES_LIST_HEADER);
+        foreach (var remuxedFile in remuxedFiles)
+        {
+            var fileName = EscapeFileListFilePath(remuxedFile);
+            sb.Append($"file \'{fileName}\'\n");
         }
 
-        await File.WriteAllTextAsync(listFile, sb.ToString());
+        await File.WriteAllTextAsync(listFile, sb.ToString(), new UTF8Encoding(false));
         return listFile;
     }
 
@@ -445,7 +682,7 @@ internal class FFmpegService : IMediaFileToolkitService
                 var imageFile = new FileInfo(outputFileName);
                 if (!imageFile.Exists)
                 {
-                    errors.AppendLine(extractResult.Message);
+                    errors.AppendMessage(extractResult.Message);
                     continue;
                 }
 
@@ -456,7 +693,7 @@ internal class FFmpegService : IMediaFileToolkitService
                     continue;
                 }
 
-                errors.AppendLine(extractResult.Message);
+                errors.AppendMessage(extractResult.Message);
                 try { await Task.Run(() => File.Delete(outputFileName), CancellationToken.None); }
                 catch { /* ignore */ }
             }
@@ -465,13 +702,12 @@ internal class FFmpegService : IMediaFileToolkitService
         return (imageFiles, errors.ToString());
     }
 
-    private static IReadOnlyList<string> KnownImageCodecs { get; } = ["mjpeg", "png"];
     private static IReadOnlyList<IMediaStream> GetImageStreams(IMediaFileViewModel mediaFile)
     {
         var streams = new List<IMediaStream>();
         foreach (var stream in mediaFile.Streams)
         {
-            if (KnownImageCodecs.Contains(stream.CodecName))
+            if (Settings.SupportedImageCodecs.Contains(stream.CodecName))
                 streams.Add(stream);
         }
 
@@ -490,7 +726,7 @@ internal class FFmpegService : IMediaFileToolkitService
                 Process.OutputType.Error,
                 ctx);
 
-            if (!string.IsNullOrEmpty(response) && !IsErrorToIgnore(response))
+            if (!string.IsNullOrEmpty(response) && !Settings.ErrorsToIgnore.IsIn(response))
                 return Response<IResult>.Failure(response);
 
             var fileInfo = new FileInfo(outputFileName);
@@ -523,26 +759,6 @@ internal class FFmpegService : IMediaFileToolkitService
         }
     }
 
-    private static IReadOnlyList<string> ErrorsToIgnore { get; } =
-    [
-        "Invalid PNG signature",
-        "    Last message repeated ",
-        "Incorrect BOM value\r\nError reading comment frame, skipped",
-        "Incorrect BOM value",
-        "Error reading comment frame, skipped",
-        "Error reading frame GEOB, skipped"
-    ];
-    private static bool IsErrorToIgnore(string response)
-    {
-        foreach (var error in response.Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries))
-        {
-            if (ErrorsToIgnore.All(errorToIgnore => !error.Contains(errorToIgnore)))
-                return false;
-        }
-
-        return true;
-    }
-
     public async Task<IResult> IsAccessible()
     {
         try
@@ -571,4 +787,9 @@ internal class FFmpegService : IMediaFileToolkitService
             return Result.Failure("Unable to check the accessibility of the tools ffmpeg and ffprobe. " + ex.Message);
         }
     }
+
+    private Task OnProgress(Progress progress) => Task.Run(() => Progress?.Invoke(this, new ProgressEventArgs(progress)));
+    private Task OnStatus(string status) => Task.Run(() => Status?.Invoke(this, new MessageEventArgs(status)));
+    private Task OnError(string message) => Task.Run(() => Error?.Invoke(this, new MessageEventArgs(message)));
 }
+

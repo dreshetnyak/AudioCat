@@ -4,99 +4,143 @@ using AudioCat.ViewModels;
 
 namespace AudioCat.Services;
 
-internal class Cue
+internal static class Cue
 {
-    //https://exiftool.org/TagNames/RIFF.html
-    //https://wiki.multimedia.cx/index.php/FFmpeg_Metadata
+    public static string Create(IReadOnlyList<IMediaFileViewModel> mediaFiles, string codec, string audioFileName)
+    {
+        var cue = new StringBuilder();
+        AppendHeader(cue, mediaFiles, codec, audioFileName);
+        AppendTracks(cue, mediaFiles);
+        return cue.ToString();
+    }
 
-    //Save image stream to a file. Extract stream to a file. Binary. Adding binary streams? Subtitles streams.
+    #region Header
+    private static void AppendHeader(StringBuilder cue, IReadOnlyList<IMediaFileViewModel> mediaFiles, string codec, string audioFileName)
+    {
+        var tagsSourceFile = mediaFiles.GetTagsSourceFile();
+        if (tagsSourceFile != null)
+        {
+            cue.AppendCommands(GetRemCommands(tagsSourceFile.Tags));
+            cue.AppendCommands(GetMainCommands(tagsSourceFile.Tags));
+        }
 
+        cue.AppendLine(GetFileCommand(audioFileName, codec));
+    }
 
-    //public static string Create(IReadOnlyList<IMediaFileViewModel> mediaFiles, string codec, string audioFileName)
-    //{
-    //    var cue = new StringBuilder();
-    //    AppendHeader(cue, mediaFiles, codec, audioFileName);
-    //    AppendTracks(cue, mediaFiles, codec, audioFileName);
-    //    return cue.ToString();
-    //}
+    private static string GetFileCommand(string fileName, string codec) =>
+        $"FILE \"{fileName}\" {GetFileType(codec)}";
 
-    //#region Header
-    //private static void AppendHeader(StringBuilder chapters, IReadOnlyList<IMediaFileViewModel> mediaFiles, string codec, string audioFileName)
-    //{
-    //    var tagsSourceFile = mediaFiles.GetTagsSourceFile();
-    //    if (tagsSourceFile != null)
-    //        chapters.Append(GetTagCommands(tagsSourceFile));
-    //    chapters.AppendLine(GetFileCommand(audioFileName, codec));
-    //}
+    private static string GetFileType(string codec) => codec switch
+    {
+        "aac" => "MP4",
+        "mp3" => "MP3",
+        _ => "WAVE"
+    };
 
-    //private static string GetTagCommands(IMediaFileViewModel file)
-    //{
-    //    var commands = new StringBuilder();
-    //    var mainCommands = new StringBuilder();
+    #endregion
 
-    //    foreach (var tag in file.Tags)
-    //    {
-    //        var mainCommand = GetMainCommand(tag);
-    //        if (mainCommand != null)
-    //            mainCommands.AppendLine(mainCommand);
-    //        else
-    //            commands.Append(GetRemCommand(tag));
-    //    }
+    #region Tracks
 
-    //    return commands.Append(mainCommands).ToString();
-    //}
+    private static void AppendTracks(StringBuilder cue, IReadOnlyList<IMediaFileViewModel> mediaFiles)
+    {
+        var trackIndex = 1; 
+        var startTime = TimeSpan.Zero;
+        foreach (var file in mediaFiles)
+        {
+            var fileDuration = file.Duration;
+            if (fileDuration == null)
+                continue;
 
-    //private static IEnumerable<NameValue> MainCommands =>
-    //[
-    //    new NameValue("title", "TITLE"),
-    //    new NameValue("album_artist", "PERFORMER"),
-    //    new NameValue("artist", "SONGWRITER")
-    //];
-    //private static string? GetMainCommand(IMediaTagViewModel tag)
-    //{
-    //    var commandName = MainCommands.GetValue(tag.Name);
-    //    return commandName != null
-    //        ? $"{commandName} {tag.Value}"
-    //        : null;
-    //}
+            foreach (var chapter in file.Chapters)
+            {
+                var chapterStartTime = chapter.StartTime;
+                if (chapterStartTime == null)
+                    continue;
+                var cueChapterStart = startTime.Add(chapterStartTime.Value);
+                cue.AppendLine(GetTrackCommand(trackIndex++));
+                cue.AppendCommands(GetMainCommands(chapter.Tags), 4);
+                cue.AppendLine(GetIndexCommand(1, cueChapterStart));
+            }
 
-    //private static string GetRemCommand(IMediaTagViewModel tag) => 
-    //    $"REM {tag.Name} {tag.Value}";
+            startTime += fileDuration.Value;
+        }
+    }
 
-    //private static string GetFileCommand(string fileName, string codec) => 
-    //    $"FILE \"{fileName}\" {GetFileType(codec)}";
+    private static string GetTrackCommand(int index) => 
+        $"  TRACK {index:00} AUDIO";
 
-    //private static string GetFileType(string codec) => codec switch
-    //{
-    //    "aac" => "MP4",
-    //    "mp3" => "MP3",
-    //    _ => "WAVE"
-    //};
+    private static string GetIndexCommand(int index, TimeSpan indexStart) => 
+        $"    INDEX {index:00} {ToTrackIndexTime(indexStart)}";
 
-    //#endregion
+    private const decimal FRAME_SIZE = 1000m / 75m;
+    private static string ToTrackIndexTime(TimeSpan startTime) => 
+        $"{startTime.TotalMinutes:00}:{startTime.Seconds:00}:{(int)(startTime.Milliseconds / FRAME_SIZE):00}";
 
-    //#region Tracks
-    ////private static void AppendTracks(StringBuilder cue, IReadOnlyList<IMediaFileViewModel> mediaFiles, string codec, string audioFileName)
-    ////{
-    ////    foreach (var file in mediaFiles)
-    ////    {
-    ////        file.Chapters
+    #endregion
 
+    #region Commands
+    private static IReadOnlyList<string> GetMainCommands(IReadOnlyList<IMediaTag> tags)
+    {
+        var commands = new List<string>(tags.Count);
+        foreach (var mainCommand in MainCommands)
+        {
+            var tag = tags.GetTag(mainCommand.Name);
+            if (tag == null)
+                continue;
+            var command = GetMainCommand(mainCommand.Value, tag.Value);
+            if (command != null)
+                commands.Add(command);
+        }
 
+        return commands;
+    }
 
+    private static IReadOnlyList<string> GetRemCommands(IReadOnlyCollection<IMediaTagViewModel> tags)
+    {
+        var commands = new List<string>(tags.Count);
+        foreach (var tag in tags)
+        {
+            if (!MainCommands.Has(tag.Name))
+                commands.Add(GetRemCommand(tag));
+        }
 
-    ////    }
+        return commands;
+    }
 
+    private static IEnumerable<NameValue> MainCommands =>
+    [
+        new NameValue("title", "TITLE"),
+        new NameValue("album_artist", "PERFORMER"),
+        new NameValue("artist", "SONGWRITER")
+    ];
 
-    ////}
+    private static string? GetMainCommand(string commandName, string tagValue) =>
+        !string.IsNullOrEmpty(tagValue)
+            ? $"{commandName} {tagValue.ToQuote()}"
+            : null;
 
-    //#endregion
+    private static string GetRemCommand(IMediaTagViewModel tag) =>
+        $"REM {tag.Name.ToQuote()} {tag.Value.ToQuote()}";
 
+    private static void AppendCommands(this StringBuilder commands, IEnumerable<string> commandsToAppend, int indent = 0)
+    {
+        foreach (var commandToAppend in commandsToAppend)
+        {
+            if (indent > 0)
+                commands.Append(' ', indent);
+            commands.AppendLine(commandToAppend);
+        }
+    }
 
-    // PERFORMER
-    // SONGWRITER
-    // TITLE
-    // 
+    #endregion
+
+    private static string ToQuote(this string str) =>
+        str.Contains(' ') ? $"\"{str}\"" : str;
+    
+    //  TRACK 01 AUDIO
+    //    TITLE "Reverence"
+    //    PERFORMER "Faithless"
+    //    INDEX 01 00:00:00
 
     //REM GENRE Electronica
     //REM DATE 1998
@@ -115,5 +159,4 @@ internal class Cue
     //    TITLE "Take the Long Way Home"
     //    PERFORMER "Faithless"
     //    INDEX 01 10:54:00
-
 }

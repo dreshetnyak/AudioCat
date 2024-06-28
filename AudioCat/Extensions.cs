@@ -29,6 +29,17 @@ internal static class Extensions
         return "";
     }
 
+    public static bool IsIn(this IReadOnlyList<string> list, string searchStr)
+    {
+        foreach (var s in list)
+        {
+            if (searchStr.Contains(s))
+                return true;
+        }
+
+        return false;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Is(this string left, string right) =>
         left.Equals(right, StringComparison.OrdinalIgnoreCase);
@@ -117,7 +128,6 @@ internal static class Extensions
         {
             if (tag.Name.Is(name))
                 return tag;
-
         }
 
         return null;
@@ -131,6 +141,17 @@ internal static class Extensions
             : defaultValue;
     }
 
+    public static IMediaTagViewModel? GetTag(this IReadOnlyList<IMediaTagViewModel> tags, string name)
+    {
+        foreach (var tag in tags)
+        {
+            if (tag.Name.Is(name))
+                return tag;
+        }
+
+        return null;
+    }
+ 
     public static bool ChaptersAlreadyExist(this IEnumerable<IMediaFileViewModel> mediaFiles)
     {
         foreach (var file in mediaFiles)
@@ -162,5 +183,43 @@ internal static class Extensions
         }
 
         return null;
+    }
+
+    public static bool Has(this IEnumerable<NameValue> enumerable, string name)
+    {
+        foreach (var item in enumerable)
+        {
+            if (item.Name.Is(name))
+                return true;
+        }
+
+        return false;
+    }
+
+    public static long GetFilesTotalSize(this IEnumerable<IMediaFileViewModel> files)
+    {
+        var totalSize = 0L;
+        foreach (var file in files)
+            totalSize += file.File.Length;
+        return totalSize;
+    }
+
+    public static TimeSpan GetTotalDuration(this IEnumerable<IMediaFileViewModel> files)
+    {
+        var totalDuration = TimeSpan.Zero;
+        foreach (var file in files)
+        {
+            if (file.Duration.HasValue)
+                totalDuration = totalDuration.Add(file.Duration.Value);
+        }
+        return totalDuration;
+    }
+
+    public static void AppendMessage(this StringBuilder sb, string message)
+    {
+        if (message.EndsWith(Environment.NewLine, StringComparison.Ordinal))
+            sb.Append(message);
+        else
+            sb.AppendLine(message);
     }
 }
