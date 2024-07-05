@@ -15,6 +15,7 @@
     <None Remove="Images\AddPath.png" />
     <None Remove="Images\AddPathGray.png" />
     <None Remove="Images\Blank.png" />
+    <None Remove="Images\Build.png" />
     <None Remove="Images\Cancel.png" />
     <None Remove="Images\CancelGray.png" />
     <None Remove="Images\Clear.png" />
@@ -33,10 +34,12 @@
     <None Remove="Images\OkGray.png" />
     <None Remove="Images\Remove.png" />
     <None Remove="Images\RemoveGray.png" />
+    <None Remove="Images\Selected.png" />
     <None Remove="Images\ToggleOff.png" />
     <None Remove="Images\ToggleOn.png" />
     <None Remove="Images\Up.png" />
     <None Remove="Images\UpGray.png" />
+    <None Remove="Images\Warning.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -54,6 +57,7 @@
     <Resource Include="Images\AddPath.png" />
     <Resource Include="Images\AddPathGray.png" />
     <Resource Include="Images\Blank.png" />
+    <Resource Include="Images\Build.png" />
     <Resource Include="Images\Cancel.png" />
     <Resource Include="Images\CancelGray.png" />
     <Resource Include="Images\Clear.png" />
@@ -72,10 +76,12 @@
     <Resource Include="Images\OkGray.png" />
     <Resource Include="Images\Remove.png" />
     <Resource Include="Images\RemoveGray.png" />
+    <Resource Include="Images\Selected.png" />
     <Resource Include="Images\ToggleOff.png" />
     <Resource Include="Images\ToggleOn.png" />
     <Resource Include="Images\Up.png" />
     <Resource Include="Images\UpGray.png" />
+    <Resource Include="Images\Warning.png" />
   </ItemGroup>
 
   <ItemGroup>

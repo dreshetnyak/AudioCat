@@ -15,7 +15,11 @@ public sealed class CreateChaptersFromTagsCommand(IMediaFilesContainer mediaFile
     {
         try
         {
-            if (MediaFiles.ChaptersAlreadyExist())
+            if (parameter is not IConcatParams concatParams)
+                throw new ArgumentException("Invalid parameter type");
+            var outputChapters = concatParams.OutputChapters;
+
+            if (outputChapters.Count > 0)
             {
                 var confirmResult = MessageBox.Show("Creating chapters based on media tags will delete any existing chapters. Do you want to proceed?", "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Question);
                 if (confirmResult == MessageBoxResult.No)
@@ -36,8 +40,11 @@ public sealed class CreateChaptersFromTagsCommand(IMediaFilesContainer mediaFile
                 return Task.FromResult(Response<object>.Success());
             var trimStartNonChars = selectTagWindow.TrimStartingNonChars;
 
-            foreach (var file in MediaFiles)
+            var startTime = TimeSpan.Zero;
+            var chapters = new List<IMediaChapterViewModel>(MediaFiles.Count);
+            for (var index = 0; index < MediaFiles.Count; index++)
             {
+                var file = MediaFiles[index];
                 if (file.IsImage || file.Duration == null)
                     continue;
 
@@ -45,20 +52,33 @@ public sealed class CreateChaptersFromTagsCommand(IMediaFilesContainer mediaFile
                 if (trimStartNonChars)
                     title = title.TrimStartNonChars();
 
-                if (file.Chapters.Count > 0)
-                    file.Chapters.Clear();
+                const decimal divident = 1m;
+                const decimal divisor = 1000m;
 
-                file.Chapters.Add(new ChapterViewModel
+                var endTime = startTime.Add(file.Duration.Value);
+                var calculatedStart = (long)((decimal)startTime.TotalSeconds * divisor);
+                var calculatedEnd = (long)((decimal)endTime.TotalSeconds * divisor);
+
+                chapters.Add(new ChapterViewModel
                 {
-                    Id = 0,
-                    Start = 0,
-                    End = (long)file.Duration.Value.TotalMilliseconds,
-                    TimeBaseDivident = 1,
-                    TimeBaseDivisor = 1000,
-                    StartTime = TimeSpan.Zero,
-                    EndTime = file.Duration,
+                    Id = index,
+                    Start = calculatedStart,
+                    End = calculatedEnd,
+                    TimeBaseDivident = divident,
+                    TimeBaseDivisor = divisor,
+                    StartTime = startTime,
+                    EndTime = endTime,
                     Title = title
                 });
+
+                startTime = endTime;
+            }
+
+            if (chapters.Count > 0)
+            {
+                outputChapters.Clear();
+                foreach (var chapter in chapters)
+                    outputChapters.Add(chapter);
             }
 
             return Task.FromResult(Response<object>.Success());

@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
 using AudioCat.Models;
@@ -163,17 +164,6 @@ internal static class Extensions
         return false;
     }
 
-    public static IMediaFileViewModel? GetTagsSourceFile(this IEnumerable<IMediaFileViewModel> files)
-    {
-        foreach (var file in files)
-        {
-            if (file is { HasTags: true, IsTagsSource: true })
-                return file;
-        }
-
-        return null;
-    }
-
     public static string? GetValue(this IEnumerable<NameValue> enumerable, string name)
     {
         foreach (var item in enumerable)
@@ -221,5 +211,14 @@ internal static class Extensions
             sb.Append(message);
         else
             sb.AppendLine(message);
+    }
+
+    public static void CopyTagsTo(this IReadOnlyList<IMediaTagViewModel> source, ObservableCollection<IMediaTagViewModel> target)
+    {
+        if (source.Count == 0)
+            return;
+        target.Clear();
+        foreach (var tag in source)
+            target.Add(TagViewModel.Copy(tag));
     }
 }

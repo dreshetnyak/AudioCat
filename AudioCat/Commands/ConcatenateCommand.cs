@@ -27,6 +27,8 @@ public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkit
     {
         public bool TagsEnabled { get; } = tagsEnabled;
         public bool ChaptersEnabled { get; } = chaptersEnabled;
+        public ObservableCollection<IMediaTagViewModel> OutputTags { get; } = [];
+        public ObservableCollection<IMediaChapterViewModel> OutputChapters { get; } = [];
     }
     #endregion
 

@@ -53,6 +53,7 @@ public sealed class TagViewModel : IMediaTagViewModel, INotifyPropertyChanged
     }
 
     public static IMediaTagViewModel CreateFrom(IMediaTag tag) => new TagViewModel { Name = tag.Name, Value = tag.Value };
+    public static IMediaTagViewModel Copy(IMediaTagViewModel tag) => new TagViewModel { IsEnabled = tag.IsEnabled, Name = tag.Name, Value = tag.Value };
 
     #region INotifyPropertyChanged Implementation
     public event PropertyChangedEventHandler? PropertyChanged;

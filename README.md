@@ -7,6 +7,33 @@
 
 ## Version History
 
+### AudioCat 5.0.0
+New. Input tags and chapters are now immutable, output tags and chapters are now on a separate tab.
+
+Bug. When providing a folder(s) in command line the app fails to add files.<br>
+Bug. .
+
+Warning only if chapters was created manually
+In a case if chapters was created automatically - recalculate chapters.
+
+If files the order changes after chapters has been created
+
+Warning icon on output - add note at the bottom
+
+Create chapters: From files - names, generated names, names from tags; From silence
+
+Replace the tags selection icon, add animation on when it is clicked.
+Logic behind it should be changed, IsTagsSource goes away.
+
+
+#### Notes.
+**Tags support.** The supported tags are specific to a particular file format. As a result, if you set a tag and the output format doesn't support it, it may be missing in the output file.<br>
+**Chapters support.** Some of the formats, like OGG, WAV and FLAC, does not support chapters. The cue sheets is in the implementation backlog, but the cue sheets format is a bit of a hot mess, a lot of testing needs to be done to make sure that the resulting files are understood by all (or most) audio players.<br>
+**FLAC format.** The FFmpeg concatenation of FLAC files is buggy; it copies the audio streams without adjusting the DTS timestamps, so the resulting file will always have a *"non-monotonically increasing DTS"* issue. As a workaround, instead of using 'concat', the app performs a FLAC-to-FLAC re-encoding. Since FLAC is a lossless codec, this still complies with the app's 'no re-encoding' goal.
+
+<details>
+<summary>Previous versions</summary>
+
 ### AudioCat 4.0.0
 New. Concatenation now detects some remux-recoverable errors and performs remuxing.<br>
 New. Added a status update for the image attachment stage, before it appeared to be frozen without any status during this stage.<br>
@@ -16,13 +43,6 @@ Bug. Disabled chapters support for FLAC format as the formai itself doesn't supp
 Bug. File list could contain BOM, that could cause concatenation failure.<br>
 Bug. When generating files list the app was outputting an extra new line after the header.
 
-#### Notes.
-**Tags support.** The supported tags are specific to a particular file format. As a result, if you set a tag and the output format doesn't support it, it may be missing in the output file.
-**Chapters support.** Some of the formats, like OGG, WAV and FLAC, does not support chapters. The cue sheets is in the implementation backlog, but the cue sheets format is a bit of a hot mess, a lot of testing needs to be done to make sure that the resulting files are understood by all (or most) audio players.
-**FLAC format.** The FFmpeg concatenation of FLAC files is buggy; it copies the audio streams without adjusting the DTS timestamps, so the resulting file will always have a *"non-monotonically increasing DTS"* issue. As a workaround, instead of using 'concat', the app performs a FLAC-to-FLAC re-encoding. Since FLAC is a lossless codec, this still complies with the app's 'no re-encoding' goal.
-
-<details>
-<summary>Previous versions</summary>
 ### AudioCat 3.2.1
 Bug. If a cover image was present then the concatenation process would most likely fail with 'non-monotonical' error, and the image would be missing in the output.
 

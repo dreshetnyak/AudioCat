@@ -17,14 +17,14 @@ internal static class Cue
     #region Header
     private static void AppendHeader(StringBuilder cue, IReadOnlyList<IMediaFileViewModel> mediaFiles, string codec, string audioFileName)
     {
-        var tagsSourceFile = mediaFiles.GetTagsSourceFile();
-        if (tagsSourceFile != null)
-        {
-            cue.AppendCommands(GetRemCommands(tagsSourceFile.Tags));
-            cue.AppendCommands(GetMainCommands(tagsSourceFile.Tags));
-        }
+        //var tagsSourceFile = mediaFiles.GetTagsSourceFile();
+        //if (tagsSourceFile != null)
+        //{
+        //    cue.AppendCommands(GetRemCommands(tagsSourceFile.Tags));
+        //    cue.AppendCommands(GetMainCommands(tagsSourceFile.Tags));
+        //}
 
-        cue.AppendLine(GetFileCommand(audioFileName, codec));
+        //cue.AppendLine(GetFileCommand(audioFileName, codec));
     }
 
     private static string GetFileCommand(string fileName, string codec) =>

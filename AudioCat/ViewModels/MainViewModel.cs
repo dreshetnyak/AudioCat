@@ -22,11 +22,16 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
     private int _progressPercentage;
     private string _progressText = "";
     private bool _isTagsExpanded;
+    private bool _isOutputTagsExpanded;
     private bool _isStreamsExpanded;
     private bool _isChaptersExpanded;
+    private bool _isOutputChaptersExpanded;
     private bool _tagsEnabled = true;
     private bool _chaptersEnabled = true;
     private string _selectedCodec = "";
+    private int _selectedDataTabIndex;
+    private string _outputWarning = "";
+    private Visibility _outputWarningVisibility = Visibility.Hidden;
 
     #endregion
 
@@ -47,6 +52,20 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         {
             if (value == _selectedCodec) return;
             _selectedCodec = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public ObservableCollection<IMediaTagViewModel> OutputTags { get; }
+    public ObservableCollection<IMediaChapterViewModel> OutputChapters { get; }
+    public int SelectedDataTabIndex
+    {
+        get => _selectedDataTabIndex;
+        set
+        {
+            if (value == _selectedDataTabIndex) 
+                return;
+            _selectedDataTabIndex = value;
             OnPropertyChanged();
         }
     }
@@ -158,6 +177,29 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         }
     }
 
+    public bool IsOutputTagsExpanded
+    {
+        get => _isOutputTagsExpanded;
+        set
+        {
+            if (value == _isOutputTagsExpanded)
+                return;
+            _isOutputTagsExpanded = value;
+            OnPropertyChanged();
+        }
+    }
+    public bool IsOutputChaptersExpanded
+    {
+        get => _isOutputChaptersExpanded;
+        set
+        {
+            if (value == _isOutputChaptersExpanded)
+                return;
+            _isOutputChaptersExpanded = value;
+            OnPropertyChanged();
+        }
+    }
+
     public string TagsCount =>
         SelectedFile != null 
             ? SelectedFile.Tags.Count > 0 
@@ -176,6 +218,15 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
                 ? SelectedFile.Chapters.Count > 1 ? $"{SelectedFile.Chapters.Count:N0} chapters" : "1 chapter"
                 : "No chapters"
             : "";
+    
+    public string OutputTagsCount =>
+        OutputTags.Count > 0
+            ? OutputTags.Count > 1 ? $"{OutputTags.Count:N0} tags" : "1 tag"
+            : "No tags";
+    public string OutputChaptersCount =>
+        OutputChapters.Count > 0
+            ? OutputChapters.Count > 1 ? $"{OutputChapters.Count:N0} chapters" : "1 chapter"
+            : "No chapters";
 
     public bool TagsEnabled
     {
@@ -187,11 +238,14 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
             _tagsEnabled = value;
             OnPropertyChanged();
             IsTagsExpanded = value && SelectedFile is { Tags.Count: > 0 };
+            IsOutputTagsExpanded = value && OutputTags.Count > 0;
             OnPropertyChanged(nameof(TagsVisibility));
+            OnPropertyChanged(nameof(OutputTagsVisibility));
             OnPropertyChanged(nameof(IsChaptersFromTagsEnabled));
         }
     }
     public Visibility TagsVisibility => TagsEnabled && SelectedFile is { IsImage: false } ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility OutputTagsVisibility => TagsEnabled ? Visibility.Visible : Visibility.Collapsed;
 
     public Visibility StreamsVisibility => SelectedFile != null ? Visibility.Visible : Visibility.Collapsed;
 
@@ -205,16 +259,43 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
             _chaptersEnabled = value;
             OnPropertyChanged();
             IsChaptersExpanded = value && SelectedFile is { Chapters.Count: > 0 };
+            IsOutputChaptersExpanded = OutputChapters.Count > 0;
             OnPropertyChanged(nameof(ChaptersVisibility));
+            OnPropertyChanged(nameof(OutputChaptersVisibility));
             OnPropertyChanged(nameof(IsChaptersFromFilesEnabled));
             OnPropertyChanged(nameof(IsChaptersFromTagsEnabled));
         }
     }
     public Visibility ChaptersVisibility => ChaptersEnabled && SelectedFile is { IsImage: false } ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility OutputChaptersVisibility => ChaptersEnabled ? Visibility.Visible : Visibility.Collapsed;
 
     public bool IsChaptersFromTagsEnabled => IsUserEntryEnabled && Files.Count > 0 && ChaptersEnabled && TagsEnabled;
     public bool IsChaptersFromFilesEnabled => IsUserEntryEnabled && Files.Count > 0 && ChaptersEnabled;
 
+    public string OutputWarning
+    {
+        get => _outputWarning;
+        set
+        {
+            if (value == _outputWarning) 
+                return;
+            _outputWarning = value;
+            OnPropertyChanged();
+            OutputWarningVisibility = string.IsNullOrWhiteSpace(value) ? Visibility.Hidden : Visibility.Visible;
+        }
+    }
+    public Visibility OutputWarningVisibility
+    {
+        get => _outputWarningVisibility;
+        set
+        {
+            if (value == _outputWarningVisibility) 
+                return;
+            _outputWarningVisibility = value;
+            OnPropertyChanged();
+        }
+    }
+    
     public ICommand Concatenate { get; }
     public ICommand Cancel { get; }
     public ICommand AddPath { get; }
@@ -274,7 +355,12 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         
         MediaFilesContainer = mediaFilesContainer;
         if (mediaFilesContainer is INotifyPropertyChanged container)
-            container.PropertyChanged += OnSelectedAudioFileChanged;
+            container.PropertyChanged += OnMediaFilesContainerChanged;
+
+        OutputTags = new ObservableCollection<IMediaTagViewModel>();
+        OutputTags.CollectionChanged += OnOutputTagsChanged;
+        OutputChapters = new ObservableCollection<IMediaChapterViewModel>();
+        OutputChapters.CollectionChanged += OnOutputChaptersChanged;
 
         MediaFilesService = mediaFilesService;
         mediaFileToolkitService.Status += OnStatusUpdate;
@@ -312,8 +398,21 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
             .ContinueWith(AddCliFilesOnStartup);
     }
 
+    private void OnOutputTagsChanged(object? sender, NotifyCollectionChangedEventArgs e) => 
+        OnPropertyChanged(nameof(OutputTagsCount));
+
+    private void OnOutputChaptersChanged(object? sender, NotifyCollectionChangedEventArgs e) => 
+        OnPropertyChanged(nameof(OutputChaptersCount));
+
     private ObservableCollection<IMediaTagViewModel>? SelectedFileTags { get; set; }
-    private void OnSelectedAudioFileChanged(object? sender, PropertyChangedEventArgs e)
+
+    private void OnMediaFilesContainerChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MediaFilesContainer.SelectedFile))
+            OnSelectedAudioFileChanged();
+    }
+
+    private void OnSelectedAudioFileChanged()
     {
         OnPropertyChanged(nameof(SelectedFile));
         OnPropertyChanged(nameof(IsMoveUpEnabled));
@@ -384,6 +483,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         }
     }
 
+    // Called when tags source is selected in the DataGrid. Not called for initial selection.
     private void OnSelectTags(object? obj)
     {
         if (obj is not MediaFileViewModel selectedFile)
@@ -398,8 +498,17 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         if (!selectedFile.HasTags)
             return;
 
-        foreach (var currentFile in Files) 
-            currentFile.IsTagsSource = currentFile == selectedFile;
+        foreach (var currentFile in Files)
+        {
+            var isTagsSource = currentFile == selectedFile;
+            currentFile.IsTagsSource = isTagsSource;
+            if (isTagsSource && !ReferenceEquals(currentFile, SelectedTagsSourceFile))
+            {
+                SelectedTagsSourceFile = currentFile;
+                currentFile.Tags.CopyTagsTo(OutputTags);
+                IsOutputTagsExpanded = OutputTags.Count > 0;
+            }
+        }
     }
 
     private static void OnSelectCover(object? obj)
@@ -421,13 +530,9 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
     private void OnFixAllTagsEncoding(object? _)
     {
-        var selectedFile = MediaFilesContainer.SelectedFile;
-        if (selectedFile == null || selectedFile.Tags.Count == 0)
-            return;
-
         var iso8859 = Encoding.GetEncoding("ISO-8859-1");
         var win1251 = Encoding.GetEncoding("Windows-1251");
-        foreach (var tag in selectedFile.Tags)
+        foreach (var tag in OutputTags)
         {
             tag.Name = win1251.GetString(iso8859.GetBytes(tag.Name));
             tag.Value = win1251.GetString(iso8859.GetBytes(tag.Value));
@@ -436,18 +541,17 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
     private void OnFixSelectedTagEncoding(object? dataGridObject)
     {
-        var selectedFile = MediaFilesContainer.SelectedFile;
-        if (selectedFile == null || selectedFile.Tags.Count == 0 || dataGridObject is not DataGrid dataGrid)
+        if (OutputTags.Count == 0 || dataGridObject is not DataGrid dataGrid)
             return;
 
         var selectedTagIndex = dataGrid.SelectedIndex;
-        if (selectedTagIndex < 0 || selectedTagIndex >= selectedFile.Tags.Count)
+        if (selectedTagIndex < 0 || selectedTagIndex >= OutputTags.Count)
             return;
 
         var iso8859 = Encoding.GetEncoding("ISO-8859-1");
         var win1251 = Encoding.GetEncoding("Windows-1251");
 
-        var tag = selectedFile.Tags[selectedTagIndex];
+        var tag = OutputTags[selectedTagIndex];
         tag.Name = win1251.GetString(iso8859.GetBytes(tag.Name));
         tag.Value = win1251.GetString(iso8859.GetBytes(tag.Value));
     }
@@ -492,13 +596,20 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
     private void OnCreateChaptersFinished(object sender, ResponseEventArgs eventArgs)
     {
-        IsChaptersExpanded = ChaptersEnabled && SelectedFile is { Chapters.Count: > 0 };
-        OnPropertyChanged(nameof(ChaptersCount));
+        IsOutputChaptersExpanded = ChaptersEnabled && OutputChapters.Count > 0;
+        OnPropertyChanged(nameof(OutputChaptersCount));
+        SelectedDataTabIndex = 1;
     }
 
     private bool ChaptersWasDisabledByCodec { get; set; } 
     private void OnFilesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        if (Files.Count == 0)
+        {
+            SelectedDataTabIndex = 0;
+            ClearOutput();
+        }
+
         OnPropertyChanged(nameof(IsConcatenateEnabled));
         OnPropertyChanged(nameof(IsClearPathsEnabled));
         OnPropertyChanged(nameof(IsMoveUpEnabled));
@@ -519,6 +630,33 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
             ChaptersEnabled = true;
             ChaptersWasDisabledByCodec = false;
         }
+
+        SelectOutputTagsOnFilesLoad();
+    }
+
+    private IMediaFileViewModel? SelectedTagsSourceFile { get; set; }
+    private void SelectOutputTagsOnFilesLoad()
+    {
+        foreach (var file in Files)
+        {
+            if (!file.IsTagsSource || file.IsImage)
+                continue;
+            if (ReferenceEquals(file, SelectedTagsSourceFile))
+                return;
+            SelectedTagsSourceFile = file;
+            file.Tags.CopyTagsTo(OutputTags);
+            IsOutputTagsExpanded = OutputTags.Count > 0;
+        }
+    }
+
+    private void ClearOutput()
+    {
+        IsOutputChaptersExpanded = false;
+        IsOutputTagsExpanded = false;
+        OutputChapters.Clear();
+        OutputTags.Clear();
+        SelectedTagsSourceFile = null;
+        OutputWarning = "";
     }
 
     #region INotifyPropertyChanged Implementation

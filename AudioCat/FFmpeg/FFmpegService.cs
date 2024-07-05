@@ -50,7 +50,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
 
             var listFileTask = CreateFilesListFile(mediaFiles);
             var extractImagesTask = ExtractImages(mediaFiles, ctx);
-            var metadataFileTask = CreateMetadataFile(mediaFiles, concatParams, ctx);
+            var metadataFileTask = CreateMetadataFile(concatParams, ctx);
             var totalDurationTask = Task.Run(mediaFiles.GetTotalDuration, ctx);
 
             var codec = MediaFilesService.GetAudioCodec(mediaFiles);
@@ -435,13 +435,13 @@ internal sealed class FFmpegService : IMediaFileToolkitService
     private static string EscapeFileListFilePath(string path) => path.Replace("\\", "/").Replace("'", "'\\''");
     
     private const string METADATA_FILE_START = ";FFMETADATA1\n";
-    private static async Task<string> CreateMetadataFile(IReadOnlyList<IMediaFileViewModel> mediaFiles, IConcatParams concatParams, CancellationToken ctx)
+    private static async Task<string> CreateMetadataFile(IConcatParams concatParams, CancellationToken ctx)
     {
         var tagsMetadata = concatParams.TagsEnabled 
-            ? GetTagsMetadata(mediaFiles) 
+            ? GetTagsMetadata(concatParams.OutputTags) 
             : ""; 
         var chaptersMetadata = concatParams.ChaptersEnabled 
-            ? GetChaptersMetadata(mediaFiles) 
+            ? GetChaptersMetadata(concatParams.OutputChapters) 
             : "";
         if (tagsMetadata.Length == 0 && chaptersMetadata.Length == 0)
             return "";
@@ -467,14 +467,6 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         }
     }
 
-    private static string GetTagsMetadata(IEnumerable<IMediaFileViewModel> mediaFiles)
-    {
-        var mediaFile = mediaFiles.GetTagsSourceFile();
-        return mediaFile != null
-            ? GetTagsMetadata(mediaFile.Tags)
-            : "";
-    }
-
     private static string GetTagsMetadata(IEnumerable<IMediaTagViewModel> tags)
     {
         var tagsMetadata = new StringBuilder(8192);
@@ -495,57 +487,42 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         return tagsMetadata.ToString();
     }
 
-    private static string GetChaptersMetadata(IEnumerable<IMediaFileViewModel> mediaFiles)
+    private static string GetChaptersMetadata(IEnumerable<IMediaChapterViewModel> outputChapters)
     {
-        var startTime = TimeSpan.Zero;
         var chapters = new StringBuilder();
-        foreach (var file in mediaFiles)
-        {
-            if (!file.Duration.HasValue)
-                continue;
-
-            foreach (var chapter in file.Chapters)
-                chapters.Append(GetChapterMetadata(chapter, startTime));
-
-            startTime = startTime.Add(file.Duration.Value);
-        }
-
+        foreach (var chapter in outputChapters)
+            AppendChapterMetadata(chapters, chapter);
         return chapters.ToString();
     }
 
-    private static string GetChapterMetadata(IMediaChapter chapter, TimeSpan startTime)
+    private static void AppendChapterMetadata(StringBuilder chapters, IMediaChapter chapter)
     {
         if (!chapter.Start.HasValue ||
             !chapter.End.HasValue ||
             chapter.TimeBaseDivident is not > 0 ||
             chapter.TimeBaseDivisor is not > 0 ||
             chapter.Tags.Count == 0)
-            return "";
+            return;
 
         var divident = chapter.TimeBaseDivident.Value;
         var divisor = chapter.TimeBaseDivisor.Value;
         var multiplier = divident / divisor;
 
         var startSeconds = chapter.Start.Value * multiplier;
-        var relativeStart = TimeSpan.FromSeconds((double)startSeconds);
-        var absoluteStart = relativeStart.Add(startTime);
+        var absoluteStart = TimeSpan.FromSeconds((double)startSeconds);
 
         var endSeconds = chapter.End.Value * multiplier;
-        var relativeEnd = TimeSpan.FromSeconds((double)endSeconds);
-        var absoluteEnd = relativeEnd.Add(startTime);
+        var absoluteEnd = TimeSpan.FromSeconds((double)endSeconds);
 
         var calculatedStart = (long)((decimal)absoluteStart.TotalSeconds * 1000m);
         var calculatedEnd = (long)((decimal)absoluteEnd.TotalSeconds * 1000m);
 
-        var chapters = new StringBuilder(256);
         chapters.Append("[CHAPTER]\n");
         chapters.Append("TIMEBASE=1/1000\n");
         chapters.Append($"START={calculatedStart}\n");
         chapters.Append($"END={calculatedEnd}\n");
         foreach (var tag in chapter.Tags)
-            chapters.Append($"{tag.Name}={tag.Value}\n");
-
-        return chapters.ToString();
+            chapters.Append($"{tag.Name.FilterPrintable().Trim()}={FilterMetadataValue(tag.Value)}\n");
     }
     
     private static string FilterMetadataValue(string name)
