@@ -466,12 +466,15 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
             if (args.Length < 2)
                 return;
 
-            var fileNames = new string[args.Length - 1];
-            for (var i = 0; i < fileNames.Length; i++)
-                fileNames[i] = args[i + 1];
-            
-            var response = await MediaFilesService.AddMediaFiles(fileNames, false); // Long operation, we fire the task and forget
+            var namesFromArgs = new string[args.Length - 1];
+            for (var i = 0; i < namesFromArgs.Length; i++)
+                namesFromArgs[i] = args[i + 1];
 
+            var fileNames = namesFromArgs.IsAllDirectories()
+                ? await Services.Files.GetFilesFromDirectories(namesFromArgs)
+                : namesFromArgs;
+
+            var response = await MediaFilesService.AddMediaFiles(fileNames, false); // Long operation, we fire the task and forget
             if (response.SkipFiles.Count > 0)
                 await Application.Current.Dispatcher.InvokeAsync(() => new SkippedFilesWindow(response.SkipFiles).ShowDialog());
         }
