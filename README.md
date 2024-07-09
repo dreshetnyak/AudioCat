@@ -12,9 +12,19 @@ New. Input tags and chapters are now immutable, output tags and chapters are now
 Bug. When providing a folder(s) in command line the app fails to add files.<br>
 New. When selecting tags the tags selection button now briefly lits to indicate that the tags has been copied.<br>
 New. Replaced the tags and cover image selection icons.
-New. Now can fix encoding in output chapters.
+New. Now output chapters encoding can be fixed by using a popup menu.
 
-Create chapters: From files - names, generated names, names from tags; From silence
+Create chapters dialog: 
+
+Chapter name source:
+File Names
+Metadata Tags
+Template
+
+Use Existing
+Silence Scan
+From CUE
+
 Automate FFMpeg download if it is not found.
 
 #### Notes.
