@@ -23,7 +23,6 @@ public interface IMediaFileViewModel : INotifyPropertyChanged
 
     bool IsImage { get; }
 
-    bool IsTagsSource { get; set; }
     bool HasTags { get; }
 
     bool IsCoverSource { get; set; }
@@ -32,7 +31,6 @@ public interface IMediaFileViewModel : INotifyPropertyChanged
 
 public sealed class MediaFileViewModel : IMediaFileViewModel
 {
-    private bool _isTagsSource;
     private bool _isCoverSource;
     private IMediaFile MediaFile { get; }
 
@@ -50,17 +48,6 @@ public sealed class MediaFileViewModel : IMediaFileViewModel
 
     public bool IsImage { get; }
 
-    public bool IsTagsSource
-    {
-        get => _isTagsSource;
-        set
-        {
-            if (value == _isTagsSource) 
-                return;
-            _isTagsSource = value;
-            OnPropertyChanged();
-        }
-    }
     public bool HasTags => Tags.Count > 0;
 
     public bool IsCoverSource
@@ -76,9 +63,8 @@ public sealed class MediaFileViewModel : IMediaFileViewModel
     }
     public bool HasCover { get; }
 
-    public MediaFileViewModel(IMediaFile mediaFile, bool isTagsSource = false, bool isCoverSource = false)
+    public MediaFileViewModel(IMediaFile mediaFile, bool isCoverSource = false)
     {
-        _isTagsSource = isTagsSource;
         _isCoverSource = isCoverSource;
         MediaFile = mediaFile;
         Streams = GetStreams(mediaFile);
@@ -110,8 +96,6 @@ public sealed class MediaFileViewModel : IMediaFileViewModel
 
     private void OnTagsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs _)
     {
-        if (!HasTags && IsTagsSource)
-            IsTagsSource = false;
         OnPropertyChanged(nameof(HasTags));
     }
 

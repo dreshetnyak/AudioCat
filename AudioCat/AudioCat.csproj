@@ -23,9 +23,12 @@
     <None Remove="Images\Down.png" />
     <None Remove="Images\DownGray.png" />
     <None Remove="Images\Encoding.png" />
+    <None Remove="Images\Error.png" />
     <None Remove="Images\Execute.png" />
     <None Remove="Images\ExecuteGray.png" />
     <None Remove="Images\Ignore.png" />
+    <None Remove="Images\Image.png" />
+    <None Remove="Images\ImageGray.png" />
     <None Remove="Images\NewFiles.png" />
     <None Remove="Images\NewFilesGray.png" />
     <None Remove="Images\NewTag.png" />
@@ -35,11 +38,12 @@
     <None Remove="Images\Remove.png" />
     <None Remove="Images\RemoveGray.png" />
     <None Remove="Images\Selected.png" />
+    <None Remove="Images\Tag.png" />
+    <None Remove="Images\TagGray.png" />
     <None Remove="Images\ToggleOff.png" />
     <None Remove="Images\ToggleOn.png" />
     <None Remove="Images\Up.png" />
     <None Remove="Images\UpGray.png" />
-    <None Remove="Images\Warning.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -65,9 +69,12 @@
     <Resource Include="Images\Down.png" />
     <Resource Include="Images\DownGray.png" />
     <Resource Include="Images\Encoding.png" />
+    <Resource Include="Images\Error.png" />
     <Resource Include="Images\Execute.png" />
     <Resource Include="Images\ExecuteGray.png" />
     <Resource Include="Images\Ignore.png" />
+    <Resource Include="Images\Image.png" />
+    <Resource Include="Images\ImageGray.png" />
     <Resource Include="Images\NewFiles.png" />
     <Resource Include="Images\NewFilesGray.png" />
     <Resource Include="Images\NewTag.png" />
@@ -77,11 +84,12 @@
     <Resource Include="Images\Remove.png" />
     <Resource Include="Images\RemoveGray.png" />
     <Resource Include="Images\Selected.png" />
+    <Resource Include="Images\Tag.png" />
+    <Resource Include="Images\TagGray.png" />
     <Resource Include="Images\ToggleOff.png" />
     <Resource Include="Images\ToggleOn.png" />
     <Resource Include="Images\Up.png" />
     <Resource Include="Images\UpGray.png" />
-    <Resource Include="Images\Warning.png" />
   </ItemGroup>
 
   <ItemGroup>

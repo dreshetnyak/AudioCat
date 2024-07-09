@@ -769,4 +769,3 @@ internal sealed class FFmpegService : IMediaFileToolkitService
     private Task OnStatus(string status) => Task.Run(() => Status?.Invoke(this, new MessageEventArgs(status)));
     private Task OnError(string message) => Task.Run(() => Error?.Invoke(this, new MessageEventArgs(message)));
 }
-

@@ -213,7 +213,7 @@ internal static class Extensions
             sb.AppendLine(message);
     }
 
-    public static void CopyTagsTo(this IReadOnlyList<IMediaTagViewModel> source, ObservableCollection<IMediaTagViewModel> target)
+    public static void SetTo(this IReadOnlyList<IMediaTagViewModel> source, ObservableCollection<IMediaTagViewModel> target)
     {
         if (source.Count == 0)
             return;

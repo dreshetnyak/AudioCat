@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:viewModels="clr-namespace:AudioCat.ViewModels"
+        xmlns:converters="clr-namespace:AudioCat.Converters"
         mc:Ignorable="d"
         Icon="/Cat.ico"
         Title="Audio Cat Tool v5.0.0" Height="640" Width="1024"
@@ -303,6 +304,7 @@
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock
                                         Grid.Column="0"
@@ -401,7 +403,7 @@
                                         IsEnabled="{Binding IsChaptersFromTagsEnabled}"
                                         Style="{StaticResource ToolbarButtonStyle}"
                                         ToolTip="Create chapters from media tags"
-                                        Margin="0,0,3,0">
+                                        Margin="2,0,0,0">
                                         <Image
                                             RenderOptions.BitmapScalingMode="Fant"
                                             Height="18"
@@ -412,6 +414,31 @@
                                                     <Style.Triggers>
                                                         <Trigger Property="IsEnabled" Value="False">
                                                             <Setter Property="Source" Value="../Images/NewTagGray.png" />
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Image.Style>
+                                        </Image>
+                                    </Button>
+
+                                    <Button
+                                        Grid.Column="5"
+                                        Command="{Binding ClearChapters}"
+                                        CommandParameter="{Binding}"
+                                        IsEnabled="{Binding IsChaptersFromTagsEnabled}"
+                                        Style="{StaticResource ToolbarButtonStyle}"
+                                        ToolTip="Create chapters from media tags"
+                                        Margin="0,0,3,0">
+                                        <Image
+                                            RenderOptions.BitmapScalingMode="Fant"
+                                            Height="16"
+                                            Margin="1,0,0,0">
+                                            <Image.Style>
+                                                <Style TargetType="{x:Type Image}">
+                                                    <Setter Property="Source" Value="../Images/Clear.png" />
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsEnabled" Value="False">
+                                                            <Setter Property="Source" Value="../Images/ClearGray.png" />
                                                         </Trigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -451,49 +478,41 @@
                         CanUserSortColumns="False"
                         Margin="2,0,2,2">
                         <DataGrid.Resources>
-                            <Storyboard 
-                                x:Key="ButtonPressAnimation" 
-                                AutoReverse="True" 
+                            <Storyboard
+                                x:Key="ButtonPressAnimation"
+                                AutoReverse="True"
                                 Duration="0:0:0.5">
-                                <DoubleAnimation 
-                                    Storyboard.TargetName="ColorImage"
+                                <DoubleAnimation
+                                    Storyboard.TargetName="TagsButtonColorImage"
                                     Storyboard.TargetProperty="Opacity"
-                                    From="0" 
-                                    To="1" 
-                                    Duration="0:0:0.25" />
+                                    From="0"
+                                    To="1"
+                                    Duration="0:0:0.20" />
                             </Storyboard>
-                            <Style x:Key="TagsSelectionImage" TargetType="{x:Type Image}">
-                                <Setter Property="Opacity" Value="0" />
+                            <Style x:Key="TagsSelectionImageGray" TargetType="{x:Type Image}">
+                                <Setter Property="Visibility" Value="Hidden" />
                                 <Style.Triggers>
-                                    <!--<MultiDataTrigger>
-                                        <MultiDataTrigger.Conditions>
-                                            <Condition Binding="{Binding HasTags}" Value="True" />
-                                            <Condition Binding="{Binding IsTagsSource}" Value="True" />
-                                        </MultiDataTrigger.Conditions>
-                                        <Setter Property="Source" Value="../Images/Ok.png" />
-                                    </MultiDataTrigger>
-                                    <MultiDataTrigger>
-                                        <MultiDataTrigger.Conditions>
-                                            <Condition Binding="{Binding HasTags}" Value="True" />
-                                            <Condition Binding="{Binding IsTagsSource}" Value="False" />
-                                        </MultiDataTrigger.Conditions>
-                                        <Setter Property="Source" Value="../Images/OkGray.png" />
-                                    </MultiDataTrigger>-->
                                     <DataTrigger Binding="{Binding HasTags}" Value="True">
-                                        <Setter Property="Opacity" Value="1" />
+                                        <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>
-                                    <!--<EventTrigger RoutedEvent="Button.Click">
-                                        <BeginStoryboard Storyboard="{StaticResource ButtonPressAnimation}" />
-                                    </EventTrigger>-->
                                 </Style.Triggers>
                             </Style>
+                            <Style x:Key="TagsSelectionImageColor" TargetType="{x:Type Image}">
+                                <Setter Property="Visibility" Value="Hidden" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasTags}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+
                             <DataTemplate x:Key="SelectedTagsTemplate" DataType="{x:Type viewModels:MediaFileViewModel}">
                                 <Button
                                     Command="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=DataGrid}, Path=DataContext.SelectTags}"
                                     CommandParameter="{Binding}"
                                     Background="Transparent"
                                     BorderBrush="Transparent"
-                                    ToolTip="Use the tags from this file">
+                                    ToolTip="Set the tags from this file to output">
                                     <Button.Style>
                                         <Style TargetType="{x:Type Button}">
                                             <Setter Property="Template">
@@ -523,28 +542,21 @@
                                             <BeginStoryboard Storyboard="{StaticResource ButtonPressAnimation}" />
                                         </EventTrigger>
                                     </Button.Triggers>
-                                    <!--<Image Style="{StaticResource TagsSelectionImage}" RenderOptions.BitmapScalingMode="Fant" Height="16" Margin="3,0,3,0" />-->
                                     <Grid>
-                                        <!-- Grayscale Image -->
-                                        <Image 
-                                            x:Name="GrayscaleImage" 
-                                            Style="{StaticResource TagsSelectionImage}" 
-                                            RenderOptions.BitmapScalingMode="Fant" 
-                                            Height="16" 
-                                            Margin="3,0,3,0"                                            >
-                                            <Image.Source>
-                                                <FormatConvertedBitmap 
-                                                    Source="../Images/Ok.png"
-                                                    DestinationFormat="Gray32Float" />
-                                            </Image.Source>
+                                        <Image
+                                            Source="../Images/TagGray.png"
+                                            Style="{StaticResource TagsSelectionImageGray}"
+                                            RenderOptions.BitmapScalingMode="Fant"
+                                            Height="16"
+                                            Margin="3,0,3,0">
                                         </Image>
-                                        <!-- Color Image -->
-                                        <Image 
-                                            x:Name="TagsButtonImage" 
-                                            Source="../Images/Ok.png" 
-                                            Style="{StaticResource TagsSelectionImage}" 
-                                            RenderOptions.BitmapScalingMode="Fant" 
-                                            Height="16" 
+                                        <Image
+                                            x:Name="TagsButtonColorImage"
+                                            Source="../Images/Tag.png"
+                                            Style="{StaticResource TagsSelectionImageColor}"
+                                            Opacity="0"
+                                            RenderOptions.BitmapScalingMode="Fant"
+                                            Height="16"
                                             Margin="3,0,3,0" />
                                     </Grid>
                                 </Button>
@@ -558,14 +570,14 @@
                                             <Condition Binding="{Binding HasCover}" Value="True" />
                                             <Condition Binding="{Binding IsCoverSource}" Value="True" />
                                         </MultiDataTrigger.Conditions>
-                                        <Setter Property="Source" Value="../Images/Ok.png" />
+                                        <Setter Property="Source" Value="../Images/Image.png" />
                                     </MultiDataTrigger>
                                     <MultiDataTrigger>
                                         <MultiDataTrigger.Conditions>
                                             <Condition Binding="{Binding HasCover}" Value="True" />
                                             <Condition Binding="{Binding IsCoverSource}" Value="False" />
                                         </MultiDataTrigger.Conditions>
-                                        <Setter Property="Source" Value="../Images/OkGray.png" />
+                                        <Setter Property="Source" Value="../Images/ImageGray.png" />
                                     </MultiDataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -1086,16 +1098,16 @@
                                         </Grid.ColumnDefinitions>
                                         <Image
                                             Grid.Column="0"
-                                            Source="/Images/Build.png"
+                                            Source="../Images/Build.png"
                                             Height="16"
                                             RenderOptions.BitmapScalingMode="Fant" />
-                                        <TextBlock 
+                                        <TextBlock
                                             Grid.Column="1"
                                             Text="Output"
                                             Margin="6,0,0,0" />
                                     </Grid>
                                     <Image
-                                        Source="/Images/Warning.png"
+                                        Source="../Images/Error.png"
                                         Visibility="{Binding OutputWarningVisibility}"
                                         Height="16"
                                         RenderOptions.BitmapScalingMode="Fant"
@@ -1104,7 +1116,7 @@
                                             <EventTrigger RoutedEvent="Loaded">
                                                 <BeginStoryboard>
                                                     <Storyboard RepeatBehavior="Forever" AutoReverse="True">
-                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1.0" To="0.5" Duration="0:0:1"/>
+                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1.0" To="0.5" Duration="0:0:1" />
                                                     </Storyboard>
                                                 </BeginStoryboard>
                                             </EventTrigger>
@@ -1112,256 +1124,317 @@
                                     </Image>
                                 </Grid>
                             </TabItem.Header>
-                            <ScrollViewer
-                                Grid.Row="2"
-                                VerticalScrollBarVisibility="Auto"
-                                Padding="0,0,3,0"
-                                HorizontalScrollBarVisibility="Disabled">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <ScrollViewer
+                                    Grid.Row="0"
+                                    VerticalScrollBarVisibility="Auto"
+                                    Padding="0,0,3,0"
+                                    HorizontalScrollBarVisibility="Disabled">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
 
-                                    <Border
-                                        Grid.Row="0"
-                                        Visibility="{Binding OutputTagsVisibility}"
-                                        ToolTip="File metadata tags"
-                                        BorderBrush="LightGray"
-                                        BorderThickness="1"
-                                        CornerRadius="10,10,10,10"
+                                        <Border
+                                            Grid.Row="0"
+                                            Visibility="{Binding OutputTagsVisibility}"
+                                            ToolTip="File metadata tags"
+                                            BorderBrush="LightGray"
+                                            BorderThickness="1"
+                                            CornerRadius="10,10,10,10"
+                                            Margin="0,3,0,0"
+                                            Background="Transparent">
+                                            <Grid>
+                                                <Expander
+                                                    Header="Tags"
+                                                    IsEnabled="{Binding TagsEnabled}"
+                                                    IsExpanded="{Binding IsOutputTagsExpanded}">
+                                                    <DataGrid
+                                                        HeadersVisibility="Column"
+                                                        CanUserAddRows="True"
+                                                        CanUserReorderColumns="False"
+                                                        CanUserResizeRows="False"
+                                                        AlternationCount="2"
+                                                        SelectionMode="Single"
+                                                        SelectionUnit="FullRow"
+                                                        MinRowHeight="20"
+                                                        AutoGenerateColumns="False"
+                                                        BorderThickness="1"
+                                                        BorderBrush="DarkGray"
+                                                        AlternatingRowBackground="SeaShell"
+                                                        ItemsSource="{Binding OutputTags, Mode=OneWay, FallbackValue=''}"
+                                                        KeyUp="OnTagsDataGridKeyUp"
+                                                        MouseDoubleClick="OnTagsDataGridMouseDoubleClick"
+                                                        PreviewKeyDown="OnTagsDataGridPreviewKeyDown"
+                                                        AllowDrop="False"
+                                                        CanUserSortColumns="True"
+                                                        Margin="2,1,2,5">
+                                                        <DataGrid.Resources>
+                                                            <DataTemplate x:Key="ToggleTagTemplate" DataType="{x:Type viewModels:IMediaTagViewModel}">
+                                                                <Button
+                                                                    Command="{StaticResource ToggleEnable}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Background="Transparent"
+                                                                    BorderBrush="Transparent"
+                                                                    ToolTip="Enable or disable the tag">
+                                                                    <Button.Style>
+                                                                        <Style TargetType="{x:Type Button}">
+                                                                            <Setter Property="Template">
+                                                                                <Setter.Value>
+                                                                                    <ControlTemplate TargetType="Button">
+                                                                                        <Border>
+                                                                                            <Border.Style>
+                                                                                                <Style TargetType="{x:Type Border}">
+                                                                                                    <Style.Triggers>
+                                                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                                                            <Setter Property="Background" Value="Transparent" />
+                                                                                                        </Trigger>
+                                                                                                    </Style.Triggers>
+                                                                                                </Style>
+                                                                                            </Border.Style>
+                                                                                            <Grid Background="Transparent">
+                                                                                                <ContentPresenter></ContentPresenter>
+                                                                                            </Grid>
+                                                                                        </Border>
+                                                                                    </ControlTemplate>
+                                                                                </Setter.Value>
+                                                                            </Setter>
+                                                                        </Style>
+                                                                    </Button.Style>
+                                                                    <Image Style="{StaticResource OnOffImage}" RenderOptions.BitmapScalingMode="Fant" Height="16" Margin="3,0,3,0" />
+                                                                </Button>
+                                                            </DataTemplate>
+                                                        </DataGrid.Resources>
+                                                        <DataGrid.ContextMenu>
+                                                            <ContextMenu>
+                                                                <MenuItem
+                                                                    Header="Fix All: ISO-8859-1 to Win-1251"
+                                                                    Command="{Binding FixAllIso8859ToWin1251}"
+                                                                    CommandParameter="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                                                    <MenuItem.Icon>
+                                                                        <Image
+                                                                            Source="../Images/Encoding.png"
+                                                                            RenderOptions.BitmapScalingMode="Fant" />
+                                                                    </MenuItem.Icon>
+                                                                </MenuItem>
+                                                                <MenuItem
+                                                                    Header="Fix Selected: ISO-8859-1 to Win-1251"
+                                                                    Command="{Binding FixSelectedIso8859ToWin1251}"
+                                                                    CommandParameter="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                                                    <MenuItem.Icon>
+                                                                        <Image
+                                                                            Source="../Images/Encoding.png"
+                                                                            RenderOptions.BitmapScalingMode="Fant" />
+                                                                    </MenuItem.Icon>
+                                                                </MenuItem>
+                                                            </ContextMenu>
+                                                        </DataGrid.ContextMenu>
+                                                        <DataGrid.Columns>
+                                                            <DataGridTemplateColumn
+                                                                CellTemplate="{StaticResource ToggleTagTemplate}"
+                                                                CanUserResize="False" />
+
+                                                            <DataGridTemplateColumn Header="Name">
+                                                                <DataGridTemplateColumn.CellTemplate>
+                                                                    <DataTemplate>
+                                                                        <TextBlock
+                                                                            Text="{Binding Name, Mode=OneWay}"
+                                                                            VerticalAlignment="Center"
+                                                                            HorizontalAlignment="Left"
+                                                                            Margin="2,0,2,0"
+                                                                            d:DataContext="{d:DesignInstance viewModels:IMediaTagViewModel}" />
+                                                                    </DataTemplate>
+                                                                </DataGridTemplateColumn.CellTemplate>
+                                                                <DataGridTemplateColumn.CellEditingTemplate>
+                                                                    <DataTemplate>
+                                                                        <TextBox
+                                                                            Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                            FocusManager.FocusedElement="{Binding RelativeSource={RelativeSource Self}}"
+                                                                            VerticalContentAlignment="Center"
+                                                                            HorizontalContentAlignment="Left"
+                                                                            BorderThickness="0"
+                                                                            d:DataContext="{d:DesignInstance viewModels:IMediaTagViewModel}" />
+                                                                    </DataTemplate>
+                                                                </DataGridTemplateColumn.CellEditingTemplate>
+                                                            </DataGridTemplateColumn>
+
+                                                            <DataGridTemplateColumn Header="Value">
+                                                                <DataGridTemplateColumn.CellTemplate>
+                                                                    <DataTemplate>
+                                                                        <TextBlock
+                                                                            Text="{Binding Value, Mode=OneWay}"
+                                                                            VerticalAlignment="Center"
+                                                                            HorizontalAlignment="Left"
+                                                                            Margin="2,0,2,0"
+                                                                            d:DataContext="{d:DesignInstance viewModels:IMediaTagViewModel}" />
+                                                                    </DataTemplate>
+                                                                </DataGridTemplateColumn.CellTemplate>
+                                                                <DataGridTemplateColumn.CellEditingTemplate>
+                                                                    <DataTemplate>
+                                                                        <TextBox
+                                                                            Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                            FocusManager.FocusedElement="{Binding RelativeSource={RelativeSource Self}}"
+                                                                            VerticalContentAlignment="Center"
+                                                                            HorizontalContentAlignment="Left"
+                                                                            BorderThickness="0"
+                                                                            d:DataContext="{d:DesignInstance viewModels:IMediaTagViewModel}" />
+                                                                    </DataTemplate>
+                                                                </DataGridTemplateColumn.CellEditingTemplate>
+                                                            </DataGridTemplateColumn>
+                                                        </DataGrid.Columns>
+                                                    </DataGrid>
+                                                </Expander>
+                                                <TextBlock
+                                                    Text="{Binding OutputTagsCount}"
+                                                    HorizontalAlignment="Right"
+                                                    FontSize="10"
+                                                    Margin="0,5,8,0" />
+                                            </Grid>
+                                        </Border>
+
+                                        <Border
+                                            Grid.Row="1"
+                                            Visibility="{Binding OutputChaptersVisibility}"
+                                            ToolTip="Media chapters"
+                                            BorderBrush="LightGray"
+                                            BorderThickness="1"
+                                            CornerRadius="10,10,10,10"
+                                            Margin="0,3,0,0"
+                                            Background="Transparent">
+                                            <Grid>
+                                                <Expander
+                                                    Header="Chapters"
+                                                    IsEnabled="{Binding ChaptersEnabled}"
+                                                    IsExpanded="{Binding IsOutputChaptersExpanded}">
+                                                    <DataGrid
+                                                        HeadersVisibility="Column"
+                                                        CanUserAddRows="False"
+                                                        CanUserReorderColumns="False"
+                                                        CanUserResizeRows="False"
+                                                        CanUserDeleteRows="False"
+                                                        AlternationCount="2"
+                                                        SelectionMode="Single"
+                                                        SelectionUnit="FullRow"
+                                                        MinRowHeight="20"
+                                                        AutoGenerateColumns="False"
+                                                        BorderThickness="1"
+                                                        BorderBrush="DarkGray"
+                                                        AlternatingRowBackground="SeaShell"
+                                                        ItemsSource="{Binding OutputChapters, Mode=OneWay, FallbackValue=''}"
+                                                        AllowDrop="False"
+                                                        CanUserSortColumns="False"
+                                                        Margin="2,1,2,5">
+                                                        <DataGrid.ContextMenu>
+                                                            <ContextMenu>
+                                                                <MenuItem
+                                                                    Header="Fix All: ISO-8859-1 to Win-1251"
+                                                                    Command="{Binding FixAllIso8859ToWin1251}"
+                                                                    CommandParameter="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                                                    <MenuItem.Icon>
+                                                                        <Image
+                                                                            Source="../Images/Encoding.png"
+                                                                            RenderOptions.BitmapScalingMode="Fant" />
+                                                                    </MenuItem.Icon>
+                                                                </MenuItem>
+                                                                <MenuItem
+                                                                    Header="Fix Selected: ISO-8859-1 to Win-1251"
+                                                                    Command="{Binding FixSelectedIso8859ToWin1251}"
+                                                                    CommandParameter="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                                                    <MenuItem.Icon>
+                                                                        <Image
+                                                                            Source="../Images/Encoding.png"
+                                                                            RenderOptions.BitmapScalingMode="Fant" />
+                                                                    </MenuItem.Icon>
+                                                                </MenuItem>
+                                                            </ContextMenu>
+                                                        </DataGrid.ContextMenu>
+                                                        <DataGrid.Columns>
+                                                            <DataGridTextColumn
+                                                                Header="Id"
+                                                                IsReadOnly="True"
+                                                                Binding="{Binding Id, Mode=OneWay}"
+                                                                CellStyle="{StaticResource TextBlockLeftStyle}" />
+                                                            <DataGridTextColumn
+                                                                Header="Start"
+                                                                IsReadOnly="True"
+                                                                Binding="{Binding StartTime, Mode=OneWay, Converter={StaticResource DurationConverter}}"
+                                                                CellStyle="{StaticResource TextBlockLeftStyle}" />
+                                                            <DataGridTextColumn
+                                                                Header="End"
+                                                                IsReadOnly="True"
+                                                                Binding="{Binding EndTime, Mode=OneWay, Converter={StaticResource DurationConverter}}"
+                                                                CellStyle="{StaticResource TextBlockLeftStyle}" />
+                                                            <DataGridTemplateColumn Header="Title">
+                                                                <DataGridTemplateColumn.CellTemplate>
+                                                                    <DataTemplate>
+                                                                        <TextBlock
+                                                                            Text="{Binding Title, Mode=OneWay}"
+                                                                            VerticalAlignment="Center"
+                                                                            HorizontalAlignment="Left"
+                                                                            Margin="2,0,2,0"
+                                                                            d:DataContext="{d:DesignInstance viewModels:IMediaChapterViewModel}" />
+                                                                    </DataTemplate>
+                                                                </DataGridTemplateColumn.CellTemplate>
+                                                                <DataGridTemplateColumn.CellEditingTemplate>
+                                                                    <DataTemplate>
+                                                                        <TextBox
+                                                                            Text="{Binding Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                            FocusManager.FocusedElement="{Binding RelativeSource={RelativeSource Self}}"
+                                                                            VerticalContentAlignment="Center"
+                                                                            HorizontalContentAlignment="Left"
+                                                                            BorderThickness="0"
+                                                                            d:DataContext="{d:DesignInstance viewModels:IMediaChapterViewModel}" />
+                                                                    </DataTemplate>
+                                                                </DataGridTemplateColumn.CellEditingTemplate>
+                                                            </DataGridTemplateColumn>
+                                                        </DataGrid.Columns>
+                                                    </DataGrid>
+                                                </Expander>
+                                                <TextBlock
+                                                    Text="{Binding OutputChaptersCount}"
+                                                    HorizontalAlignment="Right"
+                                                    FontSize="10"
+                                                    Margin="0,5,8,0" />
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+                                </ScrollViewer>
+                                <Border Grid.Row="1"
+                                        Visibility="{Binding OutputWarningVisibility}"
+                                        BorderBrush="Red"
+                                        BorderThickness="2"
+                                        CornerRadius="5,5,5,5"
                                         Margin="0,3,0,0"
-                                        Background="Transparent">
-                                        <Grid>
-                                            <Expander
-                                                Header="Tags"
-                                                IsEnabled="{Binding TagsEnabled}"
-                                                IsExpanded="{Binding IsOutputTagsExpanded}">
-                                                <DataGrid
-                                                    HeadersVisibility="Column"
-                                                    CanUserAddRows="True"
-                                                    CanUserReorderColumns="False"
-                                                    CanUserResizeRows="False"
-                                                    AlternationCount="2"
-                                                    SelectionMode="Single"
-                                                    SelectionUnit="FullRow"
-                                                    MinRowHeight="20"
-                                                    AutoGenerateColumns="False"
-                                                    BorderThickness="1"
-                                                    BorderBrush="DarkGray"
-                                                    AlternatingRowBackground="SeaShell"
-                                                    ItemsSource="{Binding OutputTags, Mode=OneWay, FallbackValue=''}"
-                                                    KeyUp="OnTagsDataGridKeyUp"
-                                                    MouseDoubleClick="OnTagsDataGridMouseDoubleClick"
-                                                    PreviewKeyDown="OnTagsDataGridPreviewKeyDown"
-                                                    AllowDrop="False"
-                                                    CanUserSortColumns="True"
-                                                    Margin="2,1,2,5">
-                                                    <DataGrid.Resources>
-                                                        <DataTemplate x:Key="ToggleTagTemplate" DataType="{x:Type viewModels:IMediaTagViewModel}">
-                                                            <Button
-                                                                Command="{StaticResource ToggleEnable}"
-                                                                CommandParameter="{Binding}"
-                                                                Background="Transparent"
-                                                                BorderBrush="Transparent"
-                                                                ToolTip="Enable or disable the tag">
-                                                                <Button.Style>
-                                                                    <Style TargetType="{x:Type Button}">
-                                                                        <Setter Property="Template">
-                                                                            <Setter.Value>
-                                                                                <ControlTemplate TargetType="Button">
-                                                                                    <Border>
-                                                                                        <Border.Style>
-                                                                                            <Style TargetType="{x:Type Border}">
-                                                                                                <Style.Triggers>
-                                                                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                                                                        <Setter Property="Background" Value="Transparent" />
-                                                                                                    </Trigger>
-                                                                                                </Style.Triggers>
-                                                                                            </Style>
-                                                                                        </Border.Style>
-                                                                                        <Grid Background="Transparent">
-                                                                                            <ContentPresenter></ContentPresenter>
-                                                                                        </Grid>
-                                                                                    </Border>
-                                                                                </ControlTemplate>
-                                                                            </Setter.Value>
-                                                                        </Setter>
-                                                                    </Style>
-                                                                </Button.Style>
-                                                                <Image Style="{StaticResource OnOffImage}" RenderOptions.BitmapScalingMode="Fant" Height="16" Margin="3,0,3,0" />
-                                                            </Button>
-                                                        </DataTemplate>
-                                                    </DataGrid.Resources>
-                                                    <DataGrid.ContextMenu>
-                                                        <ContextMenu>
-                                                            <MenuItem
-                                                                Header="Fix All: ISO-8859-1 to Win-1251"
-                                                                Command="{Binding FixAllIso8859ToWin1251}">
-                                                                <MenuItem.Icon>
-                                                                    <Image
-                                                                        Source="../Images/Encoding.png"
-                                                                        RenderOptions.BitmapScalingMode="Fant" />
-                                                                </MenuItem.Icon>
-                                                            </MenuItem>
-                                                            <MenuItem
-                                                                Header="Fix Selected: ISO-8859-1 to Win-1251"
-                                                                Command="{Binding FixSelectedIso8859ToWin1251}"
-                                                                CommandParameter="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
-                                                                <MenuItem.Icon>
-                                                                    <Image
-                                                                        Source="../Images/Encoding.png"
-                                                                        RenderOptions.BitmapScalingMode="Fant" />
-                                                                </MenuItem.Icon>
-                                                            </MenuItem>
-                                                        </ContextMenu>
-                                                    </DataGrid.ContextMenu>
-                                                    <DataGrid.Columns>
-                                                        <DataGridTemplateColumn
-                                                            CellTemplate="{StaticResource ToggleTagTemplate}"
-                                                            CanUserResize="False" />
+                                        Background="LightPink">
 
-                                                        <DataGridTemplateColumn Header="Name">
-                                                            <DataGridTemplateColumn.CellTemplate>
-                                                                <DataTemplate>
-                                                                    <TextBlock
-                                                                        Text="{Binding Name, Mode=OneWay}"
-                                                                        VerticalAlignment="Center"
-                                                                        HorizontalAlignment="Left"
-                                                                        Margin="2,0,2,0"
-                                                                        d:DataContext="{d:DesignInstance viewModels:IMediaTagViewModel}" />
-                                                                </DataTemplate>
-                                                            </DataGridTemplateColumn.CellTemplate>
-                                                            <DataGridTemplateColumn.CellEditingTemplate>
-                                                                <DataTemplate>
-                                                                    <TextBox
-                                                                        Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                        FocusManager.FocusedElement="{Binding RelativeSource={RelativeSource Self}}"
-                                                                        VerticalContentAlignment="Center"
-                                                                        HorizontalContentAlignment="Left"
-                                                                        BorderThickness="0"
-                                                                        d:DataContext="{d:DesignInstance viewModels:IMediaTagViewModel}" />
-                                                                </DataTemplate>
-                                                            </DataGridTemplateColumn.CellEditingTemplate>
-                                                        </DataGridTemplateColumn>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Image Grid.Column="0" Source="../Images/Error.png" Width="18"
+                                               VerticalAlignment="Center" HorizontalAlignment="Left"
+                                               RenderOptions.BitmapScalingMode="Fant" Margin="3,2,3,2" />
+                                        <TextBlock
+                                            x:Name="OutputWarningTextBlock"
+                                            converters:TextBlockFormatter.FormattedText="{Binding OutputWarning, Mode=OneWay}"
+                                            Grid.Column="1"
+                                            TextAlignment="Justify"
+                                            TextWrapping="Wrap"
+                                            VerticalAlignment="Center"
+                                            Margin="2,1,5,2">
+                                        </TextBlock>
+                                    </Grid>
+                                </Border>
 
-                                                        <DataGridTemplateColumn Header="Value">
-                                                            <DataGridTemplateColumn.CellTemplate>
-                                                                <DataTemplate>
-                                                                    <TextBlock
-                                                                        Text="{Binding Value, Mode=OneWay}"
-                                                                        VerticalAlignment="Center"
-                                                                        HorizontalAlignment="Left"
-                                                                        Margin="2,0,2,0"
-                                                                        d:DataContext="{d:DesignInstance viewModels:IMediaTagViewModel}" />
-                                                                </DataTemplate>
-                                                            </DataGridTemplateColumn.CellTemplate>
-                                                            <DataGridTemplateColumn.CellEditingTemplate>
-                                                                <DataTemplate>
-                                                                    <TextBox
-                                                                        Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                        FocusManager.FocusedElement="{Binding RelativeSource={RelativeSource Self}}"
-                                                                        VerticalContentAlignment="Center"
-                                                                        HorizontalContentAlignment="Left"
-                                                                        BorderThickness="0"
-                                                                        d:DataContext="{d:DesignInstance viewModels:IMediaTagViewModel}" />
-                                                                </DataTemplate>
-                                                            </DataGridTemplateColumn.CellEditingTemplate>
-                                                        </DataGridTemplateColumn>
-                                                    </DataGrid.Columns>
-                                                </DataGrid>
-                                            </Expander>
-                                            <TextBlock
-                                                Text="{Binding OutputTagsCount}"
-                                                HorizontalAlignment="Right"
-                                                FontSize="10"
-                                                Margin="0,5,8,0" />
-                                        </Grid>
-                                    </Border>
+                            </Grid>
 
-                                    <Border
-                                        Grid.Row="1"
-                                        Visibility="{Binding OutputChaptersVisibility}"
-                                        ToolTip="Media chapters"
-                                        BorderBrush="LightGray"
-                                        BorderThickness="1"
-                                        CornerRadius="10,10,10,10"
-                                        Margin="0,3,0,0"
-                                        Background="Transparent">
-                                        <Grid>
-                                            <Expander
-                                                Header="Chapters"
-                                                IsEnabled="{Binding ChaptersEnabled}"
-                                                IsExpanded="{Binding IsOutputChaptersExpanded}">
-                                                <DataGrid
-                                                    HeadersVisibility="Column"
-                                                    CanUserAddRows="False"
-                                                    CanUserReorderColumns="False"
-                                                    CanUserResizeRows="False"
-                                                    CanUserDeleteRows="False"
-                                                    AlternationCount="2"
-                                                    SelectionMode="Single"
-                                                    SelectionUnit="FullRow"
-                                                    MinRowHeight="20"
-                                                    AutoGenerateColumns="False"
-                                                    BorderThickness="1"
-                                                    BorderBrush="DarkGray"
-                                                    AlternatingRowBackground="SeaShell"
-                                                    ItemsSource="{Binding OutputChapters, Mode=OneWay, FallbackValue=''}"
-                                                    AllowDrop="False"
-                                                    CanUserSortColumns="False"
-                                                    Margin="2,1,2,5">
-                                                    <DataGrid.Columns>
-                                                        <DataGridTextColumn
-                                                            Header="Id"
-                                                            IsReadOnly="True"
-                                                            Binding="{Binding Id, Mode=OneWay}"
-                                                            CellStyle="{StaticResource TextBlockLeftStyle}" />
-                                                        <DataGridTextColumn
-                                                            Header="Start"
-                                                            IsReadOnly="True"
-                                                            Binding="{Binding StartTime, Mode=OneWay, Converter={StaticResource DurationConverter}}"
-                                                            CellStyle="{StaticResource TextBlockLeftStyle}" />
-                                                        <DataGridTextColumn
-                                                            Header="End"
-                                                            IsReadOnly="True"
-                                                            Binding="{Binding EndTime, Mode=OneWay, Converter={StaticResource DurationConverter}}"
-                                                            CellStyle="{StaticResource TextBlockLeftStyle}" />
-                                                        <DataGridTemplateColumn Header="Title">
-                                                            <DataGridTemplateColumn.CellTemplate>
-                                                                <DataTemplate>
-                                                                    <TextBlock
-                                                                        Text="{Binding Title, Mode=OneWay}"
-                                                                        VerticalAlignment="Center"
-                                                                        HorizontalAlignment="Left"
-                                                                        Margin="2,0,2,0"
-                                                                        d:DataContext="{d:DesignInstance viewModels:IMediaChapterViewModel}" />
-                                                                </DataTemplate>
-                                                            </DataGridTemplateColumn.CellTemplate>
-                                                            <DataGridTemplateColumn.CellEditingTemplate>
-                                                                <DataTemplate>
-                                                                    <TextBox
-                                                                        Text="{Binding Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                        FocusManager.FocusedElement="{Binding RelativeSource={RelativeSource Self}}"
-                                                                        VerticalContentAlignment="Center"
-                                                                        HorizontalContentAlignment="Left"
-                                                                        BorderThickness="0"
-                                                                        d:DataContext="{d:DesignInstance viewModels:IMediaChapterViewModel}" />
-                                                                </DataTemplate>
-                                                            </DataGridTemplateColumn.CellEditingTemplate>
-                                                        </DataGridTemplateColumn>
-                                                    </DataGrid.Columns>
-                                                </DataGrid>
-                                            </Expander>
-                                            <TextBlock
-                                                Text="{Binding OutputChaptersCount}"
-                                                HorizontalAlignment="Right"
-                                                FontSize="10"
-                                                Margin="0,5,8,0" />
-                                        </Grid>
-                                    </Border>
-                                </Grid>
-                            </ScrollViewer>
                         </TabItem>
 
                     </TabControl>

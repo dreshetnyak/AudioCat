@@ -8,23 +8,14 @@
 ## Version History
 
 ### AudioCat 5.0.0
-New. Input tags and chapters are now immutable, output tags and chapters are now on a separate tab.
-
+New. Input tags and chapters are now immutable, output tags and chapters are now on a separate tab.<br>
 Bug. When providing a folder(s) in command line the app fails to add files.<br>
-Bug. .
-
-Warning only if chapters was created manually
-In a case if chapters was created automatically - recalculate chapters.
-
-If files the order changes after chapters has been created
-
-Warning icon on output - add note at the bottom
+New. When selecting tags the tags selection button now briefly lits to indicate that the tags has been copied.<br>
+New. Replaced the tags and cover image selection icons.
+New. Now can fix encoding in output chapters.
 
 Create chapters: From files - names, generated names, names from tags; From silence
-
-Replace the tags selection icon, add animation on when it is clicked.
-Logic behind it should be changed, IsTagsSource goes away.
-
+Automate FFMpeg download if it is not found.
 
 #### Notes.
 **Tags support.** The supported tags are specific to a particular file format. As a result, if you set a tag and the output format doesn't support it, it may be missing in the output file.<br>

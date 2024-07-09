@@ -21,7 +21,7 @@ public interface IMediaFilesService
 
     #endregion
 
-    Task<IGetMediaFilesResponse> GetMediaFiles(IReadOnlyList<string> fileNames, bool selectMetadata, bool selectCover, string selectedCodec = "", CancellationToken ctx = default);
+    Task<IGetMediaFilesResponse> GetMediaFiles(IReadOnlyList<string> fileNames, bool selectCover, string selectedCodec = "", CancellationToken ctx = default);
     Task<IGetMediaFilesResponse> AddMediaFiles(IReadOnlyList<string> fileNames, bool clearExisting);
 }
 
@@ -46,10 +46,9 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
     private IMediaFileToolkitService MediaFileToolkitService { get; } = mediaFileToolkitService;
 
     #region GetMediaFiles
-    public async Task<IMediaFilesService.IGetMediaFilesResponse> GetMediaFiles(IReadOnlyList<string> fileNames, bool selectMetadata, bool selectCover, string selectedCodec = "", CancellationToken ctx = default)
+    public async Task<IMediaFilesService.IGetMediaFilesResponse> GetMediaFiles(IReadOnlyList<string> fileNames, bool selectCover, string selectedCodec = "", CancellationToken ctx = default)
     {
         var codec = selectedCodec;
-        var isTagsSourceSelected = false;
         var isCoverSourceSelected = false;
 
         var mediaFiles = new List<IMediaFileViewModel>(fileNames.Count);
@@ -67,7 +66,6 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
                 continue;
             }
 
-            var isTagsSource = false;
             var file = probeResponse.Data!;
             var isImageFile = IsImageFile(file);
             if (!isImageFile)
@@ -78,16 +76,9 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
                     skippedFiles.Add(new SkipFile(sortedFiles[index], codecSelectResult.Message));
                     continue;
                 }
-
-                if (selectMetadata)
-                {
-                    isTagsSource = !isTagsSourceSelected && file.Tags.Count > 0;
-                    if (isTagsSource)
-                        isTagsSourceSelected = true;
-                }
             }
 
-            var mediaFileViewModel = new MediaFileViewModel(probeResponse.Data!, isTagsSource, isImageFile);
+            var mediaFileViewModel = new MediaFileViewModel(probeResponse.Data!, isImageFile);
 
             if (!isImageFile && selectCover && !isCoverSourceSelected && mediaFileViewModel.HasCover)
             {
@@ -167,9 +158,9 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
             ? GetAudioCodec(files) 
             : "";
 
-        var (metadataSelected, coverSelected) = SelectionFlags.GetFrom(files);
+        var coverSelected = SelectionFlags.GetCoverSelectedFrom(files);
 
-        var response = await GetMediaFiles(fileNames, !metadataSelected, !coverSelected, selectedCodec, CancellationToken.None);
+        var response = await GetMediaFiles(fileNames, !coverSelected, selectedCodec, CancellationToken.None);
 
         if (selectedCodec == "")
             selectedCodec = GetAudioCodec(response.MediaFiles);
