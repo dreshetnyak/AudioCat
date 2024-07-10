@@ -16,14 +16,21 @@ New. Now output chapters encoding can be fixed by using a popup menu.
 
 Create chapters dialog: 
 
-Chapter name source:
-File Names
-Metadata Tags
-Template
+One Chapter per File
 
-Use Existing
-Silence Scan
-From CUE
+Chapter name source:
+File Names      - Truncate start option
+Metadata Tags   - Select tag from DataGrid; Truncate start option
+Template        - Template entry; Starting number
+
+Use Existing    - No options
+Silence Scan    - Duration and threshhold
+From CUE        - File selection
+
+Chapters preview, must be editable, names and start/end
+Overlappring chapters detection.
+
+When cleaning output chapters activate the output tab.
 
 Automate FFMpeg download if it is not found.
 
