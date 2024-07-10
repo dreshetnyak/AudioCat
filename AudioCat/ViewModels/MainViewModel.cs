@@ -2,9 +2,7 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 using AudioCat.Commands;
 using AudioCat.Models;
@@ -136,6 +134,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
             OnPropertyChanged(nameof(IsRemoveEnabled));
             OnPropertyChanged(nameof(IsChaptersFromTagsEnabled));
             OnPropertyChanged(nameof(IsChaptersFromFilesEnabled));
+            OnPropertyChanged(nameof(IsCreateChapters));
         }
     }
     public bool IsConcatenateEnabled => IsUserEntryEnabled && Files.Count > 0 && TotalDuration != TimeSpan.Zero;
@@ -268,14 +267,16 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
             OnPropertyChanged(nameof(OutputChaptersVisibility));
             OnPropertyChanged(nameof(IsChaptersFromFilesEnabled));
             OnPropertyChanged(nameof(IsChaptersFromTagsEnabled));
+            OnPropertyChanged(nameof(IsCreateChapters));
             RefreshChaptersWarning();
         }
     }
     public Visibility ChaptersVisibility => ChaptersEnabled && SelectedFile is { IsImage: false } ? Visibility.Visible : Visibility.Collapsed;
     public Visibility OutputChaptersVisibility => ChaptersEnabled ? Visibility.Visible : Visibility.Collapsed;
 
-    public bool IsChaptersFromTagsEnabled => IsUserEntryEnabled && Files.Count > 0 && ChaptersEnabled && TagsEnabled;
-    public bool IsChaptersFromFilesEnabled => IsUserEntryEnabled && Files.Count > 0 && ChaptersEnabled;
+    public bool IsChaptersFromTagsEnabled => IsUserEntryEnabled && Files.Count > 0 && ChaptersEnabled && TagsEnabled; // TODO Possibly need to remove
+    public bool IsChaptersFromFilesEnabled => IsUserEntryEnabled && Files.Count > 0 && ChaptersEnabled;               // TODO Possibly need to remove
+    public bool IsCreateChapters => IsUserEntryEnabled && Files.Count > 0 && ChaptersEnabled;
 
     public string OutputWarning
     {
@@ -313,9 +314,8 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
     public ICommand FixSelectedIso8859ToWin1251 { get; }
     public ICommand ToggleTagsEnabled { get; }
     public ICommand ToggleChaptersEnabled { get; }
-    public ICommand CreateChaptersFromFiles { get; }
-    public ICommand CreateChaptersFromTags { get; }
     public ICommand ClearChapters { get; }
+    public ICommand CreateChapters { get; }
 
     public double TaskBarProgress
     {
@@ -354,8 +354,9 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         AddPathCommand addPathCommand,
         MoveFileCommand moveFileCommand,
         ConcatenateCommand concatenate,
-        CreateChaptersFromFilesCommand createChaptersFromFiles,
-        CreateChaptersFromTagsCommand createChaptersFromTags)
+        CreateChaptersCommand createChapters,
+        FixItemEncodingCommand fixItemEncodingCommand,
+        FixItemsEncodingCommand fixItemsEncodingCommand)
     {
         MediaFileToolkitService  = mediaFileToolkitService;
         
@@ -381,11 +382,8 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         concatenate.Finished += OnConcatFinished;
         Concatenate = concatenate;
 
-        createChaptersFromFiles.Finished += OnCreateChaptersFinished;
-        CreateChaptersFromFiles = createChaptersFromFiles;
-
-        createChaptersFromTags.Finished += OnCreateChaptersFinished;
-        CreateChaptersFromTags = createChaptersFromTags;
+        createChapters.Finished += OnCreateChaptersFinished;
+        CreateChapters = createChapters;
 
         ClearChapters = new RelayCommand(OnClearChapters);
 
@@ -394,8 +392,8 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         SelectTags = new RelayParameterCommand(OnSelectTags);
         SelectCover = new RelayParameterCommand(OnSelectCover);
 
-        FixAllIso8859ToWin1251 = new RelayParameterCommand(OnFixAllTagsEncoding);
-        FixSelectedIso8859ToWin1251 = new RelayParameterCommand(OnFixSelectedTagEncoding);
+        FixAllIso8859ToWin1251 = fixItemsEncodingCommand;
+        FixSelectedIso8859ToWin1251 = fixItemEncodingCommand;
 
         ToggleTagsEnabled = new RelayCommand(OnToggleTagsEnabled);
         ToggleChaptersEnabled = new RelayCommand(OnToggleChaptersEnabled);
@@ -522,57 +520,6 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         selectedFile.IsCoverSource = !selectedFile.IsCoverSource;
     }
 
-    private void OnFixAllTagsEncoding(object? dataGridObject)
-    {
-        if (dataGridObject is not DataGrid dataGrid || dataGrid.Items.Count == 0)
-            return;
-
-        var iso8859 = Encoding.GetEncoding("ISO-8859-1");
-        var win1251 = Encoding.GetEncoding("Windows-1251");
-        switch (dataGrid.Items[0])
-        {
-            case ChapterViewModel:
-            {
-                foreach (var chapter in OutputChapters)
-                    chapter.Title = win1251.GetString(iso8859.GetBytes(chapter.Title));
-                break;
-            }
-            case TagViewModel:
-            {
-                foreach (var tag in OutputTags)
-                {
-                    tag.Name = win1251.GetString(iso8859.GetBytes(tag.Name));
-                    tag.Value = win1251.GetString(iso8859.GetBytes(tag.Value));
-                }
-
-                break;
-            }
-        }
-    }
-
-    private void OnFixSelectedTagEncoding(object? dataGridObject)
-    {
-        if (OutputTags.Count == 0 || dataGridObject is not DataGrid dataGrid)
-            return;
-
-        var selectedTagIndex = dataGrid.SelectedIndex;
-        if (selectedTagIndex < 0 || selectedTagIndex >= OutputTags.Count)
-            return;
-
-        var iso8859 = Encoding.GetEncoding("ISO-8859-1");
-        var win1251 = Encoding.GetEncoding("Windows-1251");
-        switch (dataGrid.Items[selectedTagIndex])
-        {
-            case TagViewModel tag:
-                tag.Name = win1251.GetString(iso8859.GetBytes(tag.Name));
-                tag.Value = win1251.GetString(iso8859.GetBytes(tag.Value));
-                break;
-            case ChapterViewModel chapter:
-                chapter.Title = win1251.GetString(iso8859.GetBytes(chapter.Title));
-                break;
-        }
-    }
-
     private void OnToggleTagsEnabled() =>
         TagsEnabled = !TagsEnabled;
 
@@ -622,6 +569,15 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
     private void OnCreateChaptersFinished(object sender, ResponseEventArgs eventArgs)
     {
+        var response = eventArgs.Response;
+        if (response is { IsSuccess: true, Data: null } || response.IsFailure)
+            return;
+
+        var outputChapters = (ObservableCollection<IMediaChapterViewModel>)response.Data!;
+        OutputChapters.Clear();
+        foreach (var chapter in outputChapters)
+            OutputChapters.Add(chapter);
+        
         RefreshChaptersFilesOrder();
         IsOutputChaptersExpanded = ChaptersEnabled && OutputChapters.Count > 0;
         OnPropertyChanged(nameof(OutputChaptersCount));
@@ -672,6 +628,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         OnPropertyChanged(nameof(IsRemoveEnabled));
         OnPropertyChanged(nameof(IsChaptersFromTagsEnabled));
         OnPropertyChanged(nameof(IsChaptersFromFilesEnabled));
+        OnPropertyChanged(nameof(IsCreateChapters));
         TotalSize = Files.GetFilesTotalSize();
         TotalDuration = Files.GetTotalDuration();
         SelectedCodec = Services.MediaFilesService.GetAudioCodec(Files);

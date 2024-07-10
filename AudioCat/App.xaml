@@ -58,6 +58,7 @@
         <converters:TagsConcatConverter x:Key="TagsConcatConverter" />
         <converters:SampleRateConverter x:Key="SampleRateConverter" />
         <converters:TimeSpanConverter x:Key="TimeSpanConverter" />
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
 
         <Style x:Key="OnOffImage" TargetType="{x:Type Image}">
             <Setter Property="Source" Value="../Images/ToggleOn.png" />

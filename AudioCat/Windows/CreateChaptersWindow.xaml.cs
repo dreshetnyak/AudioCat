@@ -1,27 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
+﻿using System.Windows;
+using AudioCat.ViewModels;
 
-namespace AudioCat.Windows
+namespace AudioCat.Windows;
+
+/// <summary>
+/// Interaction logic for CreateChaptersWindow.xaml
+/// </summary>
+public partial class CreateChaptersWindow : Window
 {
-    /// <summary>
-    /// Interaction logic for CreateChaptersWindow.xaml
-    /// </summary>
-    public partial class CreateChaptersWindow : Window
+    public CreateChaptersWindow(CreateChaptersViewModel viewModel)
     {
-        public CreateChaptersWindow()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
+        viewModel.Close += (_, _) => Close();
+        viewModel.UseCreated += (_, _) => { DialogResult = true; Close(); };
+        DataContext = viewModel;
+        Owner = Application.Current.MainWindow;
     }
 }

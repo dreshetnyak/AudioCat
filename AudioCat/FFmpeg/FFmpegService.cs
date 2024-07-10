@@ -22,7 +22,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         try
         {
             var args = $"-hide_banner -show_format -show_chapters -show_streams -show_private_data -print_format xml -i \"{fileFullName}\"";
-            Debug.WriteLine($"ffmpeg.exe {args}");
+            Debug.WriteLine($"ffprobe.exe {args}");
             var probeResponse = await Process.Run(
                 "ffprobe.exe",
                 args,
@@ -39,6 +39,30 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             return Response<IMediaFile>.Failure(ex.Message);
         }
     }
+
+    public async Task<IResponse<IReadOnlyList<IInterval>>> ScanForSilence(string fileFullName, int durationMilliseconds, int silenceThreshold, CancellationToken ctx)
+    {
+        try
+        {
+            var args = $"-hide_banner -stats -stats_period 0.1 -i \"{fileFullName}\" -af silencedetect=n=-{silenceThreshold}dB:d={durationMilliseconds}ms -f null -";
+            Debug.WriteLine($"ffmpeg.exe {args}");
+
+            await Process.Run("ffmpeg.exe", args, OnSilenceStatus, Process.OutputType.Error, ctx);
+
+            return Response<IReadOnlyList<IInterval>>.Success();
+        }
+        catch (Exception ex)
+        {
+            return Response<IReadOnlyList<IInterval>>.Failure(ex.Message);
+        }
+
+        Task OnSilenceStatus(string status)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+
 
     public async Task Concatenate(IReadOnlyList<IMediaFileViewModel> mediaFiles, IConcatParams concatParams, string outputFileName, CancellationToken ctx)
     {
@@ -212,7 +236,6 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         }
     }
     
-
     private static bool IsErrorMessage(string status) =>
         status.StartsWith('[') || !StatusLineContent.Any(status.Contains);
 

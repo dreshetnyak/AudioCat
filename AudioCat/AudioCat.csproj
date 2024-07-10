@@ -18,6 +18,8 @@
     <None Remove="Images\Build.png" />
     <None Remove="Images\Cancel.png" />
     <None Remove="Images\CancelGray.png" />
+    <None Remove="Images\Chapters.png" />
+    <None Remove="Images\ChaptersGray.png" />
     <None Remove="Images\Clear.png" />
     <None Remove="Images\ClearGray.png" />
     <None Remove="Images\Down.png" />
@@ -64,6 +66,8 @@
     <Resource Include="Images\Build.png" />
     <Resource Include="Images\Cancel.png" />
     <Resource Include="Images\CancelGray.png" />
+    <Resource Include="Images\Chapters.png" />
+    <Resource Include="Images\ChaptersGray.png" />
     <Resource Include="Images\Clear.png" />
     <Resource Include="Images\ClearGray.png" />
     <Resource Include="Images\Down.png" />

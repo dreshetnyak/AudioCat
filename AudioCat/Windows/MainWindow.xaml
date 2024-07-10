@@ -373,11 +373,11 @@
 
                                     <Button
                                         Grid.Column="3"
-                                        Command="{Binding CreateChaptersFromFiles}"
+                                        Command="{Binding CreateChapters}"
                                         CommandParameter="{Binding}"
-                                        IsEnabled="{Binding IsChaptersFromFilesEnabled}"
+                                        IsEnabled="{Binding IsCreateChapters}"
                                         Style="{StaticResource ToolbarButtonStyle}"
-                                        ToolTip="Create chapters from file names"
+                                        ToolTip="Chapters wizard"
                                         Margin="2,0,0,0">
                                         <Image
                                             RenderOptions.BitmapScalingMode="Fant"
@@ -385,10 +385,10 @@
                                             Margin="3,0,0,0">
                                             <Image.Style>
                                                 <Style TargetType="{x:Type Image}">
-                                                    <Setter Property="Source" Value="../Images/NewFiles.png" />
+                                                    <Setter Property="Source" Value="../Images/Chapters.png" />
                                                     <Style.Triggers>
                                                         <Trigger Property="IsEnabled" Value="False">
-                                                            <Setter Property="Source" Value="../Images/NewFilesGray.png" />
+                                                            <Setter Property="Source" Value="../Images/ChaptersGray.png" />
                                                         </Trigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -398,31 +398,6 @@
 
                                     <Button
                                         Grid.Column="4"
-                                        Command="{Binding CreateChaptersFromTags}"
-                                        CommandParameter="{Binding}"
-                                        IsEnabled="{Binding IsChaptersFromTagsEnabled}"
-                                        Style="{StaticResource ToolbarButtonStyle}"
-                                        ToolTip="Create chapters from media tags"
-                                        Margin="2,0,0,0">
-                                        <Image
-                                            RenderOptions.BitmapScalingMode="Fant"
-                                            Height="18"
-                                            Margin="1,0,0,0">
-                                            <Image.Style>
-                                                <Style TargetType="{x:Type Image}">
-                                                    <Setter Property="Source" Value="../Images/NewTag.png" />
-                                                    <Style.Triggers>
-                                                        <Trigger Property="IsEnabled" Value="False">
-                                                            <Setter Property="Source" Value="../Images/NewTagGray.png" />
-                                                        </Trigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Image.Style>
-                                        </Image>
-                                    </Button>
-
-                                    <Button
-                                        Grid.Column="5"
                                         Command="{Binding ClearChapters}"
                                         CommandParameter="{Binding}"
                                         IsEnabled="{Binding IsChaptersFromTagsEnabled}"
