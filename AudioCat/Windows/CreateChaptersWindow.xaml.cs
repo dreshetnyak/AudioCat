@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.ComponentModel;
+using System.Windows;
 using AudioCat.ViewModels;
 
 namespace AudioCat.Windows;
@@ -15,5 +16,11 @@ public partial class CreateChaptersWindow : Window
         viewModel.UseCreated += (_, _) => { DialogResult = true; Close(); };
         DataContext = viewModel;
         Owner = Application.Current.MainWindow;
+    }
+
+    private void OnWindowClosing(object? sender, CancelEventArgs e)
+    {
+        if (DataContext is CreateChaptersViewModel { IsUserInputEnabled: false } viewModel) 
+            viewModel.CancelScanForSilence.Execute(null);
     }
 }

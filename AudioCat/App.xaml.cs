@@ -25,6 +25,7 @@ public partial class App : Application
             .AddSingleton<AddPathCommand>()
             .AddSingleton<MoveFileCommand>()
             .AddSingleton<ConcatenateCommand>()
+            .AddSingleton<ScanForSilenceCommand>()
             .AddSingleton<CreateChaptersCommand>()
             .AddSingleton<MainWindow>()
             .AddSingleton<MainViewModel>()

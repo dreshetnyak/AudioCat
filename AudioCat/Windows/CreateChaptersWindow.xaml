@@ -5,8 +5,9 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:viewModels="clr-namespace:AudioCat.ViewModels"
         mc:Ignorable="d"
-        Title="Chapters Wizard" Height="492" Width="600" MinHeight="492"
+        Title="Chapters Wizard" Height="492" Width="600" MinHeight="492" MinWidth="540"
         WindowStartupLocation="CenterOwner"
+        Closing="OnWindowClosing"
         d:DataContext="{d:DesignInstance viewModels:CreateChaptersViewModel}">
     <Grid Margin="2,0,2,3">
         <Grid.ColumnDefinitions>
@@ -15,6 +16,7 @@
         </Grid.ColumnDefinitions>
         <GroupBox
             Grid.Column="0"
+            IsEnabled="{Binding IsUserInputEnabled}"
             Header="Output Chapters">
             <Grid>
                 <Grid.RowDefinitions>
@@ -111,7 +113,7 @@
 
         <Grid
             Grid.Column="1"
-            MinWidth="210"
+            MinWidth="211"
             Margin="2,0,2,0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -122,7 +124,7 @@
             <GroupBox
                 Grid.Row="0"
                 Header="Chapters Source"
-                MinWidth="128">
+                IsEnabled="{Binding IsUserInputEnabled}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -185,6 +187,7 @@
                 <Grid>
                     <Grid
                         Visibility="{Binding IsFileNames, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Collapse}"
+                        IsEnabled="{Binding IsUserInputEnabled}"
                         d:IsHidden="True">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -197,6 +200,7 @@
                     </Grid>
                     <Grid
                         Visibility="{Binding IsMetadataTags, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Collapse}"
+                        IsEnabled="{Binding IsUserInputEnabled}"
                         d:IsHidden="True">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -243,6 +247,7 @@
                     </Grid>
                     <Grid
                         Visibility="{Binding IsTemplate, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Collapse}"
+                        IsEnabled="{Binding IsUserInputEnabled}"
                         d:IsHidden="True">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -263,6 +268,7 @@
                     </Grid>
                     <Grid
                         Visibility="{Binding IsExistingChapters, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Collapse}"
+                        IsEnabled="{Binding IsUserInputEnabled}"
                         d:IsHidden="True">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -280,7 +286,9 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <Grid Grid.Row="0">
+                        <Grid 
+                            Grid.Row="0"
+                            IsEnabled="{Binding IsUserInputEnabled}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="*" />
@@ -337,14 +345,14 @@
                             </Grid.ColumnDefinitions>
                             <Grid 
                                 Grid.Column="0"
+                                Visibility="{Binding SilenceScanProgressVisibility}"
                                 Width="97">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
                                 <ProgressBar
                                     Grid.Row="0"
-                                    Maximum="10000"
-                                    Value="{Binding SilenceScanProgress, Mode=OneWay}" />
+                                    IsIndeterminate="True" />
                                 <TextBlock 
                                     Grid.Row="0"
                                     Text="Scanning..."
@@ -354,6 +362,8 @@
                             <Button
                                 Grid.Column="1"
                                 Command="{Binding ScanForSilence}"
+                                CommandParameter="{Binding}"
+                                Visibility="{Binding SilenceScanButtonVisibility}"
                                 Height="26"
                                 Width="97"
                                 HorizontalContentAlignment="Left"
@@ -377,10 +387,38 @@
                                         Margin="5,0,0,0" />
                                 </Grid>
                             </Button>
+                            <Button
+                                Grid.Column="1"
+                                Command="{Binding CancelScanForSilence}"
+                                Visibility="{Binding CancelSilenceScanButtonVisibility}"
+                                Height="26"
+                                Width="97"
+                                HorizontalContentAlignment="Left"
+                                Margin="5,0,0,0">
+                                <Grid HorizontalAlignment="Left">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Image
+                                        Grid.Column="0"
+                                        Source="../Images/Cancel.png"
+                                        RenderOptions.BitmapScalingMode="Fant"
+                                        Height="18"
+                                        Margin="6,0,0,0">
+                                    </Image>
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        Text="Cancel"
+                                        HorizontalAlignment="Center"
+                                        Margin="5,0,0,0" />
+                                </Grid>
+                            </Button>
                         </Grid>
                     </Grid>
                     <Grid
                         Visibility="{Binding IsCueFile, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Collapse}"
+                        IsEnabled="{Binding IsUserInputEnabled}"
                         d:IsHidden="True">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -397,6 +435,7 @@
 
             <Grid
                 Grid.Row="3"
+                IsEnabled="{Binding IsUserInputEnabled}"
                 Margin="0,5,5,6">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -417,10 +456,19 @@
                         </Grid.ColumnDefinitions>
                         <Image
                             Grid.Column="0"
-                            Source="../Images/Cancel.png"
                             RenderOptions.BitmapScalingMode="Fant"
                             Height="18"
                             Margin="6,0,0,0">
+                            <Image.Style>
+                                <Style TargetType="{x:Type Image}">
+                                    <Setter Property="Source" Value="../Images/Cancel.png" />
+                                    <Style.Triggers>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter Property="Source" Value="../Images/CancelGray.png" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Image.Style>
                         </Image>
                         <TextBlock
                             Grid.Column="1"
@@ -432,6 +480,7 @@
                 <Button
                     Grid.Column="2"
                     Command="{Binding UseCreatedChapters}"
+                    IsEnabled="{Binding IsUseCreatedEnabled}"
                     Height="26"
                     Width="80"
                     HorizontalContentAlignment="Left"
@@ -443,10 +492,19 @@
                         </Grid.ColumnDefinitions>
                         <Image
                             Grid.Column="0"
-                            Source="../Images/Ok.png"
                             RenderOptions.BitmapScalingMode="Fant"
                             Height="18"
                             Margin="6,0,0,0">
+                            <Image.Style>
+                                <Style TargetType="{x:Type Image}">
+                                    <Setter Property="Source" Value="../Images/Ok.png" />
+                                    <Style.Triggers>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter Property="Source" Value="../Images/OkGray.png" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Image.Style>
                         </Image>
                         <TextBlock
                             Grid.Column="1"

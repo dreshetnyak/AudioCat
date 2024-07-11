@@ -1,13 +1,15 @@
 ﻿using AudioCat.Commands;
+using AudioCat.Models;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Windows;
 using System.Windows.Input;
 
 namespace AudioCat.ViewModels;
 
-public sealed class CreateChaptersViewModel : INotifyPropertyChanged
+public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyChanged
 {
     #region Backing Fields
     private bool _isFileNames = true;
@@ -17,16 +19,20 @@ public sealed class CreateChaptersViewModel : INotifyPropertyChanged
     private bool _isSilenceScan;
     private bool _isCueFile;
     private bool _trimStartingNonChars;
-    private string _selectedTagName = "";
-    private string _template = "Chapter {0}";
-    private int _silenceThreshold = Constants.DEFAULT_SILENCE_THRESHOLD;
-    private int _silenceDuration = Constants.DEFAULT_SILENCE_DURATION;
-    private int _silenceScanProgress;
+    private string _selectedTagName = "";                                // TODO Move to settings
+    private string _template = "Chapter {0}";                            // TODO Move to settings
+    private int _silenceThreshold = Constants.DEFAULT_SILENCE_THRESHOLD; // TODO Move to settings
+    private int _silenceDuration = Constants.DEFAULT_SILENCE_DURATION;   // TODO Move to settings
+    private Visibility _silenceScanProgressVisibility = Visibility.Hidden;
+    private Visibility _silenceScanButtonVisibility = Visibility.Visible;
+    private Visibility _cancelSilenceScanButtonVisibility = Visibility.Hidden;
+    private bool _isUserInputEnabled = true;
+    private bool _isUseCreatedEnabled;
 
     #endregion
 
-    public ObservableCollection<IMediaFileViewModel> Files { get; }
-
+    public IReadOnlyList<IMediaFileViewModel> Files { get; }
+    
     public bool IsFileNames
     {
         get => _isFileNames;
@@ -170,21 +176,57 @@ public sealed class CreateChaptersViewModel : INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
-    public int SilenceScanProgress
+    public Visibility SilenceScanProgressVisibility
     {
-        get => _silenceScanProgress;
+        get => _silenceScanProgressVisibility;
         set
         {
-            if (value == _silenceScanProgress) 
+            if (value == _silenceScanProgressVisibility) 
                 return;
-            _silenceScanProgress = value;
+            _silenceScanProgressVisibility = value;
+            OnPropertyChanged();
+        }
+    }
+    public Visibility SilenceScanButtonVisibility
+    {
+        get => _silenceScanButtonVisibility;
+        set
+        {
+            if (value == _silenceScanButtonVisibility) 
+                return;
+            _silenceScanButtonVisibility = value;
+            OnPropertyChanged();
+        }
+    }
+    public Visibility CancelSilenceScanButtonVisibility
+    {
+        get => _cancelSilenceScanButtonVisibility;
+        set
+        {
+            if (value == _cancelSilenceScanButtonVisibility) 
+                return;
+            _cancelSilenceScanButtonVisibility = value;
             OnPropertyChanged();
         }
     }
 
-    public ObservableCollection<IMediaChapterViewModel> CreatedChapters { get; } = [];
+    public ObservableCollection<IMediaChapterViewModel> CreatedChapters { get; }
 
     public bool IsExistingChaptersEnabled { get; }
+
+    public bool IsUseCreatedEnabled => CreatedChapters.Count > 0;
+
+    public bool IsUserInputEnabled
+    {
+        get => _isUserInputEnabled;
+        set
+        {
+            if (value == _isUserInputEnabled) 
+                return;
+            _isUserInputEnabled = value;
+            OnPropertyChanged();
+        }
+    }
 
     public event EventHandler? Close;
     public event EventHandler? UseCreated;
@@ -193,12 +235,17 @@ public sealed class CreateChaptersViewModel : INotifyPropertyChanged
     public ICommand FixAllIso8859ToWin1251 { get; }
     public ICommand FixSelectedIso8859ToWin1251 { get; }
     public ICommand ScanForSilence { get; }
+    public ICommand CancelScanForSilence { get; }
 
     public CreateChaptersViewModel(
         ObservableCollection<IMediaFileViewModel> files, 
         FixItemEncodingCommand fixItemEncodingCommand,
-        FixItemsEncodingCommand fixItemsEncodingCommand)
+        FixItemsEncodingCommand fixItemsEncodingCommand,
+        ScanForSilenceCommand scanForSilence)
     {
+        CreatedChapters = [];
+        CreatedChapters.CollectionChanged += OnCreatedChaptersChanged;
+
         CloseDialog = new RelayCommand(OnClose);
         Files = files;
         FixAllIso8859ToWin1251 = fixItemsEncodingCommand;
@@ -207,21 +254,14 @@ public sealed class CreateChaptersViewModel : INotifyPropertyChanged
         PopulateTagNames();
         IsExistingChaptersEnabled = FilesHasChapters(Files);
 
-        //TODO
-        
-        ScanForSilence = new RelayCommand(() => { });
+        scanForSilence.Starting += OnScanForSilenceStarting;
+        scanForSilence.Finished += OnScanForSilenceFinished;
+        CancelScanForSilence = new RelayCommand(scanForSilence.Cancel);
+        ScanForSilence = scanForSilence;
     }
 
-    private static bool FilesHasChapters(ObservableCollection<IMediaFileViewModel> files)
-    {
-        foreach (var file in files)
-        {
-            if (file is { IsImage: false, Chapters.Count: > 0 })
-                return true;
-        }
-
-        return false;
-    }
+    private void OnCreatedChaptersChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => 
+        OnPropertyChanged(nameof(IsUseCreatedEnabled));
 
     private void PopulateTagNames()
     {
@@ -233,6 +273,63 @@ public sealed class CreateChaptersViewModel : INotifyPropertyChanged
                 if (!TagNames.Contains(tag.Name))
                     TagNames.Add(tag.Name);
             }
+        }
+    }
+
+    private static bool FilesHasChapters(IEnumerable<IMediaFileViewModel> files)
+    {
+        foreach (var file in files)
+        {
+            if (file is { IsImage: false, Chapters.Count: > 0 })
+                return true;
+        }
+
+        return false;
+    }
+
+    private void OnScanForSilenceStarting(object? sender, EventArgs eventArgs)
+    {
+        IsUserInputEnabled = false;
+        SilenceScanProgressVisibility = Visibility.Visible;
+        SilenceScanButtonVisibility = Visibility.Hidden;
+        CancelSilenceScanButtonVisibility = Visibility.Visible;
+    }
+
+    private void OnScanForSilenceFinished(object sender, ResponseEventArgs eventArgs)
+    {
+        CancelSilenceScanButtonVisibility = Visibility.Hidden;
+
+        try
+        {
+            var response = eventArgs.Response;
+            if (response.IsFailure)
+            {
+                if (response.Message is nameof(OperationCanceledException) or nameof(TaskCanceledException))
+                    return;
+                MessageBox.Show(response.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            if (response.Data != null)
+                CreateChaptersFromIntervals((IReadOnlyList<IInterval>)response.Data);
+        }
+        finally
+        {
+            SilenceScanProgressVisibility = Visibility.Hidden;
+            SilenceScanButtonVisibility = Visibility.Visible;
+            IsUserInputEnabled = true;
+        }
+    }
+
+    private void CreateChaptersFromIntervals(IReadOnlyList<IInterval> intervals)
+    {
+        var startTime = TimeSpan.Zero;
+        CreatedChapters.Clear();
+        foreach (var interval in intervals)
+        {
+            var chapter = CreateChapter(startTime, interval.Start - startTime, CreatedChapters.Count.ToString(), CreatedChapters.Count);
+            CreatedChapters.Add(chapter);
+            startTime += interval.End - startTime;
         }
     }
 
@@ -248,8 +345,13 @@ public sealed class CreateChaptersViewModel : INotifyPropertyChanged
     {
         if (string.IsNullOrEmpty(SelectedTagName))
         {
-            CreatedChapters.Clear();
-            return;
+            if (!TagNames.Has("title"))
+            {
+                CreatedChapters.Clear();
+                return;
+            }
+
+            SelectedTagName = "title";
         }
 
         var chapters = CreateChapters(GetTitleFromTags);

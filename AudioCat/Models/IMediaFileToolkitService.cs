@@ -2,13 +2,6 @@
 
 namespace AudioCat.Models;
 
-public interface IInterval
-{
-    TimeSpan Start { get; }
-    TimeSpan End { get; }
-    TimeSpan Duration { get; }
-}
-
 public interface IMediaFileToolkitService
 {
     Task<IResponse<IMediaFile>> Probe(string fileFullName, CancellationToken ctx);

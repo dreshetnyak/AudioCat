@@ -97,13 +97,8 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
         var sortedFiles = Files.Sort(fileNames);
 
         var probeTasks = new List<Task<IResponse<IMediaFile>>>(fileNames.Count);
-        foreach (var filePath in sortedFiles)
-        {
-            await MediaFileToolkitService.ScanForSilence(filePath, 3500, 50, ctx);
-
-
+        foreach (var filePath in sortedFiles) 
             probeTasks.Add(MediaFileToolkitService.Probe(filePath, ctx));
-        }
 
         var mediaFiles = new List<IResponse<IMediaFile>>(fileNames.Count);
         foreach (var probeTask in probeTasks)

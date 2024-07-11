@@ -221,4 +221,27 @@ internal static class Extensions
         foreach (var tag in source)
             target.Add(TagViewModel.Copy(tag));
     }
+
+    public static int IndexOfDigit(this string value, int startIndex)
+    {
+        for (var i = startIndex; i < value.Length; i++)
+        {
+            if (char.IsDigit(value[i]))
+                return i;
+        }
+
+        return -1;
+    }
+
+    public static int IndexOfNotDigitOrDot(this string value, int startIndex) 
+    {
+        for (var i = startIndex; i < value.Length; i++)
+        {
+            var ch = value[i];
+            if (!char.IsDigit(ch) && ch != '.')
+                return i;
+        }
+
+        return -1;
+    }
 }

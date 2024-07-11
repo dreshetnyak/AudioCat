@@ -685,6 +685,8 @@
                                         IsReadOnly="True"
                                         FontFamily="Consolas"
                                         FontSize="14"
+                                        MinHeight="20" 
+                                        VerticalContentAlignment="Center"
                                         HorizontalContentAlignment="Center" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
@@ -696,6 +698,8 @@
                                         IsReadOnly="True"
                                         FontFamily="Consolas"
                                         FontSize="14"
+                                        MinHeight="20" 
+                                        VerticalContentAlignment="Center"
                                         HorizontalContentAlignment="Center"
                                         Margin="0,0,0,3" />
                                 </StackPanel>
@@ -708,6 +712,8 @@
                                         IsReadOnly="True"
                                         FontFamily="Consolas"
                                         FontSize="14"
+                                        MinHeight="20" 
+                                        VerticalContentAlignment="Center"
                                         HorizontalContentAlignment="Center"
                                         Margin="0,0,0,3" />
                                 </StackPanel>
@@ -749,7 +755,7 @@
                                     <TextBox
                                         Text="{Binding SelectedFile.FileName, Mode=OneWay, FallbackValue=''}"
                                         IsReadOnly="True"
-                                        MinHeight="18"
+                                        MinHeight="20" 
                                         VerticalContentAlignment="Center"
                                         FontFamily="Consolas"
                                         FontSize="12" />
@@ -769,10 +775,10 @@
                                         <TextBox
                                             Text="{Binding SelectedFile.Duration, Mode=OneWay, FallbackValue='', Converter={StaticResource DurationConverter}}"
                                             IsReadOnly="True"
-                                            MinHeight="18"
-                                            VerticalContentAlignment="Center"
                                             FontFamily="Consolas"
                                             FontSize="12"
+                                            MinHeight="20" 
+                                            VerticalContentAlignment="Center"
                                             HorizontalContentAlignment="Center"
                                             Margin="0,0,0,3" />
                                     </StackPanel>
@@ -784,10 +790,10 @@
                                         <TextBox
                                             Text="{Binding SelectedFile.File.Length, Mode=OneWay, FallbackValue='', Converter={StaticResource BytesCountConverter}}"
                                             IsReadOnly="True"
-                                            MinHeight="18"
-                                            VerticalContentAlignment="Center"
                                             FontFamily="Consolas"
                                             FontSize="12"
+                                            MinHeight="20" 
+                                            VerticalContentAlignment="Center"
                                             HorizontalContentAlignment="Center"
                                             Margin="0,0,0,3" />
                                     </StackPanel>

@@ -40,29 +40,92 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         }
     }
 
+    #region Silence Detection
     public async Task<IResponse<IReadOnlyList<IInterval>>> ScanForSilence(string fileFullName, int durationMilliseconds, int silenceThreshold, CancellationToken ctx)
     {
+        var intervals = new List<IInterval>();
+        using var statusQueue = new BlockingCollection<string>();
+
         try
         {
             var args = $"-hide_banner -stats -stats_period 0.1 -i \"{fileFullName}\" -af silencedetect=n=-{silenceThreshold}dB:d={durationMilliseconds}ms -f null -";
             Debug.WriteLine($"ffmpeg.exe {args}");
 
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ctx);
+            var ct = cts.Token;
+            // ReSharper disable once AccessToDisposedClosure
+            var intervalsTask = Task.Run(() => IntervalsProcessor(statusQueue, intervals, fileFullName, ct), ct);
+
             await Process.Run("ffmpeg.exe", args, OnSilenceStatus, Process.OutputType.Error, ctx);
 
-            return Response<IReadOnlyList<IInterval>>.Success();
+            await cts.CancelAsync();
+            try { await intervalsTask; }
+            catch (OperationCanceledException) { /* ignore */ }
+            
+            return Response<IReadOnlyList<IInterval>>.Success(intervals);
         }
-        catch (Exception ex)
-        {
-            return Response<IReadOnlyList<IInterval>>.Failure(ex.Message);
-        }
+        catch (TaskCanceledException) { return Response<IReadOnlyList<IInterval>>.Failure(nameof(TaskCanceledException)); }
+        catch (OperationCanceledException) { return Response<IReadOnlyList<IInterval>>.Failure(nameof(OperationCanceledException)); }
+        catch (Exception ex) { return Response<IReadOnlyList<IInterval>>.Failure(ex.Message); }
 
         Task OnSilenceStatus(string status)
         {
-            throw new NotImplementedException();
+            // ReSharper disable once AccessToDisposedClosure
+            try { statusQueue.Add(status, CancellationToken.None); }
+            catch { /* ignore */ }
+            Debug.WriteLine($"Status: '{status}'");
+            return Task.CompletedTask;
         }
     }
 
+    private static void IntervalsProcessor(BlockingCollection<string> statusQueue, List<IInterval> silenceIntervals, string fileFullName, CancellationToken ctx)
+    {
+        var startTime = TimeSpan.Zero;
+        while (!ctx.IsCancellationRequested)
+        {
+            var status = statusQueue.Take(ctx);
+            if (!status.StartsWith("[silencedetect", StringComparison.Ordinal))
+                continue;
 
+            if (startTime == TimeSpan.Zero)
+            {
+                if (TryGetTime(status, "silence_start:", out var start))
+                    startTime = start;
+                continue;
+            }
+            
+            if (!TryGetTime(status, "silence_end:", out var end))
+            {
+                if (TryGetTime(status, "silence_start:", out var start))
+                    startTime = start;
+                continue;
+            }
+
+            // End of the silence
+            silenceIntervals.Add(new Interval(fileFullName, startTime, end));
+            startTime = TimeSpan.Zero;
+        }
+    }
+
+    private static bool TryGetTime(string status, string name, out TimeSpan timeSpan)
+    {
+        timeSpan = TimeSpan.Zero;
+        var index = status.IndexOf(name, StringComparison.Ordinal);
+        if (index == -1)
+            return false;
+        var valueStart = status.IndexOfDigit(index + name.Length);
+        if (valueStart == -1)
+            return false;
+        var valueEnd = status.IndexOfNotDigitOrDot(valueStart);
+        if (valueEnd == -1)
+            valueEnd = status.Length;
+        if (!double.TryParse(status.AsSpan(valueStart, valueEnd - valueStart), out var timeStamp))
+            return false;
+        timeSpan = TimeSpan.FromSeconds(timeStamp);
+        return true;
+    }
+
+    #endregion
 
     public async Task Concatenate(IReadOnlyList<IMediaFileViewModel> mediaFiles, IConcatParams concatParams, string outputFileName, CancellationToken ctx)
     {
@@ -159,7 +222,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             #region Attach Images
             if (hasImages)
             {
-                await OnStatus(extractedImages.Count == 1 ? "Appending cover image..." : "Appending cover images...");
+                await OnStatus(extractedImages.Count == 1 ? "Embedding cover image..." : "Embedding cover images...");
                 var imagesResult = await AddImages(outputToFile, extractedImages, outputFileName, ctx);
                 if (imagesResult.IsFailure)
                     await OnError($"Image embedding errors:{Environment.NewLine}{imagesResult.Message}");
