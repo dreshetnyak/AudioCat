@@ -306,7 +306,8 @@
                                     Margin="3,2,3,0" />
                                 <TextBox 
                                     Grid.Row="1"
-                                    Text="{Binding SilenceDuration}"
+                                    Text="{Binding SilenceDuration, UpdateSourceTrigger=PropertyChanged}"
+                                    
                                     FontFamily="Consolas"
                                     MinHeight="20" 
                                     VerticalContentAlignment="Center"
@@ -327,7 +328,7 @@
                                     Margin="3,2,3,0" />
                                 <TextBox 
                                     Grid.Row="1"
-                                    Text="{Binding SilenceThreshold}"
+                                    Text="{Binding SilenceThreshold, UpdateSourceTrigger=PropertyChanged}"
                                     FontFamily="Consolas"
                                     MinHeight="20" 
                                     VerticalContentAlignment="Center"
