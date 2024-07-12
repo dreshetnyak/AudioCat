@@ -1,9 +1,11 @@
-﻿using AudioCat.Models;
+﻿using System.Diagnostics;
+using AudioCat.Models;
 using System.Globalization;
 using System.Xml.Linq;
 
 namespace AudioCat.FFmpeg;
 
+[DebuggerDisplay("Id: {Id,nq}; StartTime: {StartTime,nq}; EndTime: {EndTime,nq}")]
 public class FFprobeMediaChapter : IMediaChapter
 {
     public int Id { get; private init; }

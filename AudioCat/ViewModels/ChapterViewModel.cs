@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using AudioCat.Models;
 
@@ -16,6 +17,7 @@ public interface IMediaChapterViewModel : IMediaChapter
     string Title { get; set; }
 }
 
+[DebuggerDisplay("StartTime: {StartTime,nq}; EndTime: {EndTime,nq}; Title: {Title}")]
 internal sealed class ChapterViewModel : IMediaChapterViewModel, INotifyPropertyChanged
 {
     private const string TITLE_TAG_NAME = "title";

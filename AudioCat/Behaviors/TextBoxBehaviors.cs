@@ -1,5 +1,4 @@
-﻿using System.Text.RegularExpressions;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 
@@ -10,57 +9,48 @@ public static class TextBoxBehaviors
     public static readonly DependencyProperty IsDigitOnlyProperty =
         DependencyProperty.RegisterAttached("IsDigitOnly", typeof(bool), typeof(TextBoxBehaviors), new PropertyMetadata(false, OnIsDigitOnlyChanged));
 
-    public static bool GetIsDigitOnly(DependencyObject obj)
-    {
-        return (bool)obj.GetValue(IsDigitOnlyProperty);
-    }
+    public static bool GetIsDigitOnly(DependencyObject obj) => 
+        (bool)obj.GetValue(IsDigitOnlyProperty);
 
-    public static void SetIsDigitOnly(DependencyObject obj, bool value)
-    {
+    public static void SetIsDigitOnly(DependencyObject obj, bool value) => 
         obj.SetValue(IsDigitOnlyProperty, value);
-    }
 
-    private static void OnIsDigitOnlyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    private static void OnIsDigitOnlyChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs eventArgs)
     {
-        if (d is TextBox textBox)
+        if (dependencyObject is not TextBox textBox) 
+            return;
+
+        if ((bool)eventArgs.NewValue)
         {
-            if ((bool)e.NewValue)
-            {
-                textBox.PreviewTextInput += TextBox_PreviewTextInput;
-                DataObject.AddPastingHandler(textBox, OnPaste);
-            }
-            else
-            {
-                textBox.PreviewTextInput -= TextBox_PreviewTextInput;
-                DataObject.RemovePastingHandler(textBox, OnPaste);
-            }
-        }
-    }
-
-    private static void TextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
-    {
-        e.Handled = !IsTextAllowed(e.Text);
-    }
-
-    private static void OnPaste(object sender, DataObjectPastingEventArgs e)
-    {
-        if (e.DataObject.GetDataPresent(DataFormats.Text))
-        {
-            string text = (string)e.DataObject.GetData(DataFormats.Text);
-            if (!IsTextAllowed(text))
-            {
-                e.CancelCommand();
-            }
+            textBox.PreviewTextInput += OnTextBoxPreviewTextInput;
+            DataObject.AddPastingHandler(textBox, OnPaste);
         }
         else
         {
-            e.CancelCommand();
+            textBox.PreviewTextInput -= OnTextBoxPreviewTextInput;
+            DataObject.RemovePastingHandler(textBox, OnPaste);
         }
+    }
+
+    private static void OnTextBoxPreviewTextInput(object sender, TextCompositionEventArgs eventArgs)
+    {
+        eventArgs.Handled = !IsTextAllowed(eventArgs.Text);
+    }
+
+    private static void OnPaste(object sender, DataObjectPastingEventArgs eventArgs)
+    {
+        if (!eventArgs.DataObject.GetDataPresent(DataFormats.Text) || !IsTextAllowed((string)eventArgs.DataObject.GetData(DataFormats.Text)!)) 
+            eventArgs.CancelCommand();
     }
 
     private static bool IsTextAllowed(string text)
     {
-        Regex regex = new Regex("[^0-9]+"); // Regex that matches non-digit characters
-        return !regex.IsMatch(text);
+        foreach (var ch in text)
+        {
+            if (!char.IsDigit(ch))
+                return false;
+        }
+
+        return true;
     }
 }

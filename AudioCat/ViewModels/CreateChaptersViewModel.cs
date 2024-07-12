@@ -27,7 +27,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     private Visibility _silenceScanButtonVisibility = Visibility.Visible;
     private Visibility _cancelSilenceScanButtonVisibility = Visibility.Hidden;
     private bool _isUserInputEnabled = true;
-    private bool _isUseCreatedEnabled;
 
     #endregion
 
@@ -331,6 +330,10 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             CreatedChapters.Add(chapter);
             startTime += interval.End - startTime;
         }
+
+        //TODO File end - add chapter
+        // The end of the file should be treated as an interval
+        //intervals.Add(new Interval(file.FilePath, startTime + fileInterval.Start, startTime + fileInterval.End));
     }
 
     private void CreateChaptersFromFileNames()

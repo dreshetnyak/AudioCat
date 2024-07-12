@@ -47,10 +47,10 @@ public sealed class ScanForSilenceCommand(IMediaFileToolkitService mediaFileTool
                 foreach (var fileInterval in fileIntervals)
                     intervals.Add(new Interval(fileInterval.FileFullName, startTime + fileInterval.Start, startTime + fileInterval.End));
 
-                //TODO File end - add chapter
-                //intervals.Add(new Interval(file.FilePath, startTime + fileInterval.Start, startTime + fileInterval.End));
-                
-                startTime += file.Duration.Value;
+                var fileDuration = file.Duration.Value;
+                intervals.Add(new Interval(file.FilePath, fileDuration, fileDuration));
+
+                startTime += fileDuration;
             }
 
             return Response<object>.Success(intervals);

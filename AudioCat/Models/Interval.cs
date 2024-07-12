@@ -1,4 +1,6 @@
-﻿namespace AudioCat.Models;
+﻿using System.Diagnostics;
+
+namespace AudioCat.Models;
 
 public interface IInterval
 {
@@ -8,6 +10,7 @@ public interface IInterval
     TimeSpan Duration { get; }
 }
 
+[DebuggerDisplay("Start: {Start,nq}; End: {End,nq}; Duration: {Duration,nq}; {FileFullName}")]
 internal sealed class Interval(string fileFullName, TimeSpan startTime, TimeSpan endTime) : IInterval
 {
     public string FileFullName { get; } = fileFullName;

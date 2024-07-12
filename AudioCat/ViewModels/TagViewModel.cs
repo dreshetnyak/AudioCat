@@ -1,5 +1,6 @@
 ﻿using AudioCat.Models;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace AudioCat.ViewModels;
@@ -10,6 +11,7 @@ public interface IMediaTagViewModel : IMediaTag, IEnableCapable
     public new string Value { get; set; }
 }
 
+[DebuggerDisplay("{Name,nq}: {Value}; IsEnabled: {IsEnabled,nq}")]
 public sealed class TagViewModel : IMediaTagViewModel, INotifyPropertyChanged
 {
     #region Backing Fields

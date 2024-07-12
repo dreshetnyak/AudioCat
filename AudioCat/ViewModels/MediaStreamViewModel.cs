@@ -1,9 +1,11 @@
 ﻿using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using AudioCat.Models;
 
 namespace AudioCat.ViewModels;
 
+[DebuggerDisplay("{Index,nq}: Duration: {Duration,nq}; Codec: {CodecName,nq}; SampleRate: {SampleRate,nq};")]
 public sealed class MediaStreamViewModel(IMediaStream mediaStream) : IMediaStream, INotifyPropertyChanged
 {
     private bool _include = true;

@@ -1,5 +1,7 @@
 ﻿// ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedMemberInSuper.Global
+using System.Diagnostics;
+
 namespace AudioCat.Models;
 
 public interface IResult
@@ -21,6 +23,7 @@ public interface IResponse<out T> : IResult
 
 public interface IResponseWithCode<out TCodeType, out TResponseType> : IResultCode<TCodeType>, IResponse<TResponseType> where TCodeType : struct;
 
+[DebuggerDisplay("IsSuccess: {IsSuccess,nq}; IsFailure: {IsFailure}; Message: {Message}")]
 public class Result : IResult
 {
     public bool IsSuccess { get; private init; }
@@ -33,6 +36,7 @@ public class Result : IResult
     public static IResult Failure(string message) { return new Result { IsFailure = true, Message = message }; }
 }
 
+[DebuggerDisplay("IsSuccess: {IsSuccess,nq}; IsFailure: {IsFailure}; Message: {Message}; Code: {Code,nq}")]
 public class ResultCode<T> : IResultCode<T> where T : struct
 {
     public bool IsSuccess { get; private init; }
@@ -48,6 +52,7 @@ public class ResultCode<T> : IResultCode<T> where T : struct
     public static IResultCode<T> Failure(T code, string message) { return new ResultCode<T> { IsFailure = true, Code = code, Message = message }; }
 }
 
+[DebuggerDisplay("IsSuccess: {IsSuccess,nq}; IsFailure: {IsFailure}; Message: {Message}; Code: {Code,nq}")]
 public class ResponseWithCode<TCode, TData> : IResponseWithCode<TCode, TData> where TCode : struct
 {
     public bool IsSuccess { get; private init; }
@@ -63,6 +68,7 @@ public class ResponseWithCode<TCode, TData> : IResponseWithCode<TCode, TData> wh
     public static IResponseWithCode<TCode, TData> Failure(TCode code, TData data, string message = "") { return new ResponseWithCode<TCode, TData> { IsFailure = true, Code = code, Data = data, Message = message }; }
 }
 
+[DebuggerDisplay("IsSuccess: {IsSuccess,nq}; IsFailure: {IsFailure}; Message: {Message}")]
 public class Response<T> : IResponse<T>
 {
     public bool IsSuccess { get; private init; }

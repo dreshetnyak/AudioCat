@@ -73,7 +73,6 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             // ReSharper disable once AccessToDisposedClosure
             try { statusQueue.Add(status, CancellationToken.None); }
             catch { /* ignore */ }
-            Debug.WriteLine($"Status: '{status}'");
             return Task.CompletedTask;
         }
     }

@@ -1,7 +1,9 @@
 ﻿using AudioCat.Services;
+using System.Diagnostics;
 
 namespace AudioCat.Models;
 
+[DebuggerDisplay("Message: {Message}")]
 public sealed class MessageEventArgs(string message) : EventArgs
 {
     public string Message { get; } = message;

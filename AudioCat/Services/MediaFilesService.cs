@@ -1,6 +1,7 @@
 ﻿using AudioCat.Models;
 using AudioCat.ViewModels;
 using AudioCat.Windows;
+using System.Diagnostics;
 
 namespace AudioCat.Services;
 
@@ -28,6 +29,7 @@ public interface IMediaFilesService
 internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer, IMediaFileToolkitService mediaFileToolkitService) : IMediaFilesService
 {
     #region Internal Types
+    [DebuggerDisplay("{Path}: Reason: {Reason}")]
     private sealed class SkipFile(string path, string reason) : IMediaFilesService.ISkipFile
     {
         public string Path { get; } = path;

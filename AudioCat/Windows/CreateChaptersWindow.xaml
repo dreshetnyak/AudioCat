@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:viewModels="clr-namespace:AudioCat.ViewModels"
+        xmlns:behaviors="clr-namespace:AudioCat.Behaviors"
         mc:Ignorable="d"
         Title="Chapters Wizard" Height="492" Width="600" MinHeight="492" MinWidth="540"
         WindowStartupLocation="CenterOwner"
@@ -307,7 +308,7 @@
                                 <TextBox 
                                     Grid.Row="1"
                                     Text="{Binding SilenceDuration, UpdateSourceTrigger=PropertyChanged}"
-                                    
+                                    behaviors:TextBoxBehaviors.IsDigitOnly="True"
                                     FontFamily="Consolas"
                                     MinHeight="20" 
                                     VerticalContentAlignment="Center"
@@ -329,6 +330,7 @@
                                 <TextBox 
                                     Grid.Row="1"
                                     Text="{Binding SilenceThreshold, UpdateSourceTrigger=PropertyChanged}"
+                                    behaviors:TextBoxBehaviors.IsDigitOnly="True"
                                     FontFamily="Consolas"
                                     MinHeight="20" 
                                     VerticalContentAlignment="Center"
