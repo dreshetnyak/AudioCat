@@ -257,6 +257,8 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         scanForSilence.Finished += OnScanForSilenceFinished;
         CancelScanForSilence = new RelayCommand(scanForSilence.Cancel);
         ScanForSilence = scanForSilence;
+
+        _ = Task.Run(CreateChaptersFromFileNames);
     }
 
     private void OnCreatedChaptersChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => 
@@ -330,10 +332,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             CreatedChapters.Add(chapter);
             startTime += interval.End - startTime;
         }
-
-        //TODO File end - add chapter
-        // The end of the file should be treated as an interval
-        //intervals.Add(new Interval(file.FilePath, startTime + fileInterval.Start, startTime + fileInterval.End));
     }
 
     private void CreateChaptersFromFileNames()

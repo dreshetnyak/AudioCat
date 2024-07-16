@@ -28,6 +28,7 @@
     <None Remove="Images\Error.png" />
     <None Remove="Images\Execute.png" />
     <None Remove="Images\ExecuteGray.png" />
+    <None Remove="Images\Find.png" />
     <None Remove="Images\Ignore.png" />
     <None Remove="Images\Image.png" />
     <None Remove="Images\ImageGray.png" />
@@ -76,6 +77,7 @@
     <Resource Include="Images\Error.png" />
     <Resource Include="Images\Execute.png" />
     <Resource Include="Images\ExecuteGray.png" />
+    <Resource Include="Images\Find.png" />
     <Resource Include="Images\Ignore.png" />
     <Resource Include="Images\Image.png" />
     <Resource Include="Images\ImageGray.png" />

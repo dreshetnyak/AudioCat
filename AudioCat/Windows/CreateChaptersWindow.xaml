@@ -174,6 +174,7 @@
                         Margin="2,5,5,0" />
                     <RadioButton
                         x:Name="CueFileRadioButton"
+                        Visibility="Collapsed"
                         Grid.Row="5"
                         Content="CUE File"
                         IsChecked="{Binding IsCueFile}"
@@ -378,7 +379,7 @@
                                     </Grid.ColumnDefinitions>
                                     <Image
                                         Grid.Column="0"
-                                        Source="../Images/Ok.png"
+                                        Source="../Images/Find.png"
                                         RenderOptions.BitmapScalingMode="Fant"
                                         Height="18"
                                         Margin="6,0,0,0">

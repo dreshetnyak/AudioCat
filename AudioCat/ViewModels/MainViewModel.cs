@@ -578,13 +578,13 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         foreach (var chapter in outputChapters)
             OutputChapters.Add(chapter);
         
-        RefreshChaptersFilesOrder();
+        RememberChaptersFilesOrder();
         IsOutputChaptersExpanded = ChaptersEnabled && OutputChapters.Count > 0;
         OnPropertyChanged(nameof(OutputChaptersCount));
         SelectedDataTabIndex = 1;
     }
 
-    private void RefreshChaptersFilesOrder()
+    private void RememberChaptersFilesOrder()
     {
         ChaptersFilesOrder.Clear();
         foreach (var file in Files)
@@ -665,6 +665,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         IsOutputChaptersExpanded = false;
         IsOutputTagsExpanded = false;
         OutputChapters.Clear();
+        ChaptersFilesOrder.Clear();
         OutputTags.Clear();
         OutputWarning = "";
     }
