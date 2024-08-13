@@ -236,43 +236,16 @@ internal sealed class FFmpegService : IMediaFileToolkitService
 
             #region Delete Temporary Files
             await OnStatus("Cleaning up...");
-            // Delete the list file
-            try { await Task.Run(() => File.Delete(listFile), CancellationToken.None); }
-            catch { /* ignore */ }
+            
+            var deleteListFileTask = Task.Run(() => File.Delete(listFile), CancellationToken.None); // Delete the list file
+            var deleteMetadataFile = metadataFile != "" ? Task.Run(() => File.Delete(metadataFile), CancellationToken.None) : Task.CompletedTask; // Delete the metadata file
+            var deleteTempImages = extractedImages.AsParallel().Where(ei => ei.IsTemporaryFile).Select(extractedImage => Task.Run(() => File.Delete(extractedImage.Path), CancellationToken.None)).ToArray();
+            var deleterRemuxed = remuxedFiles != null ? remuxedFiles.AsParallel().Select(remuxedFile => Task.Run(() => File.Delete(remuxedFile), CancellationToken.None)).ToArray() : [];
+            var deleteEmptyOutput = new FileInfo(outputFileName) is { Exists: true, Length: 0 } ? Task.Run(() => File.Delete(outputFileName), CancellationToken.None) : Task.CompletedTask; // Delete Output File if it is Empty
+            await Task.WhenAll(deleteListFileTask, deleteMetadataFile, deleteEmptyOutput);
+            await Task.WhenAll(deleteTempImages);
+            await Task.WhenAll(deleterRemuxed);
 
-            // Delete the metadata file
-            if (metadataFile != "")
-            {
-                try { await Task.Run(() => File.Delete(metadataFile), CancellationToken.None); }
-                catch { /* ignore */ }
-            }
-
-            foreach (var extractedImage in extractedImages)
-            {
-                if (!extractedImage.IsTemporaryFile)
-                    continue;
-                try { await Task.Run(() => File.Delete(extractedImage.Path), CancellationToken.None); }
-                catch { /* ignore */ }
-            }
-
-            if (remuxedFiles != null)
-            {
-                foreach (var remuxedFile in remuxedFiles)
-                {
-                    try { await Task.Run(() => File.Delete(remuxedFile), CancellationToken.None); }
-                    catch { /* ignore */ }
-                }
-            }
-
-            #endregion
-
-            #region Delete Output File is it is Empty
-            var outputFile = new FileInfo(outputFileName);
-            if (outputFile is { Exists: true, Length: 0 })
-            {
-                try { await Task.Run(() => File.Delete(outputFileName), CancellationToken.None); }
-                catch { /* ignore */ }
-            }
             #endregion
         }
         catch (Exception ex)
@@ -318,15 +291,17 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         using var progressTrackingTask = Task.Run(async () => await ProgressTracking(mediaFiles, statusMessages, onProgress, cts.Token), CancellationToken.None);
         // ReSharper restore AccessToDisposedClosure
         
-        foreach (var file in mediaFiles.AsParallel().WithDegreeOfParallelism(Environment.ProcessorCount))
+        var remuxTasks = mediaFiles.AsParallel().Select(async file => 
         {
             if (file.IsImage)
-                continue;
+                return;
+            // ReSharper disable once AccessToDisposedClosure
             var remuxResponse = await RemuxFile(file, status => statusMessages.Add(status, CancellationToken.None), ctx);
             remuxedFiles.Add((file, remuxResponse.Data!));
             if (remuxResponse.IsFailure)
                 lock (sync) errors.AppendMessage(remuxResponse.Message);
-        }
+        });
+        await Task.WhenAll(remuxTasks);
 
         await cts.CancelAsync();
 

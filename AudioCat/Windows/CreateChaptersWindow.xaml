@@ -250,8 +250,9 @@
                     <Grid
                         Visibility="{Binding IsTemplate, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Collapse}"
                         IsEnabled="{Binding IsUserInputEnabled}"
-                        d:IsHidden="True">
+                        d:IsHidden="False">
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
@@ -267,6 +268,41 @@
                             Padding="3,0,0,0"
                             VerticalContentAlignment="Center"
                             Margin="0,2,0,0" />
+                        <Grid
+                            Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="5" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel
+                                Grid.Column="0">
+                                <TextBlock
+                                    Text="Start #"
+                                    Margin="3,2,3,0" />
+                                <TextBox
+                                    Text="{Binding TemplateStartNumber, UpdateSourceTrigger=PropertyChanged, Delay=1000, TargetNullValue=1}"
+                                    behaviors:TextBoxBehaviors.IsDigitOnly="True"
+                                    FontFamily="Consolas"
+                                    MinHeight="20" 
+                                    VerticalContentAlignment="Center"
+                                    HorizontalContentAlignment="Center"
+                                    Margin="0,2,0,0" />
+                            </StackPanel>
+                            <StackPanel
+                                Grid.Column="2">
+                                <TextBlock
+                                    Text="Format"
+                                    Margin="3,2,3,0" />
+                                <TextBox
+                                    Text="{Binding TemplateFormat, UpdateSourceTrigger=PropertyChanged, Delay=1000, TargetNullValue=0}"
+                                    FontFamily="Consolas"
+                                    MinHeight="20" 
+                                    VerticalContentAlignment="Center"
+                                    HorizontalContentAlignment="Center"
+                                    Margin="0,2,0,0" />
+                            </StackPanel>
+                        </Grid>
                     </Grid>
                     <Grid
                         Visibility="{Binding IsExistingChapters, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Collapse}"
@@ -283,7 +319,7 @@
                     </Grid>
                     <Grid
                         Visibility="{Binding IsSilenceScan, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Collapse}"
-                        d:IsHidden="False">
+                        d:IsHidden="True">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
@@ -512,7 +548,7 @@
                         </Image>
                         <TextBlock
                             Grid.Column="1"
-                            Text="Use it"
+                            Text="Apply"
                             HorizontalAlignment="Center"
                             Margin="5,0,0,0" />
                     </Grid>

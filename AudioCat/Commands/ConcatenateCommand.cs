@@ -82,11 +82,6 @@ public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkit
         }
     }
 
-    private void MediaFileToolkitService_Error(object sender, MessageEventArgs eventArgs)
-    {
-        throw new NotImplementedException();
-    }
-
     public void Cancel()
     {
         try { Cts?.Cancel(); }

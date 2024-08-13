@@ -20,7 +20,9 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     private bool _isCueFile;
     private bool _trimStartingNonChars;
     private string _selectedTagName = "";                                // TODO Move to settings
-    private string _template = "Chapter {0}";                            // TODO Move to settings
+    private string _template = "Chapter {}";                             // TODO Move to settings
+    private int _templateStartNumber = 1;
+    private string _templateFormat = "0";
     private int _silenceThreshold = Constants.DEFAULT_SILENCE_THRESHOLD; // TODO Move to settings
     private int _silenceDuration = Constants.DEFAULT_SILENCE_DURATION;   // TODO Move to settings
     private Visibility _silenceScanProgressVisibility = Visibility.Hidden;
@@ -148,6 +150,30 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
                 return;
             _template = value;
             OnPropertyChanged(); 
+            if (IsTemplate)
+                CreateChaptersFromTemplate();
+        }
+    }
+    public int TemplateStartNumber
+    {
+        get => _templateStartNumber;
+        set
+        {
+            if (value == _templateStartNumber) return;
+            _templateStartNumber = value;
+            OnPropertyChanged();
+            if (IsTemplate)
+                CreateChaptersFromTemplate();
+        }
+    }
+    public string TemplateFormat
+    {
+        get => _templateFormat;
+        set
+        {
+            if (value == _templateFormat) return;
+            _templateFormat = value;
+            OnPropertyChanged();
             if (IsTemplate)
                 CreateChaptersFromTemplate();
         }
@@ -384,21 +410,11 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     private string GetTitleFromTemplate(IMediaFileViewModel _, int index)
     {
         var title = Template;
-        for (var insertCount = 0; insertCount < 100; insertCount++)
-        {
-            var startIdx = title.IndexOf('{');
-            if (startIdx == -1)
-                return title;
-            var endIdx = title.IndexOf('}', startIdx);
-            if (endIdx == -1)
-                return title;
-            string indexStr;
-            try { indexStr = string.Format($"{{0:{title.AsSpan(startIdx + 1, endIdx - startIdx - 1)}}}", index); }
-            catch { return title; }
-            title = title[..startIdx] + indexStr + title[(endIdx + 1)..];
-        }
-
-        return title;
+        var format = TemplateFormat;
+        string titleNumber;
+        try { titleNumber = string.Format($"{{0:{format}}}", TemplateStartNumber + index); }
+        catch { return title; }
+        return title.Replace("{}", titleNumber);
     }
 
     private IReadOnlyList<IMediaChapterViewModel> CreateChapters(Func<IMediaFileViewModel, int, string> getTitle)
