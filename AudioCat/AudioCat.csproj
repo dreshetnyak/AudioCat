@@ -38,6 +38,8 @@
     <None Remove="Images\NewTagGray.png" />
     <None Remove="Images\Ok.png" />
     <None Remove="Images\OkGray.png" />
+    <None Remove="Images\Refresh.png" />
+    <None Remove="Images\RefreshGray.png" />
     <None Remove="Images\Remove.png" />
     <None Remove="Images\RemoveGray.png" />
     <None Remove="Images\Selected.png" />
@@ -88,6 +90,8 @@
     <Resource Include="Images\NewTagGray.png" />
     <Resource Include="Images\Ok.png" />
     <Resource Include="Images\OkGray.png" />
+    <Resource Include="Images\Refresh.png" />
+    <Resource Include="Images\RefreshGray.png" />
     <Resource Include="Images\Remove.png" />
     <Resource Include="Images\RemoveGray.png" />
     <Resource Include="Images\Selected.png" />

@@ -1,5 +1,6 @@
 ﻿using AudioCat.Commands;
 using AudioCat.Models;
+using AudioCat.Services;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -9,15 +10,16 @@ using System.Windows.Input;
 
 namespace AudioCat.ViewModels;
 
+public enum ChapterSourceType { Unknown, FileNames, MetadataTags, Template, Existing, SilenceScan, CueFile }
+public sealed class ChapterSourceItem
+{
+    public ChapterSourceType SourceType { get; init; } = ChapterSourceType.Unknown;
+    public string Description { get; init; } = "";
+}
+
 public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyChanged
 {
     #region Backing Fields
-    private bool _isFileNames = true;
-    private bool _isMetadataTags;
-    private bool _isTemplate;
-    private bool _isExistingChapters;
-    private bool _isSilenceScan;
-    private bool _isCueFile;
     private bool _trimStartingNonChars;
     private string _selectedTagName = "";                                // TODO Move to settings
     private string _template = "Chapter {}";                             // TODO Move to settings
@@ -29,85 +31,48 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     private Visibility _silenceScanButtonVisibility = Visibility.Visible;
     private Visibility _cancelSilenceScanButtonVisibility = Visibility.Hidden;
     private bool _isUserInputEnabled = true;
+    private ChapterSourceItem _selectedChapterSource = new() {  SourceType = ChapterSourceType.Unknown, Description = "" };
 
     #endregion
 
     public IReadOnlyList<IMediaFileViewModel> Files { get; }
-    
-    public bool IsFileNames
+
+    public IReadOnlyList<ChapterSourceItem> ChapterSources { get; } =
+    [
+        new ChapterSourceItem { SourceType = ChapterSourceType.FileNames, Description = "File Names" },
+        new ChapterSourceItem { SourceType = ChapterSourceType.MetadataTags, Description = "Metadata Tags" },
+        new ChapterSourceItem { SourceType = ChapterSourceType.CueFile, Description = "CUE Sheet Files" },
+        new ChapterSourceItem { SourceType = ChapterSourceType.Template, Description = "Template" },
+        new ChapterSourceItem { SourceType = ChapterSourceType.SilenceScan, Description = "Silence Scan" },
+        new ChapterSourceItem { SourceType = ChapterSourceType.Existing, Description = "Existing Chapters" },
+    ];
+    public ChapterSourceItem SelectedChapterSource
     {
-        get => _isFileNames;
+        get => _selectedChapterSource;
         set
         {
-            if (value == _isFileNames) 
+            if (value == _selectedChapterSource) 
                 return;
-            _isFileNames = value;
+            _selectedChapterSource = value;
             OnPropertyChanged();
-            if (value)
-                CreateChaptersFromFileNames();
+            OnPropertyChanged(nameof(FileNamesOptionsVisibility));
+            OnPropertyChanged(nameof(MetadataTagsOptionsVisibility));
+            OnPropertyChanged(nameof(TemplateOptionsVisibility));
+            OnPropertyChanged(nameof(ExistingChaptersOptionsVisibility));
+            OnPropertyChanged(nameof(SilenceScanOptionsVisibility));
+            OnPropertyChanged(nameof(CueFileOptionsVisibility));
+            OnPropertyChanged(nameof(IsGenerateEnabled));
         }
     }
-    public bool IsMetadataTags
-    {
-        get => _isMetadataTags;
-        set
-        {
-            if (value == _isMetadataTags) 
-                return;
-            _isMetadataTags = value;
-            OnPropertyChanged();
-            if (value)
-                CreateChaptersFromMetadataTags();
-        }
-    }
-    public bool IsTemplate
-    {
-        get => _isTemplate;
-        set
-        {
-            if (value == _isTemplate) 
-                return;
-            _isTemplate = value;
-            OnPropertyChanged();
-            if (value)
-                CreateChaptersFromTemplate();
-        }
-    }
-    public bool IsExistingChapters
-    {
-        get => _isExistingChapters;
-        set
-        {
-            if (value == _isExistingChapters) 
-                return;
-            _isExistingChapters = value;
-            OnPropertyChanged();
-            if (value)
-                CreateChaptersFromExisting();
-        }
-    }
-    public bool IsSilenceScan
-    {
-        get => _isSilenceScan;
-        set
-        {
-            if (value == _isSilenceScan) 
-                return;
-            _isSilenceScan = value;
-            OnPropertyChanged();
-        }
-    }
-    public bool IsCueFile
-    {
-        get => _isCueFile;
-        set
-        {
-            if (value == _isCueFile) 
-                return;
-            _isCueFile = value;
-            OnPropertyChanged();
-        }
-    }
+
+    #region Options Visibility
+    public Visibility FileNamesOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.FileNames ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility MetadataTagsOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.MetadataTags ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility TemplateOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.Template ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility ExistingChaptersOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.Existing ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility SilenceScanOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.SilenceScan ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility CueFileOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.CueFile ? Visibility.Visible : Visibility.Collapsed;
+    #endregion
 
     public bool TrimStartingNonChars
     {
@@ -118,14 +83,10 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
                 return;
             _trimStartingNonChars = value;
             OnPropertyChanged();
-            if (IsFileNames)
-                CreateChaptersFromFileNames();
-            else if (IsMetadataTags)
-                CreateChaptersFromMetadataTags();
-
         }
     }
 
+    #region Metedata Tags Options
     public ObservableCollection<string> TagNames { get; } = [];
     public string SelectedTagName
     {
@@ -136,11 +97,11 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
                 return;
             _selectedTagName = value;
             OnPropertyChanged();
-            if (IsMetadataTags)
-                CreateChaptersFromMetadataTags();
         }
     }
+    #endregion
 
+    #region Template Options
     public string Template
     {
         get => _template;
@@ -150,8 +111,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
                 return;
             _template = value;
             OnPropertyChanged(); 
-            if (IsTemplate)
-                CreateChaptersFromTemplate();
         }
     }
     public int TemplateStartNumber
@@ -162,8 +121,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             if (value == _templateStartNumber) return;
             _templateStartNumber = value;
             OnPropertyChanged();
-            if (IsTemplate)
-                CreateChaptersFromTemplate();
         }
     }
     public string TemplateFormat
@@ -174,11 +131,11 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             if (value == _templateFormat) return;
             _templateFormat = value;
             OnPropertyChanged();
-            if (IsTemplate)
-                CreateChaptersFromTemplate();
         }
     }
+    #endregion
 
+    #region Silence Scan Options
     public int SilenceThreshold
     {
         get => _silenceThreshold;
@@ -234,13 +191,17 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             OnPropertyChanged();
         }
     }
+    #endregion
+
+    #region CUE Files Handling
+    public ObservableCollection<FileInfo> CueFiles { get; } = [];
+    public ICommand SelectCueFile { get; }
+    #endregion
 
     public ObservableCollection<IMediaChapterViewModel> CreatedChapters { get; }
 
     public bool IsExistingChaptersEnabled { get; }
-
     public bool IsUseCreatedEnabled => CreatedChapters.Count > 0;
-
     public bool IsUserInputEnabled
     {
         get => _isUserInputEnabled;
@@ -253,14 +214,24 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         }
     }
 
-    public event EventHandler? Close;
-    public event EventHandler? UseCreated;
+    public bool IsGenerateEnabled => SelectedChapterSource.SourceType switch
+    {
+        ChapterSourceType.FileNames or ChapterSourceType.MetadataTags or ChapterSourceType.Template or ChapterSourceType.Existing or ChapterSourceType.SilenceScan => true,
+        ChapterSourceType.CueFile => CueFiles.Count > 0,
+        ChapterSourceType.Unknown => false,
+        _ => false
+    };
+
+    public ICommand GenerateChapters { get; }
     public ICommand CloseDialog { get; }
     public ICommand UseCreatedChapters { get; }
     public ICommand FixAllIso8859ToWin1251 { get; }
     public ICommand FixSelectedIso8859ToWin1251 { get; }
     public ICommand ScanForSilence { get; }
     public ICommand CancelScanForSilence { get; }
+
+    public event EventHandler? Close;
+    public event EventHandler? UseCreated;
 
     public CreateChaptersViewModel(
         ObservableCollection<IMediaFileViewModel> files, 
@@ -271,6 +242,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         CreatedChapters = [];
         CreatedChapters.CollectionChanged += OnCreatedChaptersChanged;
 
+        GenerateChapters = new RelayCommand(OnGenerateChapters);
         CloseDialog = new RelayCommand(OnClose);
         Files = files;
         FixAllIso8859ToWin1251 = fixItemsEncodingCommand;
@@ -284,7 +256,25 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         CancelScanForSilence = new RelayCommand(scanForSilence.Cancel);
         ScanForSilence = scanForSilence;
 
+        SelectedChapterSource = ChapterSources[0];
+        SelectCueFile = new RelayCommand(OnSelectCueFile);
+
         _ = Task.Run(CreateChaptersFromFileNames);
+    }
+
+    private void OnSelectCueFile()
+    {
+        var fileNames = SelectionDialog.ChooseFilesToOpen("CUE Sheet|*.cue", true);
+        if (fileNames.Length == 0)
+            return;
+
+        CueFiles.Clear();
+        foreach (var fileName in fileNames)
+        {
+            var fileInfo = new FileInfo(fileName);
+            if (fileInfo.Exists)
+                CueFiles.Add(fileInfo);
+        }
     }
 
     private void OnCreatedChaptersChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => 
@@ -313,6 +303,26 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
 
         return false;
     }
+
+
+
+    private void OnGenerateChapters()
+    {
+        switch (SelectedChapterSource.SourceType)
+        {
+            case ChapterSourceType.FileNames: CreateChaptersFromFileNames(); break;
+            case ChapterSourceType.MetadataTags: CreateChaptersFromMetadataTags(); break;
+            case ChapterSourceType.Template: CreateChaptersFromTemplate(); break;
+            case ChapterSourceType.Existing: CreateChaptersFromExisting(); break;
+            case ChapterSourceType.Unknown:
+            case ChapterSourceType.SilenceScan:
+            case ChapterSourceType.CueFile:
+            default: break;
+        }
+    }
+
+
+
 
     private void OnScanForSilenceStarting(object? sender, EventArgs eventArgs)
     {
@@ -359,6 +369,9 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             startTime += interval.End - startTime;
         }
     }
+
+
+
 
     private void CreateChaptersFromFileNames()
     {
@@ -485,11 +498,9 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         }
     }
 
-    private void OnClose() =>
-        Close?.Invoke(this, EventArgs.Empty);
+    private void OnClose() => Close?.Invoke(this, EventArgs.Empty);
 
-    private void OnUseCreated() =>
-        UseCreated?.Invoke(this, EventArgs.Empty);
+    private void OnUseCreated() => UseCreated?.Invoke(this, EventArgs.Empty);
 
     #region INotifyPropertyChanged Implementation
     public event PropertyChangedEventHandler? PropertyChanged;

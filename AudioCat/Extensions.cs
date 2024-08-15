@@ -244,4 +244,49 @@ internal static class Extensions
 
         return -1;
     }
+
+    public static int IndexOf(this ReadOnlySpan<char> span, char ch, int startIndex)
+    {
+        for (var i = startIndex; i < span.Length; i++)
+        {
+            if (span[i] == ch)
+                return i;
+        }
+
+        return -1;
+    }
+
+    public static int LastIndexOf(this ReadOnlySpan<char> span, char ch, int startIndex)
+    {
+        for (var i = span.Length - 1; i >= startIndex; i--)
+        {
+            if (span[i] == ch)
+                return i;
+        }
+
+        return -1;
+    }
+
+
+    public static int SkipNonWhitespace(this ReadOnlySpan<char> span, int startIndex = 0)
+    {
+        for (var i = startIndex; i < span.Length; i++)
+        {
+            if (char.IsWhiteSpace(span[i]))
+                return i;
+        }
+
+        return span.Length;
+    }
+    
+    public static int SkipWhitespace(this ReadOnlySpan<char> span, int startIndex = 0)
+    {
+        for (var i = startIndex; i < span.Length; i++)
+        {
+            if (!char.IsWhiteSpace(span[i]))
+                return i;
+        }
+
+        return span.Length;
+    }
 }

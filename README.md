@@ -7,11 +7,9 @@
 
 ## Version History
 
-### AudioCat 5.0.0.alpha2
-Bug. AsParallel was used incorrectly when remuxing files, there was no parallelism.
-Fix. Now clean up after the concatenation is done in parallel.
-New. Added the start number and format for tempate chapters generator.
-Fix. The chapter generator button renamed to 'Apply'.
+### AudioCat 5.0.0.alpha3
+Work in progress, remaking the the chapters generator.
+Added a CUE parser and builder, not yet wired it up.
 
 Backlog.
 Redo the gray icons.
@@ -27,6 +25,12 @@ Automate FFMpeg download if it is not found.
 
 <details>
 <summary>Previous versions</summary>
+
+### AudioCat 5.0.0.alpha2
+Bug. AsParallel was used incorrectly when remuxing files, there was no parallelism.
+Fix. Now clean up after the concatenation is done in parallel.
+New. Added the start number and format for tempate chapters generator.
+Fix. The chapter generator button renamed to 'Apply'.
 
 ### AudioCat 5.0.0.alpha1
 New. Input tags and chapters are now immutable, output tags and chapters are now on a separate tab.<br>

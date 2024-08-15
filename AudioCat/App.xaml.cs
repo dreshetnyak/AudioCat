@@ -1,4 +1,6 @@
-﻿using AudioCat.Commands;
+﻿using System.Diagnostics;
+using System.IO;
+using AudioCat.Commands;
 using AudioCat.FFmpeg;
 using AudioCat.Models;
 using AudioCat.Services;
@@ -6,6 +8,7 @@ using AudioCat.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
 using System.Windows;
+
 
 namespace AudioCat;
 

@@ -115,71 +115,84 @@
         <Grid
             Grid.Column="1"
             MinWidth="211"
-            Margin="2,0,2,0">
+            Width="211"
+            Margin="2,10,2,0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
+
             <GroupBox
                 Grid.Row="0"
                 Header="Chapters Source"
                 IsEnabled="{Binding IsUserInputEnabled}">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
+                <Grid
+                    Margin="0,1,0,3">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
 
-                    <RadioButton
-                        x:Name="FileNamesRadioButton"
-                        Grid.Row="0"
-                        Content="File Names"
-                        IsChecked="{Binding IsFileNames}"
-                        GroupName="ChaptersSource"
-                        Margin="2,5,5,0" />
-                    <RadioButton
-                        x:Name="MetadataTagsRadioButton"
-                        Grid.Row="1"
-                        Content="Metadata Tags"
-                        IsChecked="{Binding IsMetadataTags}"
-                        GroupName="ChaptersSource"
-                        Margin="2,5,5,0" />
-                    <RadioButton
-                        x:Name="TemplateRadioButton"
-                        Grid.Row="2"
-                        Content="Template"
-                        IsChecked="{Binding IsTemplate}"
-                        GroupName="ChaptersSource"
-                        Margin="2,5,5,0" />
-                    <RadioButton
-                        x:Name="ExistingChaptersRadioButton"
-                        IsEnabled="{Binding IsExistingChaptersEnabled}"
-                        Grid.Row="3"
-                        Content="Existing Chapters"
-                        IsChecked="{Binding IsExistingChapters}"
-                        GroupName="ChaptersSource"
-                        Margin="2,5,5,0" />
-                    <RadioButton
-                        x:Name="SilenceScanRadioButton"
-                        Grid.Row="4"
-                        Content="Silence Scan"
-                        IsChecked="{Binding IsSilenceScan}"
-                        GroupName="ChaptersSource"
-                        Margin="2,5,5,0" />
-                    <RadioButton
-                        x:Name="CueFileRadioButton"
-                        Visibility="Collapsed"
-                        Grid.Row="5"
-                        Content="CUE File"
-                        IsChecked="{Binding IsCueFile}"
-                        GroupName="ChaptersSource"
-                        Margin="2,5,5,0" />
+                    <ComboBox
+                        Grid.Column="0"
+                        ItemsSource="{Binding ChapterSources, Mode=OneTime}"
+                        SelectedItem="{Binding SelectedChapterSource, UpdateSourceTrigger=PropertyChanged}"
+                        DisplayMemberPath="Description" />
+
+                    <Button
+                        Grid.Column="1"
+                        Command="{Binding GenerateChapters}"
+                        ToolTip="Generate Chapters"
+                        Margin="4,0,0,0">
+                        <Button.Style>
+                            <Style
+                                TargetType="{x:Type Button}">
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="BorderBrush" Value="Transparent" />
+                                <Setter Property="BorderThickness" Value="0" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="{x:Type Button}">
+                                            <Grid>
+                                                <Image
+                                                    x:Name="buttonImage"
+                                                    Source="/Images/Refresh.png"
+                                                    RenderOptions.BitmapScalingMode="Fant"
+                                                    Height="20"
+                                                    Margin="2,0,2,0">
+                                                </Image>
+                                                <Ellipse
+                                                    x:Name="hoverEllipse"
+                                                    Fill="Transparent"
+                                                    StrokeThickness="2"
+                                                    Stroke="Gray"
+                                                    Width="20"
+                                                    Height="20"
+                                                    Opacity="0"
+                                                    Margin="0,0,0,0" />
+                                            </Grid>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="hoverEllipse" Property="Opacity" Value="0.4" />
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter Property="Background" Value="Transparent" />
+                                                    <Setter TargetName="hoverEllipse" Property="Fill" Value="LightSkyBlue" />
+                                                    <Setter TargetName="hoverEllipse" Property="Opacity" Value="0.3" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter TargetName="buttonImage" Property="Source" Value="/Images/RefreshGray.png" />
+                                                    <Setter TargetName="hoverEllipse" Property="Opacity" Value="0" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                 </Grid>
             </GroupBox>
 
@@ -188,8 +201,8 @@
                 Header="Options">
                 <Grid>
                     <Grid
-                        Visibility="{Binding IsFileNames, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Collapse}"
                         IsEnabled="{Binding IsUserInputEnabled}"
+                        Visibility="{Binding FileNamesOptionsVisibility}"
                         d:IsHidden="True">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -201,8 +214,8 @@
                             Margin="3,5,3,3" />
                     </Grid>
                     <Grid
-                        Visibility="{Binding IsMetadataTags, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Collapse}"
                         IsEnabled="{Binding IsUserInputEnabled}"
+                        Visibility="{Binding MetadataTagsOptionsVisibility}"
                         d:IsHidden="True">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -248,9 +261,9 @@
                             Margin="3,5,3,3" />
                     </Grid>
                     <Grid
-                        Visibility="{Binding IsTemplate, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Collapse}"
                         IsEnabled="{Binding IsUserInputEnabled}"
-                        d:IsHidden="False">
+                        Visibility="{Binding TemplateOptionsVisibility}"
+                        d:IsHidden="True">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
@@ -264,7 +277,7 @@
                             Grid.Row="1"
                             Text="{Binding Template, UpdateSourceTrigger=PropertyChanged, Delay=1000}"
                             FontFamily="Consolas"
-                            MinHeight="20" 
+                            MinHeight="20"
                             Padding="3,0,0,0"
                             VerticalContentAlignment="Center"
                             Margin="0,2,0,0" />
@@ -281,10 +294,10 @@
                                     Text="Start #"
                                     Margin="3,2,3,0" />
                                 <TextBox
-                                    Text="{Binding TemplateStartNumber, UpdateSourceTrigger=PropertyChanged, Delay=1000, TargetNullValue=1}"
+                                    Text="{Binding TemplateStartNumber, UpdateSourceTrigger=PropertyChanged, TargetNullValue=1}"
                                     behaviors:TextBoxBehaviors.IsDigitOnly="True"
                                     FontFamily="Consolas"
-                                    MinHeight="20" 
+                                    MinHeight="20"
                                     VerticalContentAlignment="Center"
                                     HorizontalContentAlignment="Center"
                                     Margin="0,2,0,0" />
@@ -295,9 +308,9 @@
                                     Text="Format"
                                     Margin="3,2,3,0" />
                                 <TextBox
-                                    Text="{Binding TemplateFormat, UpdateSourceTrigger=PropertyChanged, Delay=1000, TargetNullValue=0}"
+                                    Text="{Binding TemplateFormat, UpdateSourceTrigger=PropertyChanged, TargetNullValue=0}"
                                     FontFamily="Consolas"
-                                    MinHeight="20" 
+                                    MinHeight="20"
                                     VerticalContentAlignment="Center"
                                     HorizontalContentAlignment="Center"
                                     Margin="0,2,0,0" />
@@ -305,8 +318,8 @@
                         </Grid>
                     </Grid>
                     <Grid
-                        Visibility="{Binding IsExistingChapters, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Collapse}"
                         IsEnabled="{Binding IsUserInputEnabled}"
+                        Visibility="{Binding ExistingChaptersOptionsVisibility}"
                         d:IsHidden="True">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -318,58 +331,59 @@
                             Margin="3,5,3,3" />
                     </Grid>
                     <Grid
-                        Visibility="{Binding IsSilenceScan, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Collapse}"
+                        IsEnabled="{Binding IsUserInputEnabled}"
+                        Visibility="{Binding SilenceScanOptionsVisibility}"
                         d:IsHidden="True">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <Grid 
+                        <Grid
                             Grid.Row="0"
                             IsEnabled="{Binding IsUserInputEnabled}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <Grid 
+                            <Grid
                                 Grid.Column="0"
                                 Margin="0,0,2,0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
-                                <TextBlock 
+                                <TextBlock
                                     Grid.Row="0"
-                                    Text="Silence in ms" 
+                                    Text="Silence in ms"
                                     Margin="3,2,3,0" />
-                                <TextBox 
+                                <TextBox
                                     Grid.Row="1"
                                     Text="{Binding SilenceDuration, UpdateSourceTrigger=PropertyChanged}"
                                     behaviors:TextBoxBehaviors.IsDigitOnly="True"
                                     FontFamily="Consolas"
-                                    MinHeight="20" 
+                                    MinHeight="20"
                                     VerticalContentAlignment="Center"
                                     HorizontalContentAlignment="Center"
                                     Padding="3,0,0,0"
                                     Margin="0,2,0,0" />
                             </Grid>
-                            <Grid 
+                            <Grid
                                 Grid.Column="1"
                                 Margin="2,0,0,0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
-                                <TextBlock 
+                                <TextBlock
                                     Grid.Row="0"
-                                    Text="Silence in -dB" 
+                                    Text="Silence in -dB"
                                     Margin="3,2,3,0" />
-                                <TextBox 
+                                <TextBox
                                     Grid.Row="1"
                                     Text="{Binding SilenceThreshold, UpdateSourceTrigger=PropertyChanged}"
                                     behaviors:TextBoxBehaviors.IsDigitOnly="True"
                                     FontFamily="Consolas"
-                                    MinHeight="20" 
+                                    MinHeight="20"
                                     VerticalContentAlignment="Center"
                                     HorizontalContentAlignment="Center"
                                     Padding="3,0,0,0"
@@ -383,7 +397,7 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <Grid 
+                            <Grid
                                 Grid.Column="0"
                                 Visibility="{Binding SilenceScanProgressVisibility}"
                                 Width="97">
@@ -393,7 +407,7 @@
                                 <ProgressBar
                                     Grid.Row="0"
                                     IsIndeterminate="True" />
-                                <TextBlock 
+                                <TextBlock
                                     Grid.Row="0"
                                     Text="Scanning..."
                                     VerticalAlignment="Center"
@@ -457,18 +471,68 @@
                         </Grid>
                     </Grid>
                     <Grid
-                        Visibility="{Binding IsCueFile, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Collapse}"
                         IsEnabled="{Binding IsUserInputEnabled}"
-                        d:IsHidden="True">
+                        Visibility="{Binding CueFileOptionsVisibility}"
+                        d:IsHidden="False">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <CheckBox
+                        <ListView
                             Grid.Row="0"
-                            Content="Trim starting non-characters"
-                            IsChecked="{Binding TrimStartingNonChars, UpdateSourceTrigger=PropertyChanged}"
-                            Margin="3,5,3,3" />
+                            ItemsSource="{Binding CueFiles}"
+                            DisplayMemberPath="Name"
+                            BorderBrush="DarkGray"
+                            Height="90"
+                            AlternationCount="2">
+                            <ListView.Resources>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="Background" Value="White"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                                            <Setter Property="Background" Value="SeaShell"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ListView.Resources>
+                        </ListView>
+                        <Button
+                            Grid.Row="1"
+                            Command="{Binding SelectCueFile}"
+                            Height="26"
+                            Width="136"
+                            HorizontalContentAlignment="Left"
+                            Margin="0,8,0,4">
+                            <Grid HorizontalAlignment="Left">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Image
+                                    Grid.Column="0"
+                                    RenderOptions.BitmapScalingMode="Fant"
+                                    Height="18"
+                                    Margin="6,0,0,0">
+                                    <Image.Style>
+                                        <Style TargetType="{x:Type Image}">
+                                            <Setter Property="Source" Value="/Images/Ok.png" />
+                                            <Style.Triggers>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Source" Value="/Images/OkGray.png" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Image.Style>
+                                </Image>
+                                <TextBlock
+                                    Grid.Column="1"
+                                    Text="Select CUE file(s)..."
+                                    HorizontalAlignment="Center"
+                                    Margin="5,0,0,0" />
+                            </Grid>
+                        </Button>
+
+
                     </Grid>
                 </Grid>
             </GroupBox>
