@@ -22,6 +22,8 @@
     <None Remove="Images\ChaptersGray.png" />
     <None Remove="Images\Clear.png" />
     <None Remove="Images\ClearGray.png" />
+    <None Remove="Images\Cue.png" />
+    <None Remove="Images\CueGray.png" />
     <None Remove="Images\Down.png" />
     <None Remove="Images\DownGray.png" />
     <None Remove="Images\Encoding.png" />
@@ -74,6 +76,8 @@
     <Resource Include="Images\ChaptersGray.png" />
     <Resource Include="Images\Clear.png" />
     <Resource Include="Images\ClearGray.png" />
+    <Resource Include="Images\Cue.png" />
+    <Resource Include="Images\CueGray.png" />
     <Resource Include="Images\Down.png" />
     <Resource Include="Images\DownGray.png" />
     <Resource Include="Images\Encoding.png" />

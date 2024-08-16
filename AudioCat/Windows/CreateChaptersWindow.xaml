@@ -515,10 +515,10 @@
                                     Margin="6,0,0,0">
                                     <Image.Style>
                                         <Style TargetType="{x:Type Image}">
-                                            <Setter Property="Source" Value="/Images/Ok.png" />
+                                            <Setter Property="Source" Value="/Images/Cue.png" />
                                             <Style.Triggers>
                                                 <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter Property="Source" Value="/Images/OkGray.png" />
+                                                    <Setter Property="Source" Value="/Images/CueGray.png" />
                                                 </Trigger>
                                             </Style.Triggers>
                                         </Style>

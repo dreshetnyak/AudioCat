@@ -314,16 +314,16 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             case ChapterSourceType.MetadataTags: CreateChaptersFromMetadataTags(); break;
             case ChapterSourceType.Template: CreateChaptersFromTemplate(); break;
             case ChapterSourceType.Existing: CreateChaptersFromExisting(); break;
-            case ChapterSourceType.Unknown:
+            case ChapterSourceType.CueFile: CreateChaptersFromCue(); break;
             case ChapterSourceType.SilenceScan:
-            case ChapterSourceType.CueFile:
+            case ChapterSourceType.Unknown:
             default: break;
         }
     }
 
 
 
-
+    #region Create from Silence Scan
     private void OnScanForSilenceStarting(object? sender, EventArgs eventArgs)
     {
         IsUserInputEnabled = false;
@@ -369,10 +369,9 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             startTime += interval.End - startTime;
         }
     }
+    #endregion
 
-
-
-
+    #region Create from File Names
     private void CreateChaptersFromFileNames()
     {
         var chapters = CreateChapters(GetTitleFromFileName);
@@ -380,6 +379,16 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         foreach (var chapter in chapters)
             CreatedChapters.Add(chapter);
     }
+
+    private string GetTitleFromFileName(IMediaFileViewModel file, int _)
+    {
+        var title = Path.GetFileNameWithoutExtension(file.File.Name);
+        return TrimStartingNonChars ? title.TrimStartNonChars() : title;
+    }
+    #endregion
+
+
+
 
     private void CreateChaptersFromMetadataTags()
     {
@@ -400,6 +409,15 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             CreatedChapters.Add(chapter);
     }
 
+    private string GetTitleFromTags(IMediaFileViewModel file, int _)
+    {
+        var title = file.Tags.GetTagValue(SelectedTagName);
+        return TrimStartingNonChars ? title.TrimStartNonChars() : title;
+    }
+
+
+
+
     private void CreateChaptersFromTemplate()
     {
         var chapters = CreateChapters(GetTitleFromTemplate);
@@ -407,19 +425,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         foreach (var chapter in chapters)
             CreatedChapters.Add(chapter);
     }
-
-    private string GetTitleFromFileName(IMediaFileViewModel file, int _)
-    {
-        var title = Path.GetFileNameWithoutExtension(file.File.Name);
-        return TrimStartingNonChars ? title.TrimStartNonChars() : title;
-    }
-
-    private string GetTitleFromTags(IMediaFileViewModel file, int _)
-    {
-        var title = file.Tags.GetTagValue(SelectedTagName);
-        return TrimStartingNonChars ? title.TrimStartNonChars() : title;
-    }
-
+    
     private string GetTitleFromTemplate(IMediaFileViewModel _, int index)
     {
         var title = Template;
@@ -429,6 +435,10 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         catch { return title; }
         return title.Replace("{}", titleNumber);
     }
+
+
+
+
 
     private IReadOnlyList<IMediaChapterViewModel> CreateChapters(Func<IMediaFileViewModel, int, string> getTitle)
     {
@@ -470,6 +480,10 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         };
     }
 
+
+
+
+
     private void CreateChaptersFromExisting()
     {
         var startTime = TimeSpan.Zero;
@@ -497,6 +511,17 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             }
         }
     }
+
+
+
+
+    private void CreateChaptersFromCue()
+    {
+
+    }
+
+
+
 
     private void OnClose() => Close?.Invoke(this, EventArgs.Empty);
 
