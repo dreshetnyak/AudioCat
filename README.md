@@ -12,8 +12,9 @@ Work in progress, remaking the the chapters generator.
 Added a CUE parser and builder, not yet wired it up.
 
 Backlog.
+Add full support for opus.
 Redo the gray icons.
-Need overlappring chapters detection.
+Need overlapping chapters detection.
 When cleaning output chapters activate the output tab.
 Automate FFMpeg download if it is not found.
 'These files already added', add 'Add anyway' option.
@@ -29,7 +30,7 @@ Automate FFMpeg download if it is not found.
 ### AudioCat 5.0.0.alpha2
 Bug. AsParallel was used incorrectly when remuxing files, there was no parallelism.
 Fix. Now clean up after the concatenation is done in parallel.
-New. Added the start number and format for tempate chapters generator.
+New. Added the start number and format for template chapters generator.
 Fix. The chapter generator button renamed to 'Apply'.
 
 ### AudioCat 5.0.0.alpha1
@@ -44,7 +45,7 @@ New. Concatenation now detects some remux-recoverable errors and performs remuxi
 New. Added a status update for the image attachment stage, before it appeared to be frozen without any status during this stage.<br>
 New. FLAC concatenation is changed to use re-encoding instead of concat.<br>
 Fix. Trim start and end spaces from a suggested file name.<br>
-Bug. Disabled chapters support for FLAC format as the formai itself doesn't support it.<br>
+Bug. Disabled chapters support for FLAC format as the format itself doesn't support it.<br>
 Bug. File list could contain BOM, that could cause concatenation failure.<br>
 Bug. When generating files list the app was outputting an extra new line after the header.
 
@@ -81,7 +82,7 @@ Fix. In some cases when concatenation fails an empty output file was created, no
 Bug. Multiple tags selection was allowed leading to inconsistent tags manipulation results.<br>
 Fix. Ordering columns now disabled.<br>
 New. Added the total files count.<br>
-Fix. Adjusted the hight of the selected file data fields.<br>
+Fix. Adjusted the height of the selected file data fields.<br>
 Fix. Ordering by column is now disabled for streams and chapters grid.<br>
 Fix. Set a minimal size for the right side panel.<br>
 Bug. Adding an image would fail if m4b file contained chapters.<br>
@@ -105,7 +106,7 @@ New. Now the app accepts a drop of directories.
 Bug. When adding some files the app would freeze on the probing stage.<br>
 New. Added the switch for enabling or disabling media tags, also adding, deleting and moving them around.<br>
 New. Now dragging files into the app also work with right Control.<br>
-New. Now app accesps files from CLI, or if they are dropped to it.<br>
+New. Now app accepts files from CLI, or if they are dropped to it.<br>
 Changed the font and the font size for some UI elements.<br>
 The code went through a significant refactoring.
 
@@ -126,14 +127,14 @@ Bug. If the cover image was added to the list then it was deleted by the end of 
 ### AudioCat v1.6.0
 New. Now we can add image files along with audio files, those images will be attached as cover images.<br>
 New. Now if files are dragged and Left Ctrl is pressed the files will be added without clearing existing files.<br>
-Bug. The text values read from files was dispayed garbled if they was in a language different from English.<br>
+Bug. The text values read from files was displayed garbled if they was in a language different from English.<br>
 Fix. If a bitrate was not available an empty value was shown, now it is 'N/A'.<br>
 Bug. When adding files by a directory, only mp3 files were added.
 
 ### AudioCat v1.5.1
 Bug. If a warning that is ignored was repeated more than one time the error dialog would show anyway.<br>
 Bug. Progress bar calculation was done based on the total file size, that could result in a wrong progress if one of the streams was discarded, now it is based on the duration.<br>
-Fix. If metedata had an encoding BOM error that was always resulting in a concatenation error, now we handle it.
+Fix. If metadata had an encoding BOM error that was always resulting in a concatenation error, now we handle it.
 
 ### AudioCat v1.5.0
 Fix. Now the save file extension is added according to the input files encoding.<br>
