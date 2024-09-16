@@ -212,7 +212,8 @@
                         </GroupBox>
                         <GroupBox
                             Grid.Row="1"
-                            Header="Options">
+                            Header="Options"
+                            Visibility="{Binding OptionsVisibility}">
                             <Grid>
                                 <Grid
                                     IsEnabled="{Binding IsUserInputEnabled}"
@@ -273,7 +274,7 @@
                                     </Grid.RowDefinitions>
                                     <TextBlock
                                         Grid.Row="0"
-                                        Text="Enter chapters name template"
+                                        Text="Chapters title template"
                                         Margin="3,2,3,0" />
                                     <TextBox
                                         Grid.Row="1"
@@ -326,7 +327,6 @@
                                     <!-- TODO -->
                                 </Grid>
                                 <Grid
-                                    IsEnabled="{Binding IsUserInputEnabled}"
                                     Visibility="{Binding SilenceScanOptionsVisibility}"
                                     d:IsHidden="True">
                                     <Grid.RowDefinitions>
@@ -338,64 +338,47 @@
                                         IsEnabled="{Binding IsUserInputEnabled}">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="4" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <Grid
-                                            Grid.Column="0"
-                                            Margin="0,0,2,0">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                            </Grid.RowDefinitions>
+                                        <StackPanel Grid.Column="0">
                                             <TextBlock
-                                                Grid.Row="0"
                                                 Text="Silence in ms"
-                                                Margin="3,2,3,0" />
+                                                Margin="3,0,3,0" />
                                             <TextBox
-                                                Grid.Row="1"
                                                 Text="{Binding SilenceDuration, UpdateSourceTrigger=PropertyChanged}"
                                                 behaviors:TextBoxBehaviors.IsDigitOnly="True"
                                                 FontFamily="Consolas"
                                                 MinHeight="20"
                                                 VerticalContentAlignment="Center"
                                                 HorizontalContentAlignment="Center"
-                                                Padding="3,0,0,0"
-                                                Margin="0,2,0,0" />
-                                        </Grid>
-                                        <Grid
-                                            Grid.Column="1"
-                                            Margin="2,0,0,0">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                            </Grid.RowDefinitions>
+                                                Padding="3,0,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
                                             <TextBlock
-                                                Grid.Row="0"
                                                 Text="Silence in -dB"
-                                                Margin="3,2,3,0" />
+                                                Margin="3,0,3,0" />
                                             <TextBox
-                                                Grid.Row="1"
                                                 Text="{Binding SilenceThreshold, UpdateSourceTrigger=PropertyChanged}"
                                                 behaviors:TextBoxBehaviors.IsDigitOnly="True"
                                                 FontFamily="Consolas"
                                                 MinHeight="20"
                                                 VerticalContentAlignment="Center"
                                                 HorizontalContentAlignment="Center"
-                                                Padding="3,0,0,0"
-                                                Margin="0,2,0,0" />
-                                        </Grid>
+                                                Padding="3,0,0,0" />
+                                        </StackPanel>
                                     </Grid>
                                     <Grid
                                         Grid.Row="1"
-                                        Margin="0,8,0,3">
+                                        Margin="0,5,0,1">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="4" />
+                                            <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
                                         <Grid
                                             Grid.Column="0"
-                                            Visibility="{Binding SilenceScanProgressVisibility}"
-                                            Width="97">
+                                            Visibility="{Binding SilenceScanProgressVisibility}">
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="*" />
                                             </Grid.RowDefinitions>
@@ -409,14 +392,12 @@
                                                 HorizontalAlignment="Center" />
                                         </Grid>
                                         <Button
-                                            Grid.Column="1"
+                                            Grid.Column="2"
                                             Command="{Binding ScanForSilence}"
                                             CommandParameter="{Binding}"
                                             Visibility="{Binding SilenceScanButtonVisibility}"
                                             Height="26"
-                                            Width="97"
-                                            HorizontalContentAlignment="Left"
-                                            Margin="5,0,0,0">
+                                            HorizontalContentAlignment="Left">
                                             <Grid HorizontalAlignment="Left">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto" />
@@ -437,13 +418,11 @@
                                             </Grid>
                                         </Button>
                                         <Button
-                                            Grid.Column="1"
+                                            Grid.Column="2"
                                             Command="{Binding CancelScanForSilence}"
                                             Visibility="{Binding CancelSilenceScanButtonVisibility}"
                                             Height="26"
-                                            Width="97"
-                                            HorizontalContentAlignment="Left"
-                                            Margin="5,0,0,0">
+                                            HorizontalContentAlignment="Left">
                                             <Grid HorizontalAlignment="Left">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto" />
@@ -569,10 +548,10 @@
                                         Text="Text to trim"
                                         Margin="3,0,0,0" />
                                     <TextBox
-                                        Text=""
-                                        Height="22"
+                                        Text="{Binding TextToTrim, UpdateSourceTrigger=PropertyChanged}"
+                                        Height="20"
                                         FontFamily="Consolas"
-                                        FontSize="14"
+                                        FontSize="12"
                                         VerticalContentAlignment="Center"
                                         Padding="2,0,0,0" />
                                 </StackPanel>
@@ -604,17 +583,19 @@
                                                 <RadioButton
                                                     Grid.Row="0"
                                                     Content="Exact text"
+                                                    IsChecked="{Binding IsTrimExactText}"
                                                     Margin="3,4,3,3" />
                                                 <RadioButton
                                                     Grid.Row="1"
                                                     Content="Chars from text"
+                                                    IsChecked="{Binding IsTrimCharsFromText}"
                                                     Margin="3,0,3,3" />
                                             </Grid>
                                         </Border>
                                         <CheckBox
                                             Grid.Row="1"
                                             Content="Case sensitive"
-                                            IsChecked="{Binding TrimStartingNonChars, UpdateSourceTrigger=PropertyChanged}"
+                                            IsChecked="{Binding IsTrimCaseSensitive}"
                                             Margin="3,5,3,3" />
                                     </Grid>
                                     <Grid 
@@ -630,12 +611,16 @@
                                         <Button 
                                             Grid.Row="0"
                                             Content="Trim Start"
+                                            IsEnabled="{Binding IsTrimEnabled}"
+                                            Command="{Binding TrimStart}"
                                             Height="26"
                                             Width="80"
                                             Padding="8,0,8,0" />
                                         <Button 
                                             Grid.Row="2"
                                             Content="Trim End"
+                                            IsEnabled="{Binding IsTrimEnabled}"
+                                            Command="{Binding TrimEnd}"
                                             Height="26"
                                             Width="80"
                                             Padding="8,0,8,0" />
@@ -664,10 +649,10 @@
                                             Text="Find what"
                                             Margin="3,0,0,0" />
                                         <TextBox
-                                            Text=""
-                                            Height="22"
+                                            Text="{Binding ReplaceWhatText, UpdateSourceTrigger=PropertyChanged}"
+                                            Height="20"
                                             FontFamily="Consolas"
-                                            FontSize="14"
+                                            FontSize="12"
                                             VerticalContentAlignment="Center"
                                             Padding="2,0,0,0" />
                                     </StackPanel>
@@ -677,10 +662,10 @@
                                             Text="Replace with"
                                             Margin="3,0,0,0" />
                                         <TextBox
-                                            Text=""
-                                            Height="22"
+                                            Text="{Binding ReplaceWithText, UpdateSourceTrigger=PropertyChanged}"
+                                            Height="20"
                                             FontFamily="Consolas"
-                                            FontSize="14"
+                                            FontSize="12"
                                             VerticalContentAlignment="Center"
                                             Padding="2,0,0,0" />
                                     </StackPanel>
@@ -695,11 +680,13 @@
                                     <CheckBox
                                         Grid.Column="0"
                                         Content="Case sensitive"
-                                        IsChecked="{Binding TrimStartingNonChars, UpdateSourceTrigger=PropertyChanged}"
+                                        IsChecked="{Binding IsReplaceCaseSensitive}"
                                         Margin="3,5,3,3" />
                                     <Button 
                                         Grid.Column="2"
                                         Content="Replace"
+                                        IsEnabled="{Binding IsReplaceEnabled}"
+                                        Command="{Binding ReplaceInTitles}"
                                         Height="26"
                                         Width="80"
                                         HorizontalAlignment="Right"
@@ -722,11 +709,11 @@
                                         Text="Text to add"
                                         Margin="3,0,0,0" />
                                     <TextBox
-                                        Text=""
-                                        Height="22"
+                                        Text="{Binding TextToAdd, UpdateSourceTrigger=PropertyChanged}"
+                                        Height="20"
                                         ToolTip="Enter '{}' in the text to insert the chapter sequence number."
                                         FontFamily="Consolas"
-                                        FontSize="14"
+                                        FontSize="12"
                                         VerticalContentAlignment="Center"
                                         Padding="2,0,0,0" />
                                 </StackPanel>
@@ -745,17 +732,31 @@
                                             Text="Start #"
                                             Margin="3,0,0,0" />
                                         <TextBox
-                                            Text=""
-                                            Height="22"
+                                            Text="{Binding TextToAddSequenceStart, UpdateSourceTrigger=PropertyChanged}"
+                                            Height="20"
                                             ToolTip="The starting value for the chapter sequence number."
                                             FontFamily="Consolas"
-                                            FontSize="14"
+                                            FontSize="12"
                                             VerticalContentAlignment="Center"
-                                            Padding="2,0,0,0" />
+                                            HorizontalContentAlignment="Center"
+                                            Padding="2,0,0,0">
+                                            <TextBox.Style>
+                                                <Style TargetType="{x:Type TextBox}">
+                                                    <Setter Property="Background" Value="White" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsTextToAddSequenceStartValid}" Value="False">
+                                                            <Setter Property="Background" Value="LightPink" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBox.Style>
+                                        </TextBox>
                                     </StackPanel>
                                     <Button 
                                         Grid.Column="2"
                                         Content="Add to Start"
+                                        IsEnabled="{Binding IsAddEnabled}"
+                                        Command="{Binding AddToStart}"
                                         Height="26"
                                         Width="80"
                                         VerticalAlignment="Bottom"
@@ -764,6 +765,8 @@
                                     <Button 
                                         Grid.Column="4"
                                         Content="Add to End"
+                                        IsEnabled="{Binding IsAddEnabled}"
+                                        Command="{Binding AddToEnd}"
                                         Height="26"
                                         Width="80"
                                         VerticalAlignment="Bottom"

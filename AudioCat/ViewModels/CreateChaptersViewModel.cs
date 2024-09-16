@@ -20,11 +20,14 @@ public sealed class ChapterSourceItem
 public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyChanged
 {
     #region Backing Fields
+
+    private const int DEFAULT_SEQUENCE_START = 1;
+
     private bool _trimStartingNonChars;
     private string _selectedTagName = "";                                // TODO Move to settings
     private string _template = "Chapter {}";                             // TODO Move to settings
-    private int _templateStartNumber = 1;
-    private string _templateFormat = "0";
+    private int _templateStartNumber = DEFAULT_SEQUENCE_START;
+    private string _templateFormat = DEFAULT_SEQUENCE_START.ToString();
     private int _silenceThreshold = Constants.DEFAULT_SILENCE_THRESHOLD; // TODO Move to settings
     private int _silenceDuration = Constants.DEFAULT_SILENCE_DURATION;   // TODO Move to settings
     private Visibility _silenceScanProgressVisibility = Visibility.Hidden;
@@ -32,6 +35,20 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     private Visibility _cancelSilenceScanButtonVisibility = Visibility.Hidden;
     private bool _isUserInputEnabled = true;
     private ChapterSourceItem _selectedChapterSource = new() {  SourceType = ChapterSourceType.Unknown, Description = "" };
+    private string _textToTrim = "";
+    private bool _isTrimExactText;
+    private bool _isTrimCharsFromText;
+    private bool _isTrimCaseSensitive;
+    private bool _isTrimEnabled;
+    private string _replaceWhatText = "";
+    private string _replaceWithText = "";
+    private bool _isReplaceCaseSensitive;
+    private bool _isReplaceEnabled;
+    private string _textToAdd = "";
+    private string _textToAddSequenceStart = "";
+    private bool _isAddEnabled;
+    private bool _isTextToAddSequenceStartValid = true;
+    private int _textToAddSequenceStartValue = DEFAULT_SEQUENCE_START;
 
     #endregion
 
@@ -62,6 +79,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             OnPropertyChanged(nameof(SilenceScanOptionsVisibility));
             OnPropertyChanged(nameof(CueFileOptionsVisibility));
             OnPropertyChanged(nameof(IsGenerateEnabled));
+            OnPropertyChanged(nameof(OptionsVisibility));
         }
     }
 
@@ -72,6 +90,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     public Visibility ExistingChaptersOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.Existing ? Visibility.Visible : Visibility.Collapsed;
     public Visibility SilenceScanOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.SilenceScan ? Visibility.Visible : Visibility.Collapsed;
     public Visibility CueFileOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.CueFile ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility OptionsVisibility => SelectedChapterSource.SourceType != ChapterSourceType.FileNames && SelectedChapterSource.SourceType != ChapterSourceType.Existing ? Visibility.Visible : Visibility.Collapsed;
     #endregion
 
     public bool TrimStartingNonChars
@@ -198,6 +217,184 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     public ICommand SelectCueFile { get; }
     #endregion
 
+    #region Modifying the Chapters
+    public string TextToTrim
+    {
+        get => _textToTrim;
+        set
+        {
+            if (value == _textToTrim) 
+                return;
+            _textToTrim = value;
+            OnPropertyChanged();
+            IsTrimEnabled = !string.IsNullOrEmpty(value);
+        }
+    }
+    public bool IsTrimExactText
+    {
+        get => _isTrimExactText;
+        set
+        {
+            if (value == _isTrimExactText) 
+                return;
+            _isTrimExactText = value;
+            OnPropertyChanged();
+        }
+    }
+    public bool IsTrimCharsFromText
+    {
+        get => _isTrimCharsFromText;
+        set
+        {
+            if (value == _isTrimCharsFromText) 
+                return;
+            _isTrimCharsFromText = value;
+            OnPropertyChanged();
+        }
+    }
+    public bool IsTrimCaseSensitive
+    {
+        get => _isTrimCaseSensitive;
+        set
+        {
+            if (value == _isTrimCaseSensitive) 
+                return;
+            _isTrimCaseSensitive = value;
+            OnPropertyChanged();
+        }
+    }
+    public bool IsTrimEnabled
+    {
+        get => _isTrimEnabled;
+        set
+        {
+            if (value == _isTrimEnabled) 
+                return;
+            _isTrimEnabled = value;
+            OnPropertyChanged();
+        }
+    }
+    public ICommand TrimStart { get; }
+    public ICommand TrimEnd { get; }
+
+    public string ReplaceWhatText
+    {
+        get => _replaceWhatText;
+        set
+        {
+            if (value == _replaceWhatText) 
+                return;
+            _replaceWhatText = value;
+            OnPropertyChanged();
+            IsReplaceEnabled = !string.IsNullOrEmpty(value);
+        }
+    }
+    public string ReplaceWithText
+    {
+        get => _replaceWithText;
+        set
+        {
+            if (value == _replaceWithText) 
+                return;
+            _replaceWithText = value;
+            OnPropertyChanged();
+        }
+    }
+    public bool IsReplaceCaseSensitive
+    {
+        get => _isReplaceCaseSensitive;
+        set
+        {
+            if (value == _isReplaceCaseSensitive) 
+                return;
+            _isReplaceCaseSensitive = value;
+            OnPropertyChanged();
+        }
+    }
+    public bool IsReplaceEnabled
+    {
+        get => _isReplaceEnabled;
+        set
+        {
+            if (value == _isReplaceEnabled) 
+                return;
+            _isReplaceEnabled = value;
+            OnPropertyChanged();
+        }
+    }
+    public ICommand ReplaceInTitles { get; }
+
+    public string TextToAdd
+    {
+        get => _textToAdd;
+        set
+        {
+            if (value == _textToAdd) 
+                return;
+            _textToAdd = value;
+            OnPropertyChanged();
+            IsAddEnabled = !string.IsNullOrEmpty(value);
+        }
+    }
+    public string TextToAddSequenceStart
+    {
+        get => _textToAddSequenceStart;
+        set
+        {
+            if (value == _textToAddSequenceStart) 
+                return;
+            _textToAddSequenceStart = value;
+            OnPropertyChanged();
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                IsTextToAddSequenceStartValid = int.TryParse(TextToAddSequenceStart, out var sequenceStart);
+                TextToAddSequenceStartValue = sequenceStart;
+            }
+            else
+            {
+                IsTextToAddSequenceStartValid = true;
+                TextToAddSequenceStartValue = DEFAULT_SEQUENCE_START;
+            }
+
+        }
+    }
+    public bool IsTextToAddSequenceStartValid
+    {
+        get => _isTextToAddSequenceStartValid;
+        set
+        {
+            if (value == _isTextToAddSequenceStartValid) 
+                return;
+            _isTextToAddSequenceStartValid = value;
+            OnPropertyChanged();
+        }
+    }
+    public int TextToAddSequenceStartValue
+    {
+        get => _textToAddSequenceStartValue;
+        set
+        {
+            if (value == _textToAddSequenceStartValue) 
+                return;
+            _textToAddSequenceStartValue = value;
+            OnPropertyChanged();
+        }
+    }
+    public bool IsAddEnabled
+    {
+        get => _isAddEnabled;
+        set
+        {
+            if (value == _isAddEnabled) 
+                return;
+            _isAddEnabled = value;
+            OnPropertyChanged();
+        }
+    }
+    public ICommand AddToStart { get; }
+    public ICommand AddToEnd { get; }
+    #endregion
+    
     public ObservableCollection<IMediaChapterViewModel> CreatedChapters { get; }
 
     public bool IsExistingChaptersEnabled { get; }
@@ -239,6 +436,8 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         FixItemsEncodingCommand fixItemsEncodingCommand,
         ScanForSilenceCommand scanForSilence)
     {
+        _ = Task.Run(CreateChaptersFromFileNames);
+
         CreatedChapters = [];
         CreatedChapters.CollectionChanged += OnCreatedChaptersChanged;
 
@@ -259,7 +458,11 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         SelectedChapterSource = ChapterSources[0];
         SelectCueFile = new RelayCommand(OnSelectCueFile);
 
-        _ = Task.Run(CreateChaptersFromFileNames);
+        TrimStart = new RelayCommand(() => CreatedChapters.TrimStart(TextToTrim, IsTrimExactText, IsTrimCharsFromText, IsTrimCaseSensitive));
+        TrimEnd = new RelayCommand(() => CreatedChapters.TrimEnd(TextToTrim, IsTrimExactText, IsTrimCharsFromText, IsTrimCaseSensitive));
+        ReplaceInTitles = new RelayCommand(() => CreatedChapters.Replace(ReplaceWhatText, ReplaceWithText, IsReplaceCaseSensitive));
+        AddToStart = new RelayCommand(() => CreatedChapters.AddToStart(TextToAdd, TextToAddSequenceStartValue, TextToAddSequenceStart.Length));
+        AddToEnd = new RelayCommand(() => CreatedChapters.AddToEnd(TextToAdd, TextToAddSequenceStartValue, TextToAddSequenceStart.Length));
     }
 
     private void OnSelectCueFile()
@@ -304,8 +507,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         return false;
     }
 
-
-
     private void OnGenerateChapters()
     {
         switch (SelectedChapterSource.SourceType)
@@ -320,8 +521,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             default: break;
         }
     }
-
-
 
     #region Create from Silence Scan
     private void OnScanForSilenceStarting(object? sender, EventArgs eventArgs)
@@ -387,9 +586,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     }
     #endregion
 
-
-
-
     private void CreateChaptersFromMetadataTags()
     {
         if (string.IsNullOrEmpty(SelectedTagName))
@@ -415,9 +611,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         return TrimStartingNonChars ? title.TrimStartNonChars() : title;
     }
 
-
-
-
     private void CreateChaptersFromTemplate()
     {
         var chapters = CreateChapters(GetTitleFromTemplate);
@@ -435,10 +628,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         catch { return title; }
         return title.Replace("{}", titleNumber);
     }
-
-
-
-
 
     private IReadOnlyList<IMediaChapterViewModel> CreateChapters(Func<IMediaFileViewModel, int, string> getTitle)
     {
@@ -480,10 +669,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         };
     }
 
-
-
-
-
     private void CreateChaptersFromExisting()
     {
         var startTime = TimeSpan.Zero;
@@ -511,9 +696,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             }
         }
     }
-
-
-
 
     private void CreateChaptersFromCue()
     {
