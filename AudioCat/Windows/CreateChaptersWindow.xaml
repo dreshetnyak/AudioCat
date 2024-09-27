@@ -266,59 +266,50 @@
                                 <Grid
                                     IsEnabled="{Binding IsUserInputEnabled}"
                                     Visibility="{Binding TemplateOptionsVisibility}"
-                                    d:IsHidden="True">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
-                                    <TextBlock
-                                        Grid.Row="0"
-                                        Text="Chapters title template"
-                                        Margin="3,2,3,0" />
-                                    <TextBox
-                                        Grid.Row="1"
-                                        Text="{Binding Template, UpdateSourceTrigger=PropertyChanged, Delay=1000}"
-                                        FontFamily="Consolas"
-                                        MinHeight="20"
-                                        Padding="3,0,0,0"
-                                        VerticalContentAlignment="Center"
-                                        Margin="0,2,0,0" />
-                                    <Grid
-                                        Grid.Row="2">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="5" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel
-                                            Grid.Column="0">
-                                            <TextBlock
-                                                Text="Start #"
-                                                Margin="3,2,3,0" />
-                                            <TextBox
-                                                Text="{Binding TemplateStartNumber, UpdateSourceTrigger=PropertyChanged, TargetNullValue=1}"
-                                                behaviors:TextBoxBehaviors.IsDigitOnly="True"
-                                                FontFamily="Consolas"
-                                                MinHeight="20"
-                                                VerticalContentAlignment="Center"
-                                                HorizontalContentAlignment="Center"
-                                                Margin="0,2,0,0" />
-                                        </StackPanel>
-                                        <StackPanel
-                                            Grid.Column="2">
-                                            <TextBlock
-                                                Text="Format"
-                                                Margin="3,2,3,0" />
-                                            <TextBox
-                                                Text="{Binding TemplateFormat, UpdateSourceTrigger=PropertyChanged, TargetNullValue=0}"
-                                                FontFamily="Consolas"
-                                                MinHeight="20"
-                                                VerticalContentAlignment="Center"
-                                                HorizontalContentAlignment="Center"
-                                                Margin="0,2,0,0" />
-                                        </StackPanel>
-                                    </Grid>
+                                    d:IsHidden="True"
+                                    Margin="0,0,0,1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="4" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock
+                                            Text="Chapters title template"
+                                            Margin="3,0,3,0" />
+                                        <TextBox
+                                            Text="{Binding Template, UpdateSourceTrigger=PropertyChanged}"
+                                            FontFamily="Consolas"
+                                            MinHeight="20"
+                                            Padding="3,0,0,0"
+                                            VerticalContentAlignment="Center"
+                                            Margin="0,2,0,0" />
+                                    </StackPanel>
+                                    <StackPanel
+                                        Grid.Column="2">
+                                        <TextBlock
+                                            Text="Start #"
+                                            Margin="3,0,3,0" />
+                                        <TextBox
+                                            Text="{Binding TemplateStartNumber, UpdateSourceTrigger=PropertyChanged}"
+                                            behaviors:TextBoxBehaviors.IsDigitOnly="True"
+                                            FontFamily="Consolas"
+                                            MinHeight="20"
+                                            VerticalContentAlignment="Center"
+                                            HorizontalContentAlignment="Center"
+                                            Margin="0,2,0,0">
+                                            <TextBox.Style>
+                                                <Style TargetType="{x:Type TextBox}">
+                                                    <Setter Property="Background" Value="White" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsTemplateStartNumberValid}" Value="False">
+                                                            <Setter Property="Background" Value="LightPink" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBox.Style>
+                                        </TextBox>
+                                    </StackPanel>
                                 </Grid>
                                 <Grid
                                     IsEnabled="{Binding IsUserInputEnabled}"
@@ -444,73 +435,8 @@
                                         </Button>
                                     </Grid>
                                 </Grid>
-                                <Grid
-                                    IsEnabled="{Binding IsUserInputEnabled}"
-                                    Visibility="{Binding CueFileOptionsVisibility}"
-                                    d:IsHidden="False">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
-                                    <ListView
-                                        Grid.Row="0"
-                                        ItemsSource="{Binding CueFiles}"
-                                        DisplayMemberPath="Name"
-                                        BorderBrush="DarkGray"
-                                        Height="90"
-                                        AlternationCount="2">
-                                        <ListView.Resources>
-                                            <Style TargetType="ListViewItem">
-                                                <Setter Property="Background" Value="White" />
-                                                <Style.Triggers>
-                                                    <Trigger Property="ItemsControl.AlternationIndex" Value="1">
-                                                        <Setter Property="Background" Value="SeaShell" />
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </ListView.Resources>
-                                    </ListView>
-                                    <Button
-                                        Grid.Row="1"
-                                        Command="{Binding SelectCueFile}"
-                                        Height="26"
-                                        Width="136"
-                                        HorizontalContentAlignment="Left"
-                                        Margin="0,8,0,4">
-                                        <Grid HorizontalAlignment="Left">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <Image
-                                                Grid.Column="0"
-                                                RenderOptions.BitmapScalingMode="Fant"
-                                                Height="18"
-                                                Margin="6,0,0,0">
-                                                <Image.Style>
-                                                    <Style TargetType="{x:Type Image}">
-                                                        <Setter Property="Source" Value="/Images/Cue.png" />
-                                                        <Style.Triggers>
-                                                            <Trigger Property="IsEnabled" Value="False">
-                                                                <Setter Property="Source" Value="/Images/CueGray.png" />
-                                                            </Trigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Image.Style>
-                                            </Image>
-                                            <TextBlock
-                                                Grid.Column="1"
-                                                Text="Select CUE file(s)..."
-                                                HorizontalAlignment="Center"
-                                                Margin="5,0,0,0" />
-                                        </Grid>
-                                    </Button>
-
-
-                                </Grid>
                             </Grid>
                         </GroupBox>
-
                     </Grid>
                 </TabItem>
                 <TabItem>

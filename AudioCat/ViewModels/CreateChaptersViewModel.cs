@@ -10,7 +10,7 @@ using System.Windows.Input;
 
 namespace AudioCat.ViewModels;
 
-public enum ChapterSourceType { Unknown, FileNames, MetadataTags, Template, Existing, SilenceScan, CueFile }
+public enum ChapterSourceType { Unknown, FileNames, MetadataTags, Template, Existing, SilenceScan }
 public sealed class ChapterSourceItem
 {
     public ChapterSourceType SourceType { get; init; } = ChapterSourceType.Unknown;
@@ -26,8 +26,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     private bool _trimStartingNonChars;
     private string _selectedTagName = "";                                // TODO Move to settings
     private string _template = "Chapter {}";                             // TODO Move to settings
-    private int _templateStartNumber = DEFAULT_SEQUENCE_START;
-    private string _templateFormat = DEFAULT_SEQUENCE_START.ToString();
+    private string _templateStartNumber = DEFAULT_SEQUENCE_START.ToString();
     private int _silenceThreshold = Constants.DEFAULT_SILENCE_THRESHOLD; // TODO Move to settings
     private int _silenceDuration = Constants.DEFAULT_SILENCE_DURATION;   // TODO Move to settings
     private Visibility _silenceScanProgressVisibility = Visibility.Hidden;
@@ -49,6 +48,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     private bool _isAddEnabled;
     private bool _isTextToAddSequenceStartValid = true;
     private int _textToAddSequenceStartValue = DEFAULT_SEQUENCE_START;
+    private bool _isTemplateStartNumberValid = true;
 
     #endregion
 
@@ -58,7 +58,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     [
         new ChapterSourceItem { SourceType = ChapterSourceType.FileNames, Description = "File Names" },
         new ChapterSourceItem { SourceType = ChapterSourceType.MetadataTags, Description = "Metadata Tags" },
-        new ChapterSourceItem { SourceType = ChapterSourceType.CueFile, Description = "CUE Sheet Files" },
         new ChapterSourceItem { SourceType = ChapterSourceType.Template, Description = "Template" },
         new ChapterSourceItem { SourceType = ChapterSourceType.SilenceScan, Description = "Silence Scan" },
         new ChapterSourceItem { SourceType = ChapterSourceType.Existing, Description = "Existing Chapters" },
@@ -77,7 +76,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             OnPropertyChanged(nameof(TemplateOptionsVisibility));
             OnPropertyChanged(nameof(ExistingChaptersOptionsVisibility));
             OnPropertyChanged(nameof(SilenceScanOptionsVisibility));
-            OnPropertyChanged(nameof(CueFileOptionsVisibility));
             OnPropertyChanged(nameof(IsGenerateEnabled));
             OnPropertyChanged(nameof(OptionsVisibility));
         }
@@ -89,7 +87,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     public Visibility TemplateOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.Template ? Visibility.Visible : Visibility.Collapsed;
     public Visibility ExistingChaptersOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.Existing ? Visibility.Visible : Visibility.Collapsed;
     public Visibility SilenceScanOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.SilenceScan ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility CueFileOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.CueFile ? Visibility.Visible : Visibility.Collapsed;
     public Visibility OptionsVisibility => SelectedChapterSource.SourceType != ChapterSourceType.FileNames && SelectedChapterSource.SourceType != ChapterSourceType.Existing ? Visibility.Visible : Visibility.Collapsed;
     #endregion
 
@@ -132,23 +129,37 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             OnPropertyChanged(); 
         }
     }
-    public int TemplateStartNumber
+    public string TemplateStartNumber
     {
         get => _templateStartNumber;
         set
         {
-            if (value == _templateStartNumber) return;
+            if (value == _templateStartNumber) 
+                return;
             _templateStartNumber = value;
             OnPropertyChanged();
+
+            if (int.TryParse(TemplateStartNumber, out var numberValue))
+            {
+                IsTemplateStartNumberValid = true;
+                TemplateStartNumberValue = numberValue;
+            }
+            else
+            {
+                IsTemplateStartNumberValid = false;
+                TemplateStartNumberValue = DEFAULT_SEQUENCE_START;
+            }
         }
     }
-    public string TemplateFormat
+    public int TemplateStartNumberValue { get; set; }
+    public bool IsTemplateStartNumberValid
     {
-        get => _templateFormat;
+        get => _isTemplateStartNumberValid;
         set
         {
-            if (value == _templateFormat) return;
-            _templateFormat = value;
+            if (value == _isTemplateStartNumberValid) 
+                return;
+            _isTemplateStartNumberValid = value;
             OnPropertyChanged();
         }
     }
@@ -210,11 +221,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             OnPropertyChanged();
         }
     }
-    #endregion
-
-    #region CUE Files Handling
-    public ObservableCollection<FileInfo> CueFiles { get; } = [];
-    public ICommand SelectCueFile { get; }
     #endregion
 
     #region Modifying the Chapters
@@ -414,7 +420,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     public bool IsGenerateEnabled => SelectedChapterSource.SourceType switch
     {
         ChapterSourceType.FileNames or ChapterSourceType.MetadataTags or ChapterSourceType.Template or ChapterSourceType.Existing or ChapterSourceType.SilenceScan => true,
-        ChapterSourceType.CueFile => CueFiles.Count > 0,
         ChapterSourceType.Unknown => false,
         _ => false
     };
@@ -456,28 +461,12 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         ScanForSilence = scanForSilence;
 
         SelectedChapterSource = ChapterSources[0];
-        SelectCueFile = new RelayCommand(OnSelectCueFile);
 
         TrimStart = new RelayCommand(() => CreatedChapters.TrimStart(TextToTrim, IsTrimExactText, IsTrimCharsFromText, IsTrimCaseSensitive));
         TrimEnd = new RelayCommand(() => CreatedChapters.TrimEnd(TextToTrim, IsTrimExactText, IsTrimCharsFromText, IsTrimCaseSensitive));
         ReplaceInTitles = new RelayCommand(() => CreatedChapters.Replace(ReplaceWhatText, ReplaceWithText, IsReplaceCaseSensitive));
         AddToStart = new RelayCommand(() => CreatedChapters.AddToStart(TextToAdd, TextToAddSequenceStartValue, TextToAddSequenceStart.Length));
         AddToEnd = new RelayCommand(() => CreatedChapters.AddToEnd(TextToAdd, TextToAddSequenceStartValue, TextToAddSequenceStart.Length));
-    }
-
-    private void OnSelectCueFile()
-    {
-        var fileNames = SelectionDialog.ChooseFilesToOpen("CUE Sheet|*.cue", true);
-        if (fileNames.Length == 0)
-            return;
-
-        CueFiles.Clear();
-        foreach (var fileName in fileNames)
-        {
-            var fileInfo = new FileInfo(fileName);
-            if (fileInfo.Exists)
-                CueFiles.Add(fileInfo);
-        }
     }
 
     private void OnCreatedChaptersChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => 
@@ -515,7 +504,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             case ChapterSourceType.MetadataTags: CreateChaptersFromMetadataTags(); break;
             case ChapterSourceType.Template: CreateChaptersFromTemplate(); break;
             case ChapterSourceType.Existing: CreateChaptersFromExisting(); break;
-            case ChapterSourceType.CueFile: CreateChaptersFromCue(); break;
             case ChapterSourceType.SilenceScan:
             case ChapterSourceType.Unknown:
             default: break;
@@ -618,16 +606,10 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         foreach (var chapter in chapters)
             CreatedChapters.Add(chapter);
     }
-    
-    private string GetTitleFromTemplate(IMediaFileViewModel _, int index)
-    {
-        var title = Template;
-        var format = TemplateFormat;
-        string titleNumber;
-        try { titleNumber = string.Format($"{{0:{format}}}", TemplateStartNumber + index); }
-        catch { return title; }
-        return title.Replace("{}", titleNumber);
-    }
+
+    private string GetTitleFromTemplate(IMediaFileViewModel _, int index) => IsTemplateStartNumberValid
+        ? Template.Replace("{}", (TemplateStartNumberValue + index).ToString(new string('0', TemplateStartNumber.Length)))
+        : Template;
 
     private IReadOnlyList<IMediaChapterViewModel> CreateChapters(Func<IMediaFileViewModel, int, string> getTitle)
     {
@@ -696,14 +678,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             }
         }
     }
-
-    private void CreateChaptersFromCue()
-    {
-
-    }
-
-
-
 
     private void OnClose() => Close?.Invoke(this, EventArgs.Empty);
 

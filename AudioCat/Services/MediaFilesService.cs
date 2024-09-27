@@ -162,6 +162,12 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
 
         var coverSelected = SelectionFlags.GetCoverSelectedFrom(files);
 
+
+
+        //TODO CUE FILES SHOULD BE ADDED HERE
+
+
+
         var response = await GetMediaFiles(fileNames, !coverSelected, selectedCodec, CancellationToken.None);
 
         if (selectedCodec == "")

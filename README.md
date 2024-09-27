@@ -11,6 +11,9 @@
 Work in progress, remaking the the chapters generator.
 Added a CUE parser and builder, not yet wired it up.
 
+Unable to add CUE in chapters editor. Because the track index does not indicate duration of a track, which results in that we cannot establish the duration of the last track without probing the file to know the duration of the file. The cue files need to be added using the files adding option.
+
+
 Backlog.
 Add full support for opus.
 Redo the gray icons.
