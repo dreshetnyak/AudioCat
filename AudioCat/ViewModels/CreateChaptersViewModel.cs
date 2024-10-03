@@ -35,7 +35,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     private bool _isUserInputEnabled = true;
     private ChapterSourceItem _selectedChapterSource = new() {  SourceType = ChapterSourceType.Unknown, Description = "" };
     private string _textToTrim = "";
-    private bool _isTrimExactText;
+    private bool _isTrimExactText = true;
     private bool _isTrimCharsFromText;
     private bool _isTrimCaseSensitive;
     private bool _isTrimEnabled;
@@ -54,14 +54,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
 
     public IReadOnlyList<IMediaFileViewModel> Files { get; }
 
-    public IReadOnlyList<ChapterSourceItem> ChapterSources { get; } =
-    [
-        new ChapterSourceItem { SourceType = ChapterSourceType.FileNames, Description = "File Names" },
-        new ChapterSourceItem { SourceType = ChapterSourceType.MetadataTags, Description = "Metadata Tags" },
-        new ChapterSourceItem { SourceType = ChapterSourceType.Template, Description = "Template" },
-        new ChapterSourceItem { SourceType = ChapterSourceType.SilenceScan, Description = "Silence Scan" },
-        new ChapterSourceItem { SourceType = ChapterSourceType.Existing, Description = "Existing Chapters" },
-    ];
+    public ObservableCollection<ChapterSourceItem> ChapterSources { get; }
     public ChapterSourceItem SelectedChapterSource
     {
         get => _selectedChapterSource;
@@ -151,7 +144,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             }
         }
     }
-    public int TemplateStartNumberValue { get; set; }
+    public int TemplateStartNumberValue { get; set; } = DEFAULT_SEQUENCE_START;
     public bool IsTemplateStartNumberValid
     {
         get => _isTemplateStartNumberValid;
@@ -441,7 +434,9 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         FixItemsEncodingCommand fixItemsEncodingCommand,
         ScanForSilenceCommand scanForSilence)
     {
-        _ = Task.Run(CreateChaptersFromFileNames);
+        ChapterSources = new ObservableCollection<ChapterSourceItem>(GetChapterSources(files));
+        SetInitialSelectedChapterSource();
+        _ = Task.Run(OnGenerateChapters);
 
         CreatedChapters = [];
         CreatedChapters.CollectionChanged += OnCreatedChaptersChanged;
@@ -460,7 +455,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         CancelScanForSilence = new RelayCommand(scanForSilence.Cancel);
         ScanForSilence = scanForSilence;
 
-        SelectedChapterSource = ChapterSources[0];
+        SetInitialSelectedChapterSource();
 
         TrimStart = new RelayCommand(() => CreatedChapters.TrimStart(TextToTrim, IsTrimExactText, IsTrimCharsFromText, IsTrimCaseSensitive));
         TrimEnd = new RelayCommand(() => CreatedChapters.TrimEnd(TextToTrim, IsTrimExactText, IsTrimCharsFromText, IsTrimCaseSensitive));
@@ -468,6 +463,46 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         AddToStart = new RelayCommand(() => CreatedChapters.AddToStart(TextToAdd, TextToAddSequenceStartValue, TextToAddSequenceStart.Length));
         AddToEnd = new RelayCommand(() => CreatedChapters.AddToEnd(TextToAdd, TextToAddSequenceStartValue, TextToAddSequenceStart.Length));
     }
+
+    #region Initialization of Chapter Sources and the Selected Chapter Source
+    private static IEnumerable<ChapterSourceItem> GetChapterSources(IReadOnlyList<IMediaFileViewModel> files)
+    {
+        yield return new ChapterSourceItem { SourceType = ChapterSourceType.FileNames, Description = "File Names" };
+        if (TagsExist(files))
+            yield return new ChapterSourceItem { SourceType = ChapterSourceType.MetadataTags, Description = "Metadata Tags" };
+        yield return new ChapterSourceItem { SourceType = ChapterSourceType.Template, Description = "Template" };
+        yield return new ChapterSourceItem { SourceType = ChapterSourceType.SilenceScan, Description = "Silence Scan" };
+        if (ChaptersExist(files))
+            yield return new ChapterSourceItem { SourceType = ChapterSourceType.Existing, Description = "Existing Chapters" };
+    }
+
+    private static bool TagsExist(IReadOnlyList<IMediaFileViewModel> files)
+    {
+        foreach (var file in files)
+        {
+            if (file.HasTags)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool ChaptersExist(IReadOnlyList<IMediaFileViewModel> files)
+    {
+        foreach (var file in files)
+        {
+            if (file.Chapters.Count > 0)
+                return true;
+        }
+
+        return false;
+    }
+
+    private void SetInitialSelectedChapterSource()
+    {
+        SelectedChapterSource = ChapterSources[0];
+    }
+    #endregion
 
     private void OnCreatedChaptersChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => 
         OnPropertyChanged(nameof(IsUseCreatedEnabled));

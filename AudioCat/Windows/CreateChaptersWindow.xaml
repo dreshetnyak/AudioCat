@@ -153,7 +153,7 @@
                                 </Grid.ColumnDefinitions>
                                 <ComboBox
                                     Grid.Column="0"
-                                    ItemsSource="{Binding ChapterSources, Mode=OneTime}"
+                                    ItemsSource="{Binding ChapterSources, Mode=OneWay}"
                                     SelectedItem="{Binding SelectedChapterSource, UpdateSourceTrigger=PropertyChanged}"
                                     DisplayMemberPath="Description" />
                                 <Button

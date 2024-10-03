@@ -8,19 +8,29 @@
 ## Version History
 
 ### AudioCat 5.0.0.alpha3
+Bug. Chapter generation template initial value was not set.
+Bug. Chapters edit text to trim type is not selected by default.
+Bug. Chapters generator existing tags and its options was shown even if there are no tags; same for existing chapters.
+
 Work in progress, remaking the the chapters generator.
 Added a CUE parser and builder, not yet wired it up.
 
-Unable to add CUE in chapters editor. Because the track index does not indicate duration of a track, which results in that we cannot establish the duration of the last track without probing the file to know the duration of the file. The cue files need to be added using the files adding option.
-
+Note. Unable to add CUE in chapters editor. Because the track index does not indicate duration of a track, 
+which results in that we cannot establish the duration of the last track without probing the file to know 
+the duration of the file. The cue files need to be added using the files adding option.
+On the other hand the files are already added, and probed so we do know the sizes.
 
 Backlog.
+Bug. Opus, adding tags and saving file does not save the tags to the file.
 Add full support for opus.
+Opus format identified as ogg, need to investigate.
+Update the app description.
 Redo the gray icons.
 Need overlapping chapters detection.
 When cleaning output chapters activate the output tab.
 Automate FFMpeg download if it is not found.
 'These files already added', add 'Add anyway' option.
+Chapters generator, add capital case and transliterate options.
 
 #### Notes.
 **Tags support.** The supported tags are specific to a particular file format. As a result, if you set a tag and the output format doesn't support it, it may be missing in the output file.<br>
