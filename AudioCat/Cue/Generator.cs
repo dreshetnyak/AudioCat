@@ -18,23 +18,33 @@ internal static class Generator
             yield return file.Type != ""
                 ? $"FILE \"{file.Name}\" {file.Type}"
                 : $"FILE \"{file.Name}\"";
-                
-            foreach (var track in file.Tracks)
-            {
-                yield return $"  TRACK {track.Number:00} {track.Type}";
-                if (track.Title != "")
-                    yield return $"    TITLE \"{track.Title}\"";
-                if (track.Performer != "")
-                    yield return $"    PERFORMER \"{track.Performer}\"";
-                if (track.Songwriter != "")
-                    yield return $"    SONGWRITER \"{track.Songwriter}\"";
-                foreach (var tag in track.Tags)
-                    yield return tag.Value != "" 
-                        ? $"    REM {tag.Name} {tag.Value}" 
-                        : $"    REM {tag.Name}";
-                yield return $"    INDEX {track.Index.Number:00} {track.Index.Time.ToTrackIndexTime()}";
-            }
+
+            foreach (var trackLine in GetTracks(file)) 
+                yield return trackLine;
         }
+    }
+
+    private static IEnumerable<string> GetTracks(IFile file)
+    {
+        foreach (var track in file.Tracks)
+            foreach (var p in GetTrackLines(track)) 
+                yield return p;
+    }
+
+    private static IEnumerable<string> GetTrackLines(ITrack track)
+    {
+        yield return $"  TRACK {track.Number:00} {track.Type}";
+        if (track.Title != "")
+            yield return $"    TITLE \"{track.Title}\"";
+        if (track.Performer != "")
+            yield return $"    PERFORMER \"{track.Performer}\"";
+        if (track.Songwriter != "")
+            yield return $"    SONGWRITER \"{track.Songwriter}\"";
+        foreach (var tag in track.Tags)
+            yield return tag.Value != "" 
+                ? $"    REM {tag.Name} {tag.Value}" 
+                : $"    REM {tag.Name}";
+        yield return $"    INDEX {track.Index.Number:00} {track.Index.Time.ToTrackIndexTime()}";
     }
 
     private const decimal FRAME_SIZE = 1000m / 75m;

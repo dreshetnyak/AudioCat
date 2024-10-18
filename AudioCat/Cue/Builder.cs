@@ -30,6 +30,6 @@ internal sealed class Builder
     public void Add(IFile file) => Files.Add(file);
 
     public IResponse<ICue> Build() => Files.Count != 0
-        ? Response<ICue>.Success(new CueImpl(Title, Performer, Songwriter, Tags.ToArray(), Files.ToArray()))
+        ? Response<ICue>.Success(new CueImpl(Title, Performer, Songwriter, Tags.ToArray(), Files.ToArray())) // Do not remove ToArray() here, it is intended to make a copy of the list
         : Response<ICue>.Failure("No FILE commands found in the cue file");
 }

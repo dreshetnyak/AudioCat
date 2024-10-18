@@ -15,7 +15,7 @@ internal class TextBlockFormatter
         Underline
     }
 
-    private class Formatter(string start, string end, FormatterType type)
+    private sealed class Formatter(string start, string end, FormatterType type)
     {
         public string Start { get; } = start;
         public string End { get; } = end;
@@ -54,22 +54,22 @@ internal class TextBlockFormatter
         var output = new StringBuilder();
         var formatters = new List<FormatterType>();
 
-        for (var readIndex = 0; readIndex < input.Length;)
+        for (var readOffset = 0; readOffset < input.Length;)
         {
-            if (TryGetFormatterStartAt(input, readIndex, out var startingFormatter))
+            if (TryGetFormatterStartAt(input, readOffset, out var startingFormatter))
             {
                 AddFormattedText(textBlock, output, formatters);
                 formatters.Add(startingFormatter!.Type);
-                readIndex += startingFormatter!.Start.Length;
+                readOffset += startingFormatter.Start.Length;
             }
-            else if (TryGetFormatterEndAt(input, readIndex, out var endingFormatter))
+            else if (TryGetFormatterEndAt(input, readOffset, out var endingFormatter))
             {
                 AddFormattedText(textBlock, output, formatters);
                 RemoveFormatter(formatters, endingFormatter!.Type);
-                readIndex += endingFormatter!.End.Length;
+                readOffset += endingFormatter.End.Length;
             }
 
-            output.Append(input[readIndex++]);
+            output.Append(input[readOffset++]);
         }
 
         AddFormattedText(textBlock, output, formatters);
@@ -89,11 +89,11 @@ internal class TextBlockFormatter
         return false;
     }
 
-    private static bool TryGetFormatterEndAt(string value, int readIndex, out Formatter? endingFormatter)
+    private static bool TryGetFormatterEndAt(string value, int readOffset, out Formatter? endingFormatter)
     {
         foreach (var formatter in Formatters)
         {
-            if (!value.AsSpan(readIndex).StartsWith(formatter.End))
+            if (!value.AsSpan(readOffset).StartsWith(formatter.End))
                 continue;
             endingFormatter = formatter;
             return true;

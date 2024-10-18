@@ -62,7 +62,7 @@ internal static class CommandFactory
         var startIndex = lineSpan.SkipWhitespace();
         if (startIndex == line.Length)
             return Response<object>.Failure("The line does not contain any command");
-        var commandName = lineSpan.Slice(startIndex, lineSpan.SkipNonWhitespace(startIndex) - startIndex);
+        var commandName = lineSpan[startIndex..lineSpan.SkipNonWhitespace(startIndex)];
         var valueStart = lineSpan.SkipWhitespace(startIndex + commandName.Length);
         var commandValue = valueStart != lineSpan.Length
             ? lineSpan[valueStart..]
@@ -239,11 +239,14 @@ internal static class CommandFactory
     private static ReadOnlySpan<char> GetNoSpaceValue(ReadOnlySpan<char> valueSpan) =>
         valueSpan[..valueSpan.SkipNonWhitespace()];
 
-    private static ReadOnlySpan<char> GetValueFullString(ReadOnlySpan<char> valueSpan) => !valueSpan.IsEmpty
-        ? valueSpan[0] == '\"'
-            ? GetQuotedValueFullString(valueSpan)
-            : valueSpan.Trim()
-        : [];
+    private static ReadOnlySpan<char> GetValueFullString(ReadOnlySpan<char> valueSpan)
+    {
+        if (!valueSpan.IsEmpty)
+            return valueSpan[0] == '\"'
+                ? GetQuotedValueFullString(valueSpan)
+                : valueSpan.Trim();
+        return [];
+    }
 
     private static ReadOnlySpan<char> GetQuotedValueFullString(ReadOnlySpan<char> valueSpan)
     {

@@ -4,6 +4,9 @@ namespace AudioCat;
 
 internal static class Settings
 {
+    public static string FFmpegName { get; } = "ffmpeg.exe";
+    public static string FFprobeName { get; } = "ffprobe.exe";
+
     public static IReadOnlyList<string> ErrorsToIgnore { get; } =
     [
         "Invalid PNG signature",
@@ -79,26 +82,27 @@ internal static class Settings
             _ => ""
         };
 
+    private const string OTHER_AUDIO_EXTENSION = "Other Audio|*.*";
     public static string GetAddFilesExtensionFilter(string codec) => codec switch
     {
         Codecs.MP3 => "MP3 Audio|*.mp3|" +
-                      "Other Audio|*.*",
+                      OTHER_AUDIO_EXTENSION,
         Codecs.AAC => "AAC Audio|*.m4b|" +
                       "AAC Audio|*.m4a|" +
                       "AAC Audio|*.aac|" +
-                      "Other Audio|*.*",
+                      OTHER_AUDIO_EXTENSION,
         Codecs.OPUS => "Opus Audio|*.opus|" +
-                       "Other Audio|*.*",
+                       OTHER_AUDIO_EXTENSION,
         Codecs.WMAV2 => "Windows Media Audio|*.wma|" +
-                        "Other Audio|*.*",
+                        OTHER_AUDIO_EXTENSION,
         Codecs.FLAC => "Free Lossless Audio Codec|*.flac|" +
-                       "Other Audio|*.*",
+                       OTHER_AUDIO_EXTENSION,
         Codecs.PCM_S16_LE => "Waveform Audio|*.wav|" +
-                             "Other Audio|*.*",
+                             OTHER_AUDIO_EXTENSION,
         Codecs.PCM_U8 => "Waveform Audio|*.wav|" +
-                         "Other Audio|*.*",
+                         OTHER_AUDIO_EXTENSION,
         Codecs.VORBIS => "OGG Vorbis|*.ogg|" +
-                         "Other Audio|*.*",
+                         OTHER_AUDIO_EXTENSION,
         _ => "MP3 Audio|*.mp3|" +
              "AAC Audio|*.m4b|" +
              "AAC Audio|*.m4a|" +
@@ -108,6 +112,6 @@ internal static class Settings
              "Free Lossless Audio Codec|*.flac|" +
              "Waveform Audio|*.wav|" +
              "OGG Vorbis|*.ogg|" +
-             "Other Audio|*.*"
+             OTHER_AUDIO_EXTENSION
     };
 }

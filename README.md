@@ -7,10 +7,8 @@
 
 ## Version History
 
-### AudioCat 5.0.0
-Chapters generator has been completely re-done.
-Added opus format support.
-Multiple code bug fixes.
+### AudioCat 5.0.1
+Code refactoring and clean up.
 
 #### Notes.
 **Tags support.** The supported tags are specific to a particular file format. As a result, if you set a tag and the output format doesn't support it, it may be missing in the output file.<br>
@@ -20,22 +18,27 @@ Multiple code bug fixes.
 <details>
 <summary>Previous versions</summary>
 
+### AudioCat 5.0.0
+Chapters generator has been completely re-done.<br>
+Added opus format support.<br>
+Multiple code bug fixes.
+
 ### AudioCat 5.0.0.alpha3
-Bug. Chapter generation template initial value was not set.
-Bug. Chapters edit text to trim type is not selected by default.
+Bug. Chapter generation template initial value was not set.<br>
+Bug. Chapters edit text to trim type is not selected by default.<br>
 Bug. Chapters generator existing tags and its options was shown even if there are no tags; same for existing chapters.
 
 ### AudioCat 5.0.0.alpha2
-Bug. AsParallel was used incorrectly when remuxing files, there was no parallelism.
-Fix. Now clean up after the concatenation is done in parallel.
-New. Added the start number and format for template chapters generator.
+Bug. AsParallel was used incorrectly when remuxing files, there was no parallelism.<br>
+Fix. Now clean up after the concatenation is done in parallel.<br>
+New. Added the start number and format for template chapters generator.<br>
 Fix. The chapter generator button renamed to 'Apply'.
 
 ### AudioCat 5.0.0.alpha1
 New. Input tags and chapters are now immutable, output tags and chapters are now on a separate tab.<br>
 Bug. When providing a folder(s) in command line the app fails to add files.<br>
 New. When selecting tags the tags selection button now briefly lits to indicate that the tags has been copied.<br>
-New. Replaced the tags and cover image selection icons.
+New. Replaced the tags and cover image selection icons.<br>
 New. Now output chapters encoding can be fixed by using a popup menu.
 
 ### AudioCat 4.0.0

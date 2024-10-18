@@ -3,15 +3,13 @@ using System.IO;
 using System.Windows;
 using AudioCat.Models;
 using AudioCat.Services;
-using AudioCat.ViewModels;
 using AudioCat.Windows;
 
 namespace AudioCat.Commands;
 
-public sealed class AddPathCommand(IMediaFilesService mediaFilesService, IMediaFilesContainer mediaFilesContainer) : CommandBase
+public sealed class AddPathCommand(IMediaFilesService mediaFilesService) : CommandBase
 {
     private IMediaFilesService MediaFilesService { get; } = mediaFilesService;
-    private ObservableCollection<IMediaFileViewModel> MediaFiles { get; } = mediaFilesContainer.Files;
 
     protected override async Task<IResponse<object>> Command(object? parameter)
     {
@@ -25,8 +23,8 @@ public sealed class AddPathCommand(IMediaFilesService mediaFilesService, IMediaF
             var sortedFileNames = Files.Sort(fileNames);
 
             var response = await MediaFilesService.AddMediaFiles(sortedFileNames, false);
-            if (response.SkipFiles.Count > 0)
-                new SkippedFilesWindow(response.SkipFiles).ShowDialog();
+            if (response.SkippedFiles.Count > 0)
+                new SkippedFilesWindow(response.SkippedFiles).ShowDialog();
 
             return Response<object>.Success();
         }

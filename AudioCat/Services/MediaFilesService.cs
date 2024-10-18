@@ -17,7 +17,7 @@ public interface IMediaFilesService
     public interface IGetMediaFilesResponse
     {
         IReadOnlyList<IMediaFileViewModel> MediaFiles { get; }
-        IReadOnlyList<ISkipFile> SkipFiles { get; }
+        IReadOnlyList<ISkipFile> SkippedFiles { get; }
     }
 
     #endregion
@@ -39,7 +39,7 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
     private sealed class GetMediaFilesResponse(IReadOnlyList<IMediaFileViewModel> mediaFiles, IReadOnlyList<IMediaFilesService.ISkipFile> skipFiles) : IMediaFilesService.IGetMediaFilesResponse
     {
         public IReadOnlyList<IMediaFileViewModel> MediaFiles { get; } = mediaFiles;
-        public IReadOnlyList<IMediaFilesService.ISkipFile> SkipFiles { get; } = skipFiles;
+        public IReadOnlyList<IMediaFilesService.ISkipFile> SkippedFiles { get; } = skipFiles;
     }
 
     #endregion
@@ -188,7 +188,7 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
             {
                 var duplicateFilesWindow = new DuplicateFilesWindow(duplicates);
                 duplicateFilesWindow.ShowDialog();
-                return duplicateFilesWindow.SelectedDuplicateFiles;
+                return duplicateFilesWindow.GetSelectedDuplicateFiles();
             });
 
             if (duplicatesToAdd.Count != duplicates.Count)
@@ -215,7 +215,7 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
 
     private static IMediaFilesService.IGetMediaFilesResponse SkipImages(IMediaFilesService.IGetMediaFilesResponse response, string codec)
     {
-        var updatedSkipFiles = new List<IMediaFilesService.ISkipFile>(response.SkipFiles);
+        var updatedSkipFiles = new List<IMediaFilesService.ISkipFile>(response.SkippedFiles);
         var updatedFiles = new List<IMediaFileViewModel>(response.MediaFiles.Count);
         foreach (var file in response.MediaFiles)
         {
@@ -230,7 +230,7 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
 
     private static IMediaFilesService.IGetMediaFilesResponse SkipFiles(IMediaFilesService.IGetMediaFilesResponse response, string codec)
     {
-        var updatedSkipFiles = new List<IMediaFilesService.ISkipFile>(response.SkipFiles);
+        var updatedSkipFiles = new List<IMediaFilesService.ISkipFile>(response.SkippedFiles);
         var updatedFiles = new List<IMediaFileViewModel>(response.MediaFiles.Count);
         foreach (var file in response.MediaFiles)
         {

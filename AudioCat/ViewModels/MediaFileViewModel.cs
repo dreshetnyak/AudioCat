@@ -85,11 +85,11 @@ public sealed class MediaFileViewModel : IMediaFileViewModel
             Duration = MediaFile.Duration;
         }
 
-        Tags = new ObservableCollection<IMediaTagViewModel>();
+        Tags = [];
         foreach (var tag in MediaFile.Tags) 
             Tags.Add(TagViewModel.CreateFrom(tag));
 
-        Chapters = new ObservableCollection<IMediaChapterViewModel>();
+        Chapters = [];
         foreach (var chapter in MediaFile.Chapters)
             Chapters.Add(ChapterViewModel.CreateFrom(chapter));
 

@@ -19,11 +19,6 @@ public partial class DuplicateFilesWindow : Window, INotifyPropertyChanged
     
     public ObservableCollection<IMediaFileViewModel> DuplicateFiles { get; } = [];
 
-    public IReadOnlyList<IMediaFileViewModel> SelectedDuplicateFiles =>
-        DialogResult.HasValue && DialogResult.Value 
-            ? DuplicateFilesDataGrid.SelectedItems.Cast<IMediaFileViewModel>().ToArray()
-            : [];
-
     public bool IsAddEnabled
     {
         get => _isAddEnabled;
@@ -49,6 +44,11 @@ public partial class DuplicateFilesWindow : Window, INotifyPropertyChanged
         foreach (var duplicateFile in duplicateFiles)
             DuplicateFiles.Add(duplicateFile);
     }
+
+    public IReadOnlyList<IMediaFileViewModel> GetSelectedDuplicateFiles() =>
+        DialogResult.HasValue && DialogResult.Value
+            ? DuplicateFilesDataGrid.SelectedItems.Cast<IMediaFileViewModel>().ToArray()
+            : [];
 
     private void OnAddSelected()
     {

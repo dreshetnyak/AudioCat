@@ -16,14 +16,12 @@ namespace AudioCat;
 public partial class MainWindow : Window
 {
     private MainViewModel ViewModel { get; }
-    private IMediaFileToolkitService MediaFileToolkitService { get; }
     private IMediaFilesService MediaFilesService { get; }
 
-    public MainWindow(MainViewModel viewModel, IMediaFileToolkitService mediaFileToolkitService, IMediaFilesService mediaFilesService)
+    public MainWindow(MainViewModel viewModel, IMediaFilesService mediaFilesService)
     {
         viewModel.FocusFileDataGrid = FocusFileDataGrid;
         ViewModel = viewModel;
-        MediaFileToolkitService = mediaFileToolkitService;
         MediaFilesService = mediaFilesService;
         InitializeComponent();
         DataContext = viewModel;
@@ -91,8 +89,8 @@ public partial class MainWindow : Window
                 fileNames = await Files.GetFilesFromDirectories(fileNames);
 
             var response = await MediaFilesService.AddMediaFiles(fileNames, clearExisting); // Long operation, we fire the task and forget
-            if (response.SkipFiles.Count > 0) 
-                await Application.Current.Dispatcher.InvokeAsync(() => new SkippedFilesWindow(response.SkipFiles).ShowDialog());
+            if (response.SkippedFiles.Count > 0) 
+                await Application.Current.Dispatcher.InvokeAsync(() => new SkippedFilesWindow(response.SkippedFiles).ShowDialog());
         }
         catch
         { /* ignore */ }

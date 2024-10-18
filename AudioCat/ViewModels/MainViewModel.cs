@@ -203,33 +203,71 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         }
     }
 
-    public string TagsCount =>
-        SelectedFile != null 
-            ? SelectedFile.Tags.Count > 0 
-                ? SelectedFile.Tags.Count > 1 ? $"{SelectedFile.Tags.Count:N0} tags" : "1 tag"
-                : "No tags"
-            : "";
-    public string StreamsCount =>
-        SelectedFile != null
-            ? SelectedFile.Streams.Count > 0 
-                ? SelectedFile.Streams.Count > 1 ? $"{SelectedFile.Streams.Count:N0} streams" : "1 stream"
-                : "No streams"
-            : "";
-    public string ChaptersCount =>
-        SelectedFile != null
-            ? SelectedFile.Chapters.Count > 0 
-                ? SelectedFile.Chapters.Count > 1 ? $"{SelectedFile.Chapters.Count:N0} chapters" : "1 chapter"
-                : "No chapters"
-            : "";
-    
-    public string OutputTagsCount =>
-        OutputTags.Count > 0
-            ? OutputTags.Count > 1 ? $"{OutputTags.Count:N0} tags" : "1 tag"
-            : "No tags";
-    public string OutputChaptersCount =>
-        OutputChapters.Count > 0
-            ? OutputChapters.Count > 1 ? $"{OutputChapters.Count:N0} chapters" : "1 chapter"
-            : "No chapters";
+    public string TagsCount
+    {
+        get
+        {
+            if (SelectedFile == null) 
+                return "";
+            if (SelectedFile.Tags.Count > 0)
+                return SelectedFile.Tags.Count > 1 
+                    ? $"{SelectedFile.Tags.Count:N0} tags" 
+                    : "1 tag";
+            return "No tags";
+        }
+    }
+
+    public string StreamsCount
+    {
+        get
+        {
+            if (SelectedFile == null) 
+                return "";
+            if (SelectedFile.Streams.Count > 0)
+                return SelectedFile.Streams.Count > 1 
+                    ? $"{SelectedFile.Streams.Count:N0} streams" 
+                    : "1 stream";
+            return "No streams";
+        }
+    }
+
+    public string ChaptersCount
+    {
+        get
+        {
+            if (SelectedFile == null) 
+                return "";
+            if (SelectedFile.Chapters.Count > 0)
+                return SelectedFile.Chapters.Count > 1 
+                    ? $"{SelectedFile.Chapters.Count:N0} chapters" 
+                    : "1 chapter";
+            return "No chapters";
+        }
+    }
+
+    public string OutputTagsCount
+    {
+        get
+        {
+            if (OutputTags.Count > 0) 
+                return OutputTags.Count > 1 
+                    ? $"{OutputTags.Count:N0} tags" 
+                    : "1 tag";
+            return "No tags";
+        }
+    }
+
+    public string OutputChaptersCount
+    {
+        get
+        {
+            if (OutputChapters.Count > 0)
+                return OutputChapters.Count > 1 
+                    ? $"{OutputChapters.Count:N0} chapters" 
+                    : "1 chapter";
+            return "No chapters";
+        }
+    }
 
     public bool TagsEnabled
     {
@@ -274,8 +312,8 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
     public Visibility ChaptersVisibility => ChaptersEnabled && SelectedFile is { IsImage: false } ? Visibility.Visible : Visibility.Collapsed;
     public Visibility OutputChaptersVisibility => ChaptersEnabled ? Visibility.Visible : Visibility.Collapsed;
 
-    public bool IsChaptersFromTagsEnabled => IsUserEntryEnabled && Files.Count > 0 && ChaptersEnabled && TagsEnabled; // TODO Possibly need to remove
-    public bool IsChaptersFromFilesEnabled => IsUserEntryEnabled && Files.Count > 0 && ChaptersEnabled;               // TODO Possibly need to remove
+    public bool IsChaptersFromTagsEnabled => IsUserEntryEnabled && Files.Count > 0 && ChaptersEnabled && TagsEnabled;
+    public bool IsChaptersFromFilesEnabled => IsUserEntryEnabled && Files.Count > 0 && ChaptersEnabled;
     public bool IsCreateChapters => IsUserEntryEnabled && Files.Count > 0 && ChaptersEnabled;
 
     public string OutputWarning
@@ -365,9 +403,9 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         if (mediaFilesContainer is INotifyPropertyChanged container)
             container.PropertyChanged += OnMediaFilesContainerChanged;
 
-        OutputTags = new ObservableCollection<IMediaTagViewModel>();
+        OutputTags = [];
         OutputTags.CollectionChanged += OnOutputTagsChanged;
-        OutputChapters = new ObservableCollection<IMediaChapterViewModel>();
+        OutputChapters = [];
         OutputChapters.CollectionChanged += OnOutputChaptersChanged;
 
         MediaFilesService = mediaFilesService;
@@ -458,7 +496,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         if (result.IsSuccess)
             IsUserEntryEnabled = true;
         else
-            MessageBox.Show(result.Message + Environment.NewLine + "The tools 'ffmpeg.exe' and 'ffprobe.exe' are required for the application to work properly. Download the tools and place them in the system path.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"{result.Message}{Environment.NewLine}The tools '{Settings.FFmpegName}' and '{Settings.FFprobeName}' are required for the application to work properly. Download the tools and place them in the system path.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
     }
 
     private async Task AddCliFilesOnStartup(Task _)
@@ -482,8 +520,8 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
                 : namesFromArgs;
 
             var response = await MediaFilesService.AddMediaFiles(fileNames, false); // Long operation, we fire the task and forget
-            if (response.SkipFiles.Count > 0)
-                await Application.Current.Dispatcher.InvokeAsync(() => new SkippedFilesWindow(response.SkipFiles).ShowDialog());
+            if (response.SkippedFiles.Count > 0)
+                await Application.Current.Dispatcher.InvokeAsync(() => new SkippedFilesWindow(response.SkippedFiles).ShowDialog());
         }
         catch
         { /* ignore */ }
@@ -559,7 +597,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
     private void OnProgressUpdate(object sender, ProgressEventArgs eventArgs) => 
         ProgressPercentage = eventArgs.Progress.CalculatePercentage();
     
-    private List<string> ChaptersFilesOrder { get; } = new();
+    private List<string> ChaptersFilesOrder { get; } = [];
 
     private void OnClearChapters()
     {

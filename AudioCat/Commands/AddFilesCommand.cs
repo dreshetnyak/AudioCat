@@ -27,8 +27,8 @@ public sealed class AddFilesCommand(IMediaFilesService mediaFilesService, IMedia
             var sortedFileNames = Files.Sort(fileNames);
 
             var response = await MediaFilesService.AddMediaFiles(sortedFileNames, false);
-            if (response.SkipFiles.Count > 0)
-                new SkippedFilesWindow(response.SkipFiles).ShowDialog();
+            if (response.SkippedFiles.Count > 0)
+                new SkippedFilesWindow(response.SkippedFiles).ShowDialog();
             
             return Response<object>.Success();
         }

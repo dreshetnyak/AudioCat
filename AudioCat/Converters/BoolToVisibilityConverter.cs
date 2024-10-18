@@ -15,15 +15,16 @@ public class BoolToVisibilityConverter : IValueConverter
         if (invert)
             sourceBool = !sourceBool;
 
-        return sourceBool
-            ? Visibility.Visible
-            : collapse
-                ? Visibility.Collapsed
-                : Visibility.Hidden;
+        if (sourceBool)
+            return Visibility.Visible;
+
+        return collapse
+            ? Visibility.Collapsed
+            : Visibility.Hidden;
     }
 
     private static (bool invert, bool collapse) GetParameters(object? parametersObject) => parametersObject is string parameters
-        ? (parameters.IndexOf("Invert", StringComparison.OrdinalIgnoreCase) != -1, parameters.IndexOf("Collapse", StringComparison.OrdinalIgnoreCase) != -1)
+        ? (parameters.Contains("Invert", StringComparison.OrdinalIgnoreCase), parameters.Contains("Collapse", StringComparison.OrdinalIgnoreCase))
         : (false, false);
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => 

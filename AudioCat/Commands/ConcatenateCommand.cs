@@ -60,18 +60,19 @@ public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkit
 
             var errors = new StringBuilder();
             var concatParams = parameter as IConcatParams ?? new ConcatParams(true, true);
-            
-            MessageEventHandler onConcatErrors = (_, args) => errors.AppendMessage(args.Message);
+
             try
             {
-                MediaFileToolkitService.Error += onConcatErrors;
+                MediaFileToolkitService.Error += OnConcatErrors;
                 await MediaFileToolkitService.Concatenate(MediaFiles, concatParams, outputFileName, CancellationToken.None);
             }
-            finally { MediaFileToolkitService.Error -= onConcatErrors; }
+            finally { MediaFileToolkitService.Error -= OnConcatErrors; }
 
             return errors.Length == 0
                 ? Response<object>.Success()
                 : Response<object>.Failure(outputFileName, errors.ToString());
+
+            void OnConcatErrors(object _, MessageEventArgs args) => errors.AppendMessage(args.Message);
         }
         finally
         {

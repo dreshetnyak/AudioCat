@@ -22,9 +22,9 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         try
         {
             var args = $"-hide_banner -show_format -show_chapters -show_streams -show_private_data -print_format xml -i \"{fileFullName}\"";
-            Debug.WriteLine($"ffprobe.exe {args}");
+            Debug.WriteLine($"{Settings.FFprobeName} {args}");
             var probeResponse = await Process.Run(
-                "ffprobe.exe",
+                Settings.FFprobeName,
                 args,
                 Process.OutputType.Standard,
                 ctx);
@@ -49,14 +49,14 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         try
         {
             var args = $"-hide_banner -stats -stats_period 0.1 -i \"{fileFullName}\" -af silencedetect=n=-{silenceThreshold}dB:d={durationMilliseconds}ms -f null -";
-            Debug.WriteLine($"ffmpeg.exe {args}");
+            Debug.WriteLine($"{Settings.FFmpegName} {args}");
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ctx);
             var ct = cts.Token;
             // ReSharper disable once AccessToDisposedClosure
             var intervalsTask = Task.Run(() => IntervalsProcessor(statusQueue, intervals, fileFullName, ct), ct);
 
-            await Process.Run("ffmpeg.exe", args, OnSilenceStatus, Process.OutputType.Error, ctx);
+            await Process.Run(Settings.FFmpegName, args, OnSilenceStatus, Process.OutputType.Error, ctx);
 
             await cts.CancelAsync();
             try { await intervalsTask; }
@@ -159,8 +159,8 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             do
             {
                 var args1 = GetFFmpegArgs(codec, listFile, !twoStepsConcat ? metadataFile : "", outputToFile);
-                Debug.WriteLine($"ffmpeg.exe {args1}");
-                await Process.Run("ffmpeg.exe", args1, status => OnConcatStatus(status, totalDuration), Process.OutputType.Error, ctx);
+                Debug.WriteLine($"{Settings.FFmpegName} {args1}");
+                await Process.Run(Settings.FFmpegName, args1, status => OnConcatStatus(status, totalDuration), Process.OutputType.Error, ctx);
 
                 var concatErrorsStr = concatErrors.ToString();
                 concatErrors.Clear();
@@ -212,8 +212,8 @@ internal sealed class FFmpegService : IMediaFileToolkitService
                     : outputFileName;
 
                 var args2 = GetFFmpegArgs(codec, listFile, metadataFile, outputToFile);
-                Debug.WriteLine($"ffmpeg.exe {args2}");
-                await Process.Run("ffmpeg.exe", args2, status => OnConcatStatus(status, totalDuration), Process.OutputType.Error, ctx);
+                Debug.WriteLine($"{Settings.FFmpegName} {args2}");
+                await Process.Run(Settings.FFmpegName, args2, status => OnConcatStatus(status, totalDuration), Process.OutputType.Error, ctx);
             }
             #endregion
 
@@ -403,8 +403,8 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         var filesList = await CreateFilesListFile([mediaFile]);
         var outputToFile = await GenerateTempOutputFileFrom(mediaFile.File.Extension);
         var args = $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{filesList}\" -vn -c:a copy -update true \"{outputToFile}\"";
-        Debug.WriteLine($"ffmpeg.exe {args}");
-        await Process.Run("ffmpeg.exe", args, OnStatus, Process.OutputType.Error, ctx);
+        Debug.WriteLine($"{Settings.FFmpegName} {args}");
+        await Process.Run(Settings.FFmpegName, args, OnStatus, Process.OutputType.Error, ctx);
 
         return errors.Length == 0
             ? Response<string>.Success(outputToFile)
@@ -622,9 +622,9 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             var mappingQuery = GetMappingQuery(audioFileImages.Count);
             var metadataQuery = GetMetadataQuery(audioFileImages);
             var args = $"-hide_banner -y -loglevel error -i \"{audioFile}\"{imageFilesQuery} -c copy -map 0:a{mappingQuery}{metadataQuery} -id3v2_version 3 -write_id3v1 1 -disposition:v attached_pic \"{outputFile}\"";
-            Debug.WriteLine($"ffmpeg.exe {args}");
+            Debug.WriteLine($"{Settings.FFmpegName} {args}");
             var response = await Process.Run(
-                "ffmpeg.exe",
+                Settings.FFmpegName,
                 args,
                 Process.OutputType.Error,
                 ctx);
@@ -761,9 +761,9 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         try
         {
             var args = $"-hide_banner -y -loglevel error -i \"{sourceFileName}\" -map 0:{sourceStreamIndex} -update true -c copy -f image2 \"{outputFileName}\"";
-            Debug.WriteLine($"ffmpeg.exe {args}");
+            Debug.WriteLine($"{Settings.FFmpegName} {args}");
             var response = await Process.Run(
-                "ffmpeg.exe",
+                Settings.FFmpegName,
                 args,
                 Process.OutputType.Error,
                 ctx);
@@ -788,7 +788,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         {
             var args = $"-hide_banner -y -loglevel error -i \"{sourceFileName}\" -f null -";
             var response = await Process.Run(
-                "ffmpeg.exe",
+                Settings.FFmpegName,
                 args,
                 Process.OutputType.Error,
                 ctx);
@@ -806,23 +806,23 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         try
         {
             var response = await Process.Run(
-                "ffmpeg.exe",
+                Settings.FFmpegName,
                 "-version",
                 Process.OutputType.Standard,
                 CancellationToken.None);
 
             if (!response.StartsWith("ffmpeg version"))
-                return Result.Failure("The tool 'ffmpeg.exe' is not found");
+                return Result.Failure($"The tool '{Settings.FFmpegName}' is not found");
 
             response = await Process.Run(
-                "ffprobe.exe",
+                Settings.FFprobeName,
                 "-version",
                 Process.OutputType.Standard,
                 CancellationToken.None);
 
             return response.StartsWith("ffprobe version")
                 ? Result.Success()
-                : Result.Failure("The tool 'ffprobe.exe' is not found");
+                : Result.Failure($"The tool '{Settings.FFprobeName}' is not found");
         }
         catch (Exception ex)
         {
