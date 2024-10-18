@@ -1,36 +1,16 @@
 # Audio Cat Tool 
 
-**Audio Cat Tool** is a utility for con**cat**enating audio files. It provides a user interface for [FFMpeg](https://ffmpeg.org/) CLI tools (which are required for proper functioning). The tool supports MP3 and AAC encodings, which can be packaged in various audio container formats. It does not re-encode the audio; instead, it performs demuxing and remuxing, ensuring there is no loss in audio quality. Additionally, it allows for the preservation of media tags and cover images. Tags can be edited, and cover images can be added from image files.
+**Audio Cat Tool** is a utility for con**cat**enating audio files. It provides a user interface for [FFMpeg](https://ffmpeg.org/) CLI tools (which are required for proper functioning). The tool supports MP3, AAC, OPUS, VORBIS, WMA, WAV and FLAC encodings, which can be packaged in various audio container formats. It does not re-encode the audio; instead, it performs demuxing and remuxing, ensuring there is no loss in audio quality. Additionally, it allows for the preservation of media tags and cover images. Tags and chapters can be created and edited, cover images can be added from image files.
 
 ## Screenshot
 ![Screenshot](App.png)
 
 ## Version History
 
-### AudioCat 5.0.0.alpha3
-Bug. Chapter generation template initial value was not set.
-Bug. Chapters edit text to trim type is not selected by default.
-Bug. Chapters generator existing tags and its options was shown even if there are no tags; same for existing chapters.
-
-Work in progress, remaking the the chapters generator.
-Added a CUE parser and builder, not yet wired it up.
-
-Note. Unable to add CUE in chapters editor. Because the track index does not indicate duration of a track, 
-which results in that we cannot establish the duration of the last track without probing the file to know 
-the duration of the file. The cue files need to be added using the files adding option.
-On the other hand the files are already added, and probed so we do know the sizes.
-
-Backlog.
-Bug. Opus, adding tags and saving file does not save the tags to the file.
-Add full support for opus.
-Opus format identified as ogg, need to investigate.
-Update the app description.
-Redo the gray icons.
-Need overlapping chapters detection.
-When cleaning output chapters activate the output tab.
-Automate FFMpeg download if it is not found.
-'These files already added', add 'Add anyway' option.
-Chapters generator, add capital case and transliterate options.
+### AudioCat 5.0.0
+Chapters generator has been completely re-done.
+Added opus format support.
+Multiple code bug fixes.
 
 #### Notes.
 **Tags support.** The supported tags are specific to a particular file format. As a result, if you set a tag and the output format doesn't support it, it may be missing in the output file.<br>
@@ -39,6 +19,11 @@ Chapters generator, add capital case and transliterate options.
 
 <details>
 <summary>Previous versions</summary>
+
+### AudioCat 5.0.0.alpha3
+Bug. Chapter generation template initial value was not set.
+Bug. Chapters edit text to trim type is not selected by default.
+Bug. Chapters generator existing tags and its options was shown even if there are no tags; same for existing chapters.
 
 ### AudioCat 5.0.0.alpha2
 Bug. AsParallel was used incorrectly when remuxing files, there was no parallelism.

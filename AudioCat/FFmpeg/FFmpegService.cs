@@ -184,7 +184,6 @@ internal sealed class FFmpegService : IMediaFileToolkitService
                 var remuxResponse = await RemuxFiles(mediaFiles, OnProgress, ctx);
                 if (remuxResponse.IsFailure)
                 {
-                    //concatErrors.AppendMessage(remuxResponse.Message);
                     await OnError($"Remuxing errors:{Environment.NewLine}{remuxResponse.Message}");
                 }
                 if (remuxResponse.Data == null)
@@ -228,6 +227,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             }
             #endregion
 
+            // TODO Temporary code to create a cue file
             //var cue = Cue.Create(mediaFiles, codec, outputFileName);
             //var dir = new FileInfo(outputFileName).Directory!.FullName;
             //var fileName = Path.GetFileNameWithoutExtension(outputFileName);
@@ -274,7 +274,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
     private static bool IsErrorMessage(string status) =>
         status.StartsWith('[') || !StatusLineContent.Any(status.Contains);
 
-    private class RemuxProgress(IMediaFileViewModel file, IProcessingStats? stats = null)
+    private sealed class RemuxProgress(IMediaFileViewModel file, IProcessingStats? stats = null)
     {
         public IMediaFileViewModel File { get; } = file;
         public IProcessingStats? Stats { get; set; } = stats;
@@ -454,30 +454,27 @@ internal sealed class FFmpegService : IMediaFileToolkitService
     private const string FILES_LIST_HEADER = "ffconcat version 1.0\n";
     private static async Task<string> CreateFilesListFile(IEnumerable<IMediaFileViewModel> mediaFiles)
     {
-        var listFile = Path.GetTempFileName();
-        var sb = new StringBuilder(FILES_LIST_HEADER);
+        var listFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        await using var fileStream = new FileStream(listFile, FileMode.Create, FileAccess.Write);
+        await fileStream.WriteAsync(Encoding.UTF8.GetBytes(FILES_LIST_HEADER));
         foreach (var mediaFile in mediaFiles)
         {
-            if (mediaFile.IsImage)
-                continue;
-            var fileName = EscapeFileListFilePath(mediaFile.File.FullName);
-            sb.Append($"file \'{fileName}\'\n");
-        }
-        
-        await File.WriteAllTextAsync(listFile, sb.ToString(), new UTF8Encoding(false));
-        return listFile;
-    }
-    private static async Task<string> CreateFilesListFile(IReadOnlyList<string> remuxedFiles)
-    {
-        var listFile = Path.GetTempFileName();
-        var sb = new StringBuilder(FILES_LIST_HEADER);
-        foreach (var remuxedFile in remuxedFiles)
-        {
-            var fileName = EscapeFileListFilePath(remuxedFile);
-            sb.Append($"file \'{fileName}\'\n");
+            if (!mediaFile.IsImage) 
+                await fileStream.WriteAsync(Encoding.UTF8.GetBytes($"file \'{EscapeFileListFilePath(mediaFile.File.FullName)}\'\n"));
         }
 
-        await File.WriteAllTextAsync(listFile, sb.ToString(), new UTF8Encoding(false));
+        return listFile;
+    }
+
+    private static async Task<string> CreateFilesListFile(IReadOnlyList<string> remuxedFiles)
+    {
+        var listFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        await using var fileStream = new FileStream(listFile, FileMode.Create, FileAccess.Write);
+        await fileStream.WriteAsync(Encoding.UTF8.GetBytes(FILES_LIST_HEADER));
+        
+        foreach (var remuxedFile in remuxedFiles) 
+            await fileStream.WriteAsync(Encoding.UTF8.GetBytes($"file \'{EscapeFileListFilePath(remuxedFile)}\'\n"));
+
         return listFile;
     }
 
@@ -486,9 +483,11 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         var fileInfo = new FileInfo(file);
         if (!fileInfo.Exists)
             return "";
-        var listFile = Path.GetTempFileName();
-        var fileContent = $"{FILES_LIST_HEADER}file '{EscapeFileListFilePath(fileInfo.FullName)}'\n";
-        await File.WriteAllTextAsync(listFile, fileContent);
+
+        var listFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        await using var fileStream = new FileStream(listFile, FileMode.Create, FileAccess.Write);
+        await fileStream.WriteAsync(Encoding.UTF8.GetBytes($"{FILES_LIST_HEADER}file '{EscapeFileListFilePath(fileInfo.FullName)}'\n"));
+
         return listFile;
     }
 
@@ -506,18 +505,24 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         if (tagsMetadata.Length == 0 && chaptersMetadata.Length == 0)
             return "";
 
-        var metadataFile = Path.GetTempFileName();
+        var metadataFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         try
         {
             var utf8WithoutBom = new UTF8Encoding(false);
-            await using var writer = new StreamWriter(metadataFile, false, utf8WithoutBom);
-            await writer.WriteAsync(METADATA_FILE_START);
+            await using var fileStream = new FileStream(metadataFile, FileMode.Create, FileAccess.Write);
+            await using var writer = new StreamWriter(fileStream, utf8WithoutBom);
+
+            await writer.WriteAsync(METADATA_FILE_START.AsMemory(), ctx);
             if (tagsMetadata.Length > 0)
-                await writer.WriteAsync(tagsMetadata);
+                await writer.WriteAsync(tagsMetadata.AsMemory(), ctx);
             if (chaptersMetadata.Length > 0)
-                await writer.WriteAsync(chaptersMetadata);
+                await writer.WriteAsync(chaptersMetadata.AsMemory(), ctx);
 
             return metadataFile;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch
         {
@@ -710,7 +715,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         var imageFiles = new List<ImageFile>();
         foreach (var imageStream in imageStreams)
         {
-            var outputFileName = Path.GetTempFileName();
+            var outputFileName = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
             var extractResult = await ExtractImageStream(mediaFile.FilePath, outputFileName, imageStream.Index, ctx);
             if (extractResult.IsSuccess)
                 imageFiles.Add(new ImageFile(imageStream, outputFileName, true));

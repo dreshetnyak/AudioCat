@@ -30,7 +30,7 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
 {
     #region Internal Types
     [DebuggerDisplay("{Path}: Reason: {Reason}")]
-    private sealed class SkipFile(string path, string reason) : IMediaFilesService.ISkipFile
+    private sealed class SkipFileImpl(string path, string reason) : IMediaFilesService.ISkipFile
     {
         public string Path { get; } = path;
         public string Reason { get; } = reason;
@@ -64,7 +64,7 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
             var probeResponse = probeFiles[index];
             if (probeResponse.IsFailure)
             {
-                skippedFiles.Add(new SkipFile(sortedFiles[index], probeResponse.Message));
+                skippedFiles.Add(new SkipFileImpl(sortedFiles[index], probeResponse.Message));
                 continue;
             }
 
@@ -75,7 +75,7 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
                 var codecSelectResult = SelectCodec(file, ref codec);
                 if (codecSelectResult.IsFailure)
                 {
-                    skippedFiles.Add(new SkipFile(sortedFiles[index], codecSelectResult.Message));
+                    skippedFiles.Add(new SkipFileImpl(sortedFiles[index], codecSelectResult.Message));
                     continue;
                 }
             }
@@ -111,14 +111,14 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
 
     private static IResult SelectCodec(IMediaFile mediaFile, ref string selectedCodec)
     {
-        if (selectedCodec == "") // Acceptable codec has not been selected yet
-            return (selectedCodec = GetCodecName(mediaFile.Streams)) != ""
+        if (selectedCodec != "") // Acceptable codec has not been selected yet
+            return HasStreamWithCodec(mediaFile, selectedCodec)
                 ? Result.Success()
-                : Result.Failure("Doesn't contain any supported audio streams");
-
-        return HasStreamWithCodec(mediaFile, selectedCodec)
+                : Result.Failure($"Doesn't contain any audio stream encoded with '{selectedCodec}' codec");
+        selectedCodec = GetCodecName(mediaFile.Streams);
+        return selectedCodec != ""
             ? Result.Success()
-            : Result.Failure($"Doesn't contain any audio stream encoded with '{selectedCodec}' codec");
+            : Result.Failure("Doesn't contain any supported audio streams");
     }
 
     private static string GetCodecName(IEnumerable<IMediaStream> mediaFileStreams)
@@ -154,7 +154,7 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
 
         var files = MediaFilesContainer.Files;
         if (clearExisting)
-            uiDispatcher.Invoke(files.Clear);
+            await uiDispatcher.InvokeAsync(files.Clear);
 
         var selectedCodec = files.Count > 0 
             ? GetAudioCodec(files) 
@@ -184,7 +184,7 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
         var duplicates = GetDuplicates(files, mediaFiles);
         if (duplicates.Count > 0)
         {
-            var duplicatesToAdd = uiDispatcher.Invoke(() =>
+            var duplicatesToAdd = await uiDispatcher.InvokeAsync(() =>
             {
                 var duplicateFilesWindow = new DuplicateFilesWindow(duplicates);
                 duplicateFilesWindow.ShowDialog();
@@ -205,10 +205,10 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
         }
         
         foreach (var audioFile in mediaFiles)
-            uiDispatcher.Invoke(() => files.Add(audioFile));
+            await uiDispatcher.InvokeAsync(() => files.Add(audioFile));
 
         if (files.Count > 0)
-            uiDispatcher.Invoke(() => MediaFilesContainer.SelectedFile = files.First());
+            await uiDispatcher.InvokeAsync(() => MediaFilesContainer.SelectedFile = files[0]);
 
         return response;
     }
@@ -222,7 +222,7 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
             if (!file.IsImage)
                 updatedFiles.Add(file);
             else
-                updatedSkipFiles.Add(new SkipFile(file.FileName, $"Images are not supported together with the '{codec}' codec media files."));
+                updatedSkipFiles.Add(new SkipFileImpl(file.FileName, $"Images are not supported together with the '{codec}' codec media files."));
         }
 
         return new GetMediaFilesResponse(updatedFiles, updatedSkipFiles);
@@ -237,7 +237,7 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
             if (file.IsImage)
                 updatedFiles.Add(file);
             else
-                updatedSkipFiles.Add(new SkipFile(file.FileName, $"The '{codec}' codec media files are not supported together with images."));
+                updatedSkipFiles.Add(new SkipFileImpl(file.FileName, $"The '{codec}' codec media files are not supported together with images."));
         }
 
         return new GetMediaFilesResponse(updatedFiles, updatedSkipFiles);

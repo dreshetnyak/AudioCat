@@ -60,6 +60,17 @@ internal static class Extensions
         return false;
     }
 
+    public static bool Has(this IEnumerable<NameValue> enumerable, string name)
+    {
+        foreach (var item in enumerable)
+        {
+            if (item.Name.Is(name))
+                return true;
+        }
+
+        return false;
+    }
+
     public static bool IsPrintable(this char ch) => char.GetUnicodeCategory(ch) switch
     {
         UnicodeCategory.Control or UnicodeCategory.Format or UnicodeCategory.Surrogate or UnicodeCategory.PrivateUse or UnicodeCategory.OtherNotAssigned => false,
@@ -134,14 +145,6 @@ internal static class Extensions
         return null;
     }
 
-    public static string GetTagValue(this IReadOnlyList<IMediaTag> tags, string name, string defaultValue = "")
-    {
-        var tag = GetTag(tags, name);
-        return tag != null 
-            ? tag.Value 
-            : defaultValue;
-    }
-
     public static IMediaTagViewModel? GetTag(this IReadOnlyList<IMediaTagViewModel> tags, string name)
     {
         foreach (var tag in tags)
@@ -152,7 +155,15 @@ internal static class Extensions
 
         return null;
     }
- 
+
+    public static string GetTagValue(this IReadOnlyList<IMediaTag> tags, string name, string defaultValue = "")
+    {
+        var tag = GetTag(tags, name);
+        return tag != null 
+            ? tag.Value 
+            : defaultValue;
+    }
+
     public static bool ChaptersAlreadyExist(this IEnumerable<IMediaFileViewModel> mediaFiles)
     {
         foreach (var file in mediaFiles)
@@ -173,17 +184,6 @@ internal static class Extensions
         }
 
         return null;
-    }
-
-    public static bool Has(this IEnumerable<NameValue> enumerable, string name)
-    {
-        foreach (var item in enumerable)
-        {
-            if (item.Name.Is(name))
-                return true;
-        }
-
-        return false;
     }
 
     public static long GetFilesTotalSize(this IEnumerable<IMediaFileViewModel> files)

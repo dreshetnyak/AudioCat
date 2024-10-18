@@ -101,7 +101,7 @@ public sealed class MediaFileViewModel : IMediaFileViewModel
         OnPropertyChanged(nameof(HasTags));
     }
 
-    private static IEnumerable<string> SupportedImageCodecs { get; } = ["mjpeg", "png"];
+    private static IEnumerable<string> SupportedImageCodecs { get; } = [Codecs.MJPEG, Codecs.PNG];
     private static bool HasImageStream(IEnumerable<IMediaStream> streams)
     {
         foreach (var stream in streams)

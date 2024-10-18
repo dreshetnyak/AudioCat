@@ -23,7 +23,7 @@ public delegate void StatusEventHandler(object sender, StatusEventArgs eventArgs
 public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkitService, IMediaFilesContainer mediaFilesContainer) : CommandBase
 {
     #region Internal Types
-    private class ConcatParams(bool tagsEnabled, bool chaptersEnabled) : IConcatParams
+    private sealed class ConcatParams(bool tagsEnabled, bool chaptersEnabled) : IConcatParams
     {
         public bool TagsEnabled { get; } = tagsEnabled;
         public bool ChaptersEnabled { get; } = chaptersEnabled;
@@ -49,7 +49,7 @@ public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkit
 
             var codec = MediaFilesService.GetAudioCodec(MediaFiles);
 
-            var firstFile = new FileInfo((MediaFiles.FirstOrDefault(file => !file.IsImage) ?? MediaFiles.First()).FilePath);
+            var firstFile = new FileInfo((MediaFiles.FirstOrDefault(file => !file.IsImage) ?? MediaFiles[0]).FilePath);
             var initialDirectory = GetFileDirectory(firstFile);
             var outputFileName = SelectionDialog.ChooseFileToSave(
                 Settings.GetSaveFileExtensionFilter(codec), 

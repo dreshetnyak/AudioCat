@@ -20,25 +20,25 @@ internal static class Settings
 
     public static IEnumerable<string> SupportedAudioCodecs { get; } = 
     [
-        "mp3", 
-        "aac",
-        "opus",
-        "vorbis",       // OGG Vorbis
-        "wmav2",        // WMA
-        "pcm_s16le",    // WAV; Most of the files with this format will have this codec
-        "pcm_u8",       // WAV; Less common
-        "flac"
+        Codecs.MP3, 
+        Codecs.AAC,
+        Codecs.OPUS,
+        Codecs.VORBIS,      // OGG Vorbis
+        Codecs.WMAV2,       // WMA
+        Codecs.PCM_S16_LE,  // WAV; Most of the files with this format will have this codec
+        Codecs.PCM_U8,      // WAV; Less common
+        Codecs.FLAC
     ];
-    public static IEnumerable<string> SupportedImageCodecs { get; } = ["mjpeg", "png"];
-    public static IEnumerable<string> CodecsWithTwoStepsConcat { get; } = ["vorbis"]; // Concat and embedding of metadata must be done in two separate steps
-    public static IEnumerable<string> CodecsWithTagsInStream { get; } = ["vorbis"]; // In OGG Vorbis files the tags are placed in the stream
-    public static IEnumerable<string> CodecsThatDoesNotSupportChapters { get; } = ["vorbis", "pcm_s16le", "pcm_u8", "flac"];
-    public static IEnumerable<string> CodecsThatDoesNotSupportImages { get; } = ["vorbis", "pcm_s16le", "pcm_u8"];
+    public static IEnumerable<string> SupportedImageCodecs { get; } = [Codecs.MJPEG, Codecs.PNG];
+    public static IEnumerable<string> CodecsWithTwoStepsConcat { get; } = [Codecs.VORBIS]; // Concat and embedding of metadata must be done in two separate steps
+    public static IEnumerable<string> CodecsWithTagsInStream { get; } = [Codecs.OPUS, Codecs.VORBIS]; // In OPUS and OGG Vorbis files the tags are placed in the stream
+    public static IEnumerable<string> CodecsThatDoesNotSupportChapters { get; } = [Codecs.VORBIS, Codecs.PCM_S16_LE, Codecs.PCM_U8, Codecs.FLAC];
+    public static IEnumerable<string> CodecsThatDoesNotSupportImages { get; } = [Codecs.VORBIS, Codecs.PCM_S16_LE, Codecs.PCM_U8];
 
-    private static string DefaultEncodingCommand { get; } = "-c copy";
+    private static string DefaultEncodingCommand => "-c copy";
     private static IEnumerable<NameValue> CodecEncodingCommands { get; } =
     [
-        new NameValue("flac", "-c:a flac")
+        new NameValue(Codecs.FLAC, "-c:a flac")
     ];
     public static string GetEncodingCommand(string codec)
     {
@@ -54,61 +54,60 @@ internal static class Settings
     public static string GetSaveFileExtensionFilter(string codec) =>
         codec switch
         {
-            "aac" => "AAC Audio|*.m4b",
-            "mp3" => "MP3 Audio|*.mp3",
-            "opus" => "Opus Audio|*.opus",
-            "wmav2" => "Windows Media Audio|*.wma",
-            "flac" => "Free Lossless Audio Codec|*.flac",
-            "pcm_s16le" => "Waveform Audio|*.wav",
-            "pcm_u8" => "Waveform Audio|*.wav",
-            "vorbis" => "OGG Vorbis|*.ogg",
+            Codecs.AAC => "AAC Audio|*.m4b",
+            Codecs.MP3 => "MP3 Audio|*.mp3",
+            Codecs.OPUS => "Opus Audio|*.opus",
+            Codecs.WMAV2 => "Windows Media Audio|*.wma",
+            Codecs.FLAC => "Free Lossless Audio Codec|*.flac",
+            Codecs.PCM_S16_LE => "Waveform Audio|*.wav",
+            Codecs.PCM_U8 => "Waveform Audio|*.wav",
+            Codecs.VORBIS => "OGG Vorbis|*.ogg",
             _ => "Other Files|*.*"
         };
 
     public static string GetSuggestedFileNameExtension(string codec) =>
         codec switch
         {
-            "aac" => ".m4b",
-            "mp3" => ".mp3",
-            "opus" => ".opus",
-            "wmav2" => ".wma",
-            "flac" => ".flac",
-            "pcm_s16le" => ".wav",
-            "pcm_u8" => ".wav",
-            "vorbis" => ".ogg",
+            Codecs.AAC => ".m4b",
+            Codecs.MP3 => ".mp3",
+            Codecs.OPUS => ".opus",
+            Codecs.WMAV2 => ".wma",
+            Codecs.FLAC => ".flac",
+            Codecs.PCM_S16_LE => ".wav",
+            Codecs.PCM_U8 => ".wav",
+            Codecs.VORBIS => ".ogg",
             _ => ""
         };
 
-    public static string GetAddFilesExtensionFilter(string codec) =>
-        codec switch
-        {
-            "mp3" => "MP3 Audio|*.mp3|" +
-                     "Other Audio|*.*",
-            "aac" => "AAC Audio|*.m4b|" +
-                     "AAC Audio|*.m4a|" +
-                     "AAC Audio|*.aac|" +
-                     "Other Audio|*.*",
-            "opus" => "Opus Audio|*.opus|" +
-                     "Other Audio|*.*",
-            "wmav2" => "Windows Media Audio|*.wma|" +
-                       "Other Audio|*.*",
-            "flac" => "Free Lossless Audio Codec|*.flac|" +
+    public static string GetAddFilesExtensionFilter(string codec) => codec switch
+    {
+        Codecs.MP3 => "MP3 Audio|*.mp3|" +
                       "Other Audio|*.*",
-            "pcm_s16le" => "Waveform Audio|*.wav|" +
-                           "Other Audio|*.*",
-            "pcm_u8" => "Waveform Audio|*.wav|" +
+        Codecs.AAC => "AAC Audio|*.m4b|" +
+                      "AAC Audio|*.m4a|" +
+                      "AAC Audio|*.aac|" +
+                      "Other Audio|*.*",
+        Codecs.OPUS => "Opus Audio|*.opus|" +
+                       "Other Audio|*.*",
+        Codecs.WMAV2 => "Windows Media Audio|*.wma|" +
                         "Other Audio|*.*",
-            "vorbis" => "OGG Vorbis|*.ogg|" +
-                        "Other Audio|*.*",
-            _ => "MP3 Audio|*.mp3|" +
-                 "AAC Audio|*.m4b|" +
-                 "AAC Audio|*.m4a|" +
-                 "AAC Audio|*.aac|" +
-                 "Opus Audio|*.opus|" +
-                 "Windows Media Audio|*.wma|" +
-                 "Free Lossless Audio Codec|*.flac|" +
-                 "Waveform Audio|*.wav|" +
-                 "OGG Vorbis|*.ogg|" +
-                 "Other Audio|*.*"
-        };
+        Codecs.FLAC => "Free Lossless Audio Codec|*.flac|" +
+                       "Other Audio|*.*",
+        Codecs.PCM_S16_LE => "Waveform Audio|*.wav|" +
+                             "Other Audio|*.*",
+        Codecs.PCM_U8 => "Waveform Audio|*.wav|" +
+                         "Other Audio|*.*",
+        Codecs.VORBIS => "OGG Vorbis|*.ogg|" +
+                         "Other Audio|*.*",
+        _ => "MP3 Audio|*.mp3|" +
+             "AAC Audio|*.m4b|" +
+             "AAC Audio|*.m4a|" +
+             "AAC Audio|*.aac|" +
+             "Opus Audio|*.opus|" +
+             "Windows Media Audio|*.wma|" +
+             "Free Lossless Audio Codec|*.flac|" +
+             "Waveform Audio|*.wav|" +
+             "OGG Vorbis|*.ogg|" +
+             "Other Audio|*.*"
+    };
 }

@@ -29,7 +29,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
     private string _selectedCodec = "";
     private int _selectedDataTabIndex;
     private string _outputWarning = "";
-    private Visibility _outputWarningVisibility = Visibility.Hidden;
+    private Visibility _outputWarningVisibility = Visibility.Collapsed;
 
     #endregion
 
@@ -142,8 +142,8 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
     public bool IsAddPathEnabled => IsUserEntryEnabled;
     public bool IsAddFilesEnabled => IsUserEntryEnabled;
     public bool IsClearPathsEnabled => IsUserEntryEnabled && Files.Count > 0;
-    public bool IsMoveUpEnabled => IsUserEntryEnabled && Files.Count > 0 && SelectedFile != null && SelectedFile.FileName != "" && SelectedFile != Files.First();
-    public bool IsMoveDownEnabled => IsUserEntryEnabled && Files.Count > 0 && SelectedFile != null && SelectedFile.FileName != "" && SelectedFile != Files.Last();
+    public bool IsMoveUpEnabled => IsUserEntryEnabled && Files.Count > 0 && SelectedFile != null && SelectedFile.FileName != "" && SelectedFile != Files[0];
+    public bool IsMoveDownEnabled => IsUserEntryEnabled && Files.Count > 0 && SelectedFile != null && SelectedFile.FileName != "" && SelectedFile != Files[^1];
     public bool IsRemoveEnabled => IsUserEntryEnabled && Files.Count > 0 && SelectedFile != null && SelectedFile.FileName != "";
 
     public bool IsTagsExpanded
@@ -287,9 +287,10 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
                 return;
             _outputWarning = value;
             OnPropertyChanged();
-            OutputWarningVisibility = string.IsNullOrWhiteSpace(value) ? Visibility.Hidden : Visibility.Visible;
+            OutputWarningVisibility = string.IsNullOrWhiteSpace(value) ? Visibility.Collapsed : Visibility.Visible;
         }
     }
+
     public Visibility OutputWarningVisibility
     {
         get => _outputWarningVisibility;

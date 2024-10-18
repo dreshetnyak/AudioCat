@@ -7,7 +7,7 @@
         xmlns:converters="clr-namespace:AudioCat.Converters"
         mc:Ignorable="d"
         Icon="/Cat.ico"
-        Title="Audio Cat Tool v5.0.0.alpha3" Height="640" Width="1024"
+        Title="Audio Cat Tool v5.0.0" Height="640" Width="1024"
         d:DataContext="{d:DesignInstance viewModels:MainViewModel, IsDesignTimeCreatable=False}">
     <Window.TaskbarItemInfo>
         <TaskbarItemInfo ProgressValue="{Binding TaskBarProgress, Mode=OneWay}" ProgressState="Normal" />
@@ -65,6 +65,7 @@
                                     </Image.Style>
                                 </Image>
                             </Button>
+                            <!-- TODO Cancellation Implementation needed -->
                             <!--<Button
                                 Command="{Binding Cancel}"
                                 IsEnabled="{Binding IsCancelEnabled}"
@@ -1120,7 +1121,6 @@
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
 
                                         <Border
@@ -1394,7 +1394,6 @@
                                         CornerRadius="5,5,5,5"
                                         Margin="0,3,0,0"
                                         Background="LightPink">
-
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />

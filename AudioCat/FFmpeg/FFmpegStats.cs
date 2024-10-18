@@ -72,8 +72,8 @@ public sealed class FFmpegStats(string message) : IProcessingStats
         if (endOffset < 0)
             return default;
 
-        for (; startOffset < message.Length && message[startOffset] == ' '; startOffset++) // Skip leading spaces, avoiding trim for performance
-        { }
+        while (startOffset < message.Length && message[startOffset] == ' ') // Skip leading spaces, avoiding trim for performance
+            startOffset++;
 
         return startOffset < message.Length
             ? message.AsSpan(startOffset, endOffset - startOffset)

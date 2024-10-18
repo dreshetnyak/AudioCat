@@ -208,7 +208,7 @@ internal static class CommandFactory
             return Response<object>.Success(new TagCommand(firstLiteral.ToString(), GetQuotedValueFullString(valueSpan[valueStartIdx..]).ToString()));
         
         return Response<object>.Success(new TagCommand(firstLiteral.ToString(),
-            (valueSpan[valueStartIdx] != '\"' 
+            (valueSpan[valueStartIdx] != '\"' //TODO This is always true, should it be removed?
                 ? valueSpan[valueStartIdx..].Trim() 
                 : GetQuotedValueFullString(valueSpan[valueStartIdx..])).ToString()));
 
