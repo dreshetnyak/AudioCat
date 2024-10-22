@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using AudioCat.Models;
 
 namespace AudioCat.Cue;
@@ -21,19 +22,24 @@ internal sealed class Parser
         public string Value { get; private init; } = "";
         public static ITag From(ITagCommand tagCommand) => new Tag { Name = tagCommand.Name, Value = tagCommand.Value };
     }
-    
+
+    private sealed class Context
+    {
+        public bool FileFound { get; set; }
+        public bool TrackFound { get; set; }
+        public bool IndexFound { get; set; }
+        public Builder CueBuilder { get; } = new();
+        public FileBuilder FileBuilder { get; } = new();
+        public TrackBuilder TrackBuilder { get; } = new();
+    }
+
     public static async Task<IResponse<ICue>> Parse(string cueFileFullName)
     {
         var file = new FileInfo(cueFileFullName);
         if (!file.Exists)
             return Response<ICue>.Failure("File not found");
 
-        var fileFound = false;
-        var trackFound = false;
-        var indexFound = false;
-        var cueBuilder = new Builder();
-        var fileBuilder = new FileBuilder();
-        var trackBuilder = new TrackBuilder();
+        var context = new Context();
 
         await using var fileStream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var streamReader = new StreamReader(fileStream);
@@ -45,102 +51,163 @@ internal sealed class Parser
             if (commandResponse.IsFailure)
                 return Response<ICue>.Failure(commandResponse.Message);
             var command = commandResponse.Data!;
-            
-            switch (command)
-            {
-                case IFileCommand fileCommand:
-                {
-                    if (fileFound)
-                    {
-                        var addResponse = AddFileToCue();
-                        if (addResponse.IsFailure)
-                            return addResponse;
-                    }
-                    else
-                        fileFound = true;
-
-                    fileBuilder.SetName(fileCommand.File);
-                    fileBuilder.SetType(fileCommand.Type);
-                    break;
-                }
-                case ITrackCommand trackCommand when trackFound:
-                    var trackResponse = trackBuilder.Build();
-                    if (trackResponse.IsFailure)
-                        return Response<ICue>.Failure(trackResponse.Message);
-                    fileBuilder.Add(trackResponse.Data!);
-                    trackBuilder.Clear();
-                    trackBuilder.SetNumber(trackCommand.Number);
-                    trackBuilder.SetType(trackCommand.Type);
-                    indexFound = false;
-                    break;
-                case ITrackCommand trackCommand:
-                    trackBuilder.SetNumber(trackCommand.Number);
-                    trackBuilder.SetType(trackCommand.Type);
-                    trackFound = true;
-                    break;
-                case IIndexCommand when indexFound:
-                    return Response<ICue>.Failure("More than one INDEX command specified in the TRACK command");
-                case IIndexCommand indexCommand:
-                    trackBuilder.SetIndex(Index.From(indexCommand));
-                    indexFound = true;
-                    break;
-                case ITitleCommand titleCommand when fileFound:
-                    trackBuilder.SetTitle(titleCommand.Title);
-                    break;
-                case ITitleCommand titleCommand:
-                    cueBuilder.SetTitle(titleCommand.Title);
-                    break;
-                case IPerformerCommand performerCommand when fileFound:
-                    trackBuilder.SetPerformer(performerCommand.Performer);
-                    break;
-                case IPerformerCommand performerCommand:
-                    cueBuilder.SetPerformer(performerCommand.Performer);
-                    break;
-                case ISongwriterCommand songwriterCommand when fileFound:
-                    trackBuilder.SetSongwriter(songwriterCommand.Songwriter);
-                    break;
-                case ISongwriterCommand songwriterCommand:
-                    cueBuilder.SetSongwriter(songwriterCommand.Songwriter);
-                    break;
-                case ITagCommand tagCommand when fileFound:
-                    trackBuilder.Add(Tag.From(tagCommand));
-                    break;
-                case ITagCommand tagCommand:
-                    cueBuilder.Add(Tag.From(tagCommand));
-                    break;
-            }
+            var processCommandResponse = ProcessCommand(context, command);
+            if (processCommandResponse.IsFailure)
+                return processCommandResponse;
         }
 
-        if (!fileFound)
+        if (!context.FileFound)
             return Response<ICue>.Failure("No FILE command found in the cue file");
 
-        var response = AddFileToCue();
+        var response = AddFileToCue(context);
         return response.IsSuccess 
-            ? cueBuilder.Build()
+            ? context.CueBuilder.Build()
             : response;
+    }
 
-        IResponse<ICue> AddFileToCue()
+    private static IResponse<ICue> ProcessCommand(Context context, object command) => command switch
+    {
+        IFileCommand fileCommand => ProcessFileCommand(context, fileCommand),
+        ITrackCommand trackCommand when context.TrackFound => ProcessTrackCommandWhenTrackFound(context, trackCommand),
+        ITrackCommand trackCommand => ProcessTrackCommand(context, trackCommand),
+        IIndexCommand when context.IndexFound => Response<ICue>.Failure("More than one INDEX command specified in the TRACK command"),
+        IIndexCommand indexCommand => ProcessIndexCommand(context, indexCommand),
+        ITitleCommand titleCommand when context.FileFound => ProcessTitleCommandWhenFileFound(context, titleCommand),
+        ITitleCommand titleCommand => ProcessTitleCommand(context, titleCommand),
+        IPerformerCommand performerCommand when context.FileFound => ProcessPerformerCommandWhenFileFound(context, performerCommand),
+        IPerformerCommand performerCommand => ProcessPerformerCommand(context, performerCommand),
+        ISongwriterCommand songwriterCommand when context.FileFound => ProcessSongwriterCommandWhenFileFound(context, songwriterCommand),
+        ISongwriterCommand songwriterCommand => ProcessSongwriterCommand(context, songwriterCommand),
+        ITagCommand tagCommand when context.FileFound => ProcessTagCommandWhenTagFound(context, tagCommand),
+        ITagCommand tagCommand => ProcessTagCommand(context, tagCommand),
+        _ => Response<ICue>.Success()
+    };
+
+    private static IResponse<ICue> AddFileToCue(Context context)
+    {
+        if (!context.TrackFound)
+            return Response<ICue>.Failure("No TRACK command specified in the FILE command");
+        if (!context.IndexFound)
+            return Response<ICue>.Failure("No INDEX command specified in the TRACK command");
+
+        var trackResponse = context.TrackBuilder.Build();
+        if (trackResponse.IsFailure)
+            return Response<ICue>.Failure(trackResponse.Message);
+        context.FileBuilder.Add(trackResponse.Data!);
+
+        var fileResponse = context.FileBuilder.Build();
+        if (fileResponse.IsFailure)
+            return Response<ICue>.Failure(fileResponse.Message);
+        context.CueBuilder.Add(fileResponse.Data!);
+
+        context.TrackBuilder.Clear();
+        context.FileBuilder.Clear();
+        context.TrackFound = false;
+        context.IndexFound = false;
+        return Response<ICue>.Success();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static IResponse<ICue> ProcessFileCommand(Context context, IFileCommand fileCommand)
+    {
+        if (context.FileFound)
         {
-            if (!trackFound)
-                return Response<ICue>.Failure("No TRACK command specified in the FILE command");
-            if (!indexFound)
-                return Response<ICue>.Failure("No INDEX command specified in the TRACK command");
-
-            var trackResponse = trackBuilder.Build();
-            if (trackResponse.IsFailure)
-                return Response<ICue>.Failure(trackResponse.Message);
-            fileBuilder.Add(trackResponse.Data!);
-
-            var fileResponse = fileBuilder.Build();
-            if (fileResponse.IsFailure)
-                return Response<ICue>.Failure(fileResponse.Message);
-            cueBuilder.Add(fileResponse.Data!);
-
-            trackBuilder.Clear();
-            fileBuilder.Clear();
-            trackFound = false;
-            indexFound = false;
-            return Response<ICue>.Success();
+            var addResponse = AddFileToCue(context);
+            if (addResponse.IsFailure)
+                return addResponse;
         }
+        else
+            context.FileFound = true;
+
+        context.FileBuilder.SetName(fileCommand.File);
+        context.FileBuilder.SetType(fileCommand.Type);
+        return Response<ICue>.Success();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static IResponse<ICue> ProcessTrackCommandWhenTrackFound(Context context, ITrackCommand trackCommand)
+    {
+        var trackResponse = context.TrackBuilder.Build();
+        if (trackResponse.IsFailure)
+            return Response<ICue>.Failure(trackResponse);
+        context.FileBuilder.Add(trackResponse.Data!);
+        context.TrackBuilder.Clear();
+        context.TrackBuilder.SetNumber(trackCommand.Number);
+        context.TrackBuilder.SetType(trackCommand.Type);
+        context.IndexFound = false;
+        return Response<ICue>.Success();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static IResponse<ICue> ProcessTrackCommand(Context context, ITrackCommand trackCommand)
+    {
+        context.TrackBuilder.SetNumber(trackCommand.Number);
+        context.TrackBuilder.SetType(trackCommand.Type);
+        context.TrackFound = true;
+        return Response<ICue>.Success();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static IResponse<ICue> ProcessIndexCommand(Context context, IIndexCommand indexCommand)
+    {
+        context.TrackBuilder.SetIndex(Index.From(indexCommand));
+        context.IndexFound = true;
+        return Response<ICue>.Success();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static IResponse<ICue> ProcessTitleCommandWhenFileFound(Context context, ITitleCommand titleCommand)
+    {
+        context.TrackBuilder.SetTitle(titleCommand.Title);
+        return Response<ICue>.Success();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static IResponse<ICue> ProcessTitleCommand(Context context, ITitleCommand titleCommand)
+    {
+        context.CueBuilder.SetTitle(titleCommand.Title);
+        return Response<ICue>.Success();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static IResponse<ICue> ProcessPerformerCommandWhenFileFound(Context context, IPerformerCommand performerCommand)
+    {
+        context.TrackBuilder.SetPerformer(performerCommand.Performer);
+        return Response<ICue>.Success();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static IResponse<ICue> ProcessPerformerCommand(Context context, IPerformerCommand performerCommand)
+    {
+        context.CueBuilder.SetPerformer(performerCommand.Performer);
+        return Response<ICue>.Success();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static IResponse<ICue> ProcessSongwriterCommandWhenFileFound(Context context, ISongwriterCommand songwriterCommand)
+    {
+        context.TrackBuilder.SetSongwriter(songwriterCommand.Songwriter);
+        return Response<ICue>.Success();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static IResponse<ICue> ProcessSongwriterCommand(Context context, ISongwriterCommand songwriterCommand)
+    {
+        context.CueBuilder.SetSongwriter(songwriterCommand.Songwriter);
+        return Response<ICue>.Success();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static IResponse<ICue> ProcessTagCommandWhenTagFound(Context context, ITagCommand tagCommand)
+    {
+        context.TrackBuilder.Add(Tag.From(tagCommand));
+        return Response<ICue>.Success();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static IResponse<ICue> ProcessTagCommand(Context context, ITagCommand tagCommand)
+    {
+        context.CueBuilder.Add(Tag.From(tagCommand));
+        return Response<ICue>.Success();
     }
 }

@@ -54,22 +54,24 @@ internal class TextBlockFormatter
         var output = new StringBuilder();
         var formatters = new List<FormatterType>();
 
-        for (var readOffset = 0; readOffset < input.Length;)
+        var processedBytes = 0;
+        for (var readOffset = 0; readOffset < input.Length; readOffset += processedBytes)
         {
             if (TryGetFormatterStartAt(input, readOffset, out var startingFormatter))
             {
                 AddFormattedText(textBlock, output, formatters);
                 formatters.Add(startingFormatter!.Type);
-                readOffset += startingFormatter.Start.Length;
+                processedBytes = startingFormatter.Start.Length;
             }
             else if (TryGetFormatterEndAt(input, readOffset, out var endingFormatter))
             {
                 AddFormattedText(textBlock, output, formatters);
                 RemoveFormatter(formatters, endingFormatter!.Type);
-                readOffset += endingFormatter.End.Length;
+                processedBytes = endingFormatter.End.Length;
             }
 
-            output.Append(input[readOffset++]);
+            output.Append(input[readOffset]);
+            processedBytes++;
         }
 
         AddFormattedText(textBlock, output, formatters);

@@ -1,6 +1,8 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
+using static AudioCat.Services.Process;
 
 namespace AudioCat.Services;
 
@@ -10,41 +12,39 @@ internal static class Process
 
     public static async Task Run(string executable, string arguments, Func<string, Task> onOutput, OutputType outputType, CancellationToken ctx)
     {
-        using var process = CreateProcess(executable, arguments);
+        using System.Diagnostics.Process process = CreateProcess(executable, arguments);
         process.Start();
-        var outTask = ReadOutStream();
+        var outTask = ReadOutStream(process, onOutput, outputType, ctx);
         await process.WaitForExitAsync(ctx);
         await outTask;
+    }
 
-        return;
-
-        async Task ReadOutStream()
+    private static async Task ReadOutStream(System.Diagnostics.Process process, Func<string, Task> onOutput, OutputType outputType, CancellationToken ctx)
+    {
+        // ReSharper disable AccessToDisposedClosure
+        TextReader textReader = outputType == OutputType.Error
+            ? process.StandardError
+            : process.StandardOutput;
+        // ReSharper restore AccessToDisposedClosure
+        while (!ctx.IsCancellationRequested)
         {
-            // ReSharper disable AccessToDisposedClosure
-            TextReader textReader = outputType == OutputType.Error
-                ? process.StandardError
-                : process.StandardOutput;
-            // ReSharper restore AccessToDisposedClosure
-            while (!ctx.IsCancellationRequested)
+            try
             {
-                try
-                {
-                    var line = await textReader.ReadLineAsync(ctx);
-                    if (line == "")
-                        continue;
-                    if (line == null)
-                        break;
-                    try { await onOutput(line); }
-                    catch { /* ignore */ }
-                }
-                catch
-                {
+                var line = await textReader.ReadLineAsync(ctx);
+                if (line == "")
+                    continue;
+                if (line == null)
                     break;
-                }
+                try { await onOutput(line); }
+                catch { /* ignore */ }
             }
-
-            ctx.ThrowIfCancellationRequested();
+            catch
+            {
+                break;
+            }
         }
+
+        ctx.ThrowIfCancellationRequested();
     }
 
     public static async Task<string> Run(string executable, string arguments, OutputType outputType, CancellationToken ctx)

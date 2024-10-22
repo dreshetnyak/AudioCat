@@ -7,8 +7,8 @@
 
 ## Version History
 
-### AudioCat 5.0.1
-Code refactoring and clean up.
+### AudioCat 5.0.2
+Code refactoring.
 
 #### Notes.
 **Tags support.** The supported tags are specific to a particular file format. As a result, if you set a tag and the output format doesn't support it, it may be missing in the output file.<br>
@@ -17,6 +17,9 @@ Code refactoring and clean up.
 
 <details>
 <summary>Previous versions</summary>
+
+### AudioCat 5.0.1
+Code refactoring and clean up.
 
 ### AudioCat 5.0.0
 Chapters generator has been completely re-done.<br>

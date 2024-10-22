@@ -1,4 +1,5 @@
-﻿using AudioCat.Models;
+﻿using System.Runtime.CompilerServices;
+using AudioCat.Models;
 using AudioCat.ViewModels;
 
 namespace AudioCat.Commands;
@@ -21,7 +22,7 @@ public sealed class ScanForSilenceCommand(IMediaFileToolkitService mediaFileTool
     {
         try
         {
-            lock (CancelSync) 
+            lock (CancelSync)
                 Cts = new CancellationTokenSource();
 
             if (parameter is not ISilenceScanArgs args)
@@ -33,27 +34,25 @@ public sealed class ScanForSilenceCommand(IMediaFileToolkitService mediaFileTool
             {
                 if (file.IsImage || file.Duration == null)
                     continue;
-                IResponse<IReadOnlyList<IInterval>> intervalsResponse;
-                try { intervalsResponse = await MediaFileToolkitService.ScanForSilence(file.FilePath, args.SilenceDuration, args.SilenceThreshold, Cts.Token); }
-                catch (Exception ex) { return Response<object>.Failure(ex.Message); }
+
+                var intervalsResponse = await MediaFileToolkitService.ScanForSilence(file.FilePath, args.SilenceDuration, args.SilenceThreshold, Cts.Token);
                 if (intervalsResponse.IsFailure)
-                {
                     return intervalsResponse.Message is nameof(OperationCanceledException) or nameof(TaskCanceledException)
                         ? Response<object>.Success()
                         : Response<object>.Failure(intervalsResponse.Message);
-                }
 
                 var fileIntervals = intervalsResponse.Data!;
-                foreach (var fileInterval in fileIntervals)
-                    intervals.Add(new Interval(fileInterval.FileFullName, startTime + fileInterval.Start, startTime + fileInterval.End));
-
-                var fileDuration = file.Duration.Value;
+                AddFileIntervals(intervals, fileIntervals, startTime);
+                var fileDuration = file.Duration!.Value;
                 intervals.Add(new Interval(file.FilePath, fileDuration, fileDuration));
-
                 startTime += fileDuration;
             }
 
             return Response<object>.Success(intervals);
+        }
+        catch (Exception ex)
+        {
+            return Response<object>.Failure(ex.Message);
         }
         finally
         {
@@ -64,6 +63,13 @@ public sealed class ScanForSilenceCommand(IMediaFileToolkitService mediaFileTool
                 Cts = null;
             }
         }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void AddFileIntervals(List<IInterval> intervals, IReadOnlyList<IInterval> fileIntervals, TimeSpan startTime)
+    {
+        foreach (var fileInterval in fileIntervals)
+            intervals.Add(new Interval(fileInterval.FileFullName, startTime + fileInterval.Start, startTime + fileInterval.End));
     }
 
     public void Cancel()

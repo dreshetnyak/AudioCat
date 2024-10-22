@@ -10,36 +10,34 @@ internal static class ChaptersEdit
         if (string.IsNullOrEmpty(textToTrim))
             return;
         if (isTrimExactText)
-            TrimExact();
+            TrimExactStart(createdChapters, textToTrim, isTrimCaseSensitive);
         else if (isTrimCharsFromText)
-            TrimChars();
+            TrimCharsStart(createdChapters, textToTrim);
+    }
 
-        return;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void TrimExact()
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void TrimExactStart(IEnumerable<IMediaChapterViewModel> createdChapters, string textToTrim, bool isTrimCaseSensitive)
+    {
+        foreach (var chapter in createdChapters)
         {
-            foreach (var chapter in createdChapters)
-            {
-                if (chapter.Title.StartsWith(textToTrim, isTrimCaseSensitive ? StringComparison.CurrentCulture : StringComparison.CurrentCultureIgnoreCase))
-                    chapter.Title = chapter.Title[textToTrim.Length..];
-            }
+            if (chapter.Title.StartsWith(textToTrim, isTrimCaseSensitive ? StringComparison.CurrentCulture : StringComparison.CurrentCultureIgnoreCase))
+                chapter.Title = chapter.Title[textToTrim.Length..];
         }
+    }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void TrimChars()
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void TrimCharsStart(IEnumerable<IMediaChapterViewModel> createdChapters, string textToTrim)
+    {
+        foreach (var chapter in createdChapters)
         {
-            foreach (var chapter in createdChapters)
+            var title = chapter.Title;
+            for (var i = 0; i < title.Length; ++i)
             {
-                var title = chapter.Title;
-                for (var i = 0; i < title.Length; ++i)
-                {
-                    var ch = title[i];
-                    if (textToTrim.Contains(ch))
-                        continue;
-                    chapter.Title = title[i..];
-                    break;
-                }
+                var ch = title[i];
+                if (textToTrim.Contains(ch))
+                    continue;
+                chapter.Title = title[i..];
+                break;
             }
         }
     }
@@ -49,36 +47,34 @@ internal static class ChaptersEdit
         if (string.IsNullOrEmpty(textToTrim))
             return;
         if (isTrimExactText)
-            TrimExact();
+            TrimExactEnd(createdChapters, textToTrim, isTrimCaseSensitive);
         else if (isTrimCharsFromText)
-            TrimChars();
+            TrimCharsEnd(createdChapters, textToTrim);
+    }
 
-        return;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void TrimExact()
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void TrimExactEnd(IEnumerable<IMediaChapterViewModel> createdChapters, string textToTrim, bool isTrimCaseSensitive)
+    {
+        foreach (var chapter in createdChapters)
         {
-            foreach (var chapter in createdChapters)
-            {
-                if (chapter.Title.EndsWith(textToTrim, isTrimCaseSensitive ? StringComparison.CurrentCulture : StringComparison.CurrentCultureIgnoreCase))
-                    chapter.Title = chapter.Title[..^textToTrim.Length];
-            }
+            if (chapter.Title.EndsWith(textToTrim, isTrimCaseSensitive ? StringComparison.CurrentCulture : StringComparison.CurrentCultureIgnoreCase))
+                chapter.Title = chapter.Title[..^textToTrim.Length];
         }
+    }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void TrimChars()
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void TrimCharsEnd(IEnumerable<IMediaChapterViewModel> createdChapters, string textToTrim)
+    {
+        foreach (var chapter in createdChapters)
         {
-            foreach (var chapter in createdChapters)
+            var title = chapter.Title;
+            for (var i = title.Length - 1; i >= 0; --i)
             {
-                var title = chapter.Title;
-                for (var i = title.Length - 1; i >= 0; --i)
-                {
-                    var ch = title[i];
-                    if (textToTrim.Contains(ch))
-                        continue;
-                    chapter.Title = title[..(i + 1)];
-                    break;
-                }
+                var ch = title[i];
+                if (textToTrim.Contains(ch))
+                    continue;
+                chapter.Title = title[..(i + 1)];
+                break;
             }
         }
     }

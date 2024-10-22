@@ -305,10 +305,10 @@ internal sealed class FFmpegService : IMediaFileToolkitService
 
         await cts.CancelAsync();
 
-        if (errors.Length > 0 && IsUnrecoverableError()) 
-            await DeleteAllTempFiles();
+        if (errors.Length > 0 && IsUnrecoverableError(remuxedFiles)) 
+            await DeleteAllTempFiles(remuxedFiles);
 
-        var sortedRemuxedFiles = SortRemuxedFiles();
+        var sortedRemuxedFiles = SortRemuxedFiles(mediaFiles, remuxedFiles);
 
         try { await progressTrackingTask; }
         catch { /* ignore */ }
@@ -316,51 +316,49 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         return errors.Length == 0
             ? Response<IReadOnlyList<string>>.Success(sortedRemuxedFiles)
             : Response<IReadOnlyList<string>>.Failure(sortedRemuxedFiles, errors.ToString());
-
-        #region Local Methods
-        bool IsUnrecoverableError()
-        {
-            foreach (var (_, remuxedFile) in remuxedFiles)
-            {
-                var fileInfo = new FileInfo(remuxedFile);
-                if (!fileInfo.Exists || fileInfo.Length == 0)
-                    return true;
-            }
-
-            return false;
-        }
-
-        async Task DeleteAllTempFiles()
-        {
-            foreach (var (_, remuxedFile) in remuxedFiles)
-            {
-                var fileInfo = new FileInfo(remuxedFile);
-                if (!fileInfo.Exists)
-                    continue;
-                try { await Task.Run(() => File.Delete(fileInfo.FullName), CancellationToken.None); }
-                catch { /* ignore */ }
-            }
-        }
-
-        IReadOnlyList<string> SortRemuxedFiles()
-        {
-            var sortedFiles = new List<string>(mediaFiles.Count);
-            foreach (var mediaFile in mediaFiles)
-            {
-                foreach (var (remuxedMediaFile, remuxedFile) in remuxedFiles)
-                {
-                    if (remuxedMediaFile != mediaFile)
-                        continue;
-                    sortedFiles.Add(remuxedFile);
-                    break;
-                }
-            }
-
-            return sortedFiles;
-        }
-        #endregion
     }
-    
+
+    private static bool IsUnrecoverableError(ConcurrentBag<(IMediaFileViewModel, string)> remuxedFiles)
+    {
+        foreach (var (_, remuxedFile) in remuxedFiles)
+        {
+            var fileInfo = new FileInfo(remuxedFile);
+            if (!fileInfo.Exists || fileInfo.Length == 0)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static async Task DeleteAllTempFiles(ConcurrentBag<(IMediaFileViewModel, string)> remuxedFiles)
+    {
+        foreach (var (_, remuxedFile) in remuxedFiles)
+        {
+            var fileInfo = new FileInfo(remuxedFile);
+            if (!fileInfo.Exists)
+                continue;
+            try { await Task.Run(() => File.Delete(fileInfo.FullName), CancellationToken.None); }
+            catch { /* ignore */ }
+        }
+    }
+
+    private static IReadOnlyList<string> SortRemuxedFiles(IReadOnlyList<IMediaFileViewModel> mediaFiles, ConcurrentBag<(IMediaFileViewModel, string)> remuxedFiles)
+    {
+        var sortedFiles = new List<string>(mediaFiles.Count);
+        foreach (var mediaFile in mediaFiles)
+        {
+            foreach (var (remuxedMediaFile, remuxedFile) in remuxedFiles)
+            {
+                if (remuxedMediaFile != mediaFile)
+                    continue;
+                sortedFiles.Add(remuxedFile);
+                break;
+            }
+        }
+
+        return sortedFiles;
+    }
+
     private static async Task ProgressTracking(IReadOnlyList<IMediaFileViewModel> mediaFiles, BlockingCollection<RemuxProgress> statusMessages, Func<Progress, Task> onProgress, CancellationToken ctx)
     {
         var totalDuration = mediaFiles.GetTotalDuration();
