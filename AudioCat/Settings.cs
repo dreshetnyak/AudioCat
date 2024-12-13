@@ -54,33 +54,31 @@ internal static class Settings
         return DefaultEncodingCommand;
     }
 
-    public static string GetSaveFileExtensionFilter(string codec) =>
-        codec switch
-        {
-            Codecs.AAC => "AAC Audio|*.m4b",
-            Codecs.MP3 => "MP3 Audio|*.mp3",
-            Codecs.OPUS => "Opus Audio|*.opus",
-            Codecs.WMAV2 => "Windows Media Audio|*.wma",
-            Codecs.FLAC => "Free Lossless Audio Codec|*.flac",
-            Codecs.PCM_S16_LE => "Waveform Audio|*.wav",
-            Codecs.PCM_U8 => "Waveform Audio|*.wav",
-            Codecs.VORBIS => "OGG Vorbis|*.ogg",
-            _ => "Other Files|*.*"
-        };
+    public static string GetSaveFileExtensionFilter(string codec) => codec switch
+    {
+        Codecs.AAC => "AAC Audio|*.m4b",
+        Codecs.MP3 => "MP3 Audio|*.mp3",
+        Codecs.OPUS => "Opus Audio|*.opus",
+        Codecs.WMAV2 => "Windows Media Audio|*.wma",
+        Codecs.FLAC => "Free Lossless Audio Codec|*.flac",
+        Codecs.PCM_S16_LE => "Waveform Audio|*.wav",
+        Codecs.PCM_U8 => "Waveform Audio|*.wav",
+        Codecs.VORBIS => "OGG Vorbis|*.ogg",
+        _ => "Other Files|*.*"
+    };
 
-    public static string GetSuggestedFileNameExtension(string codec) =>
-        codec switch
-        {
-            Codecs.AAC => ".m4b",
-            Codecs.MP3 => ".mp3",
-            Codecs.OPUS => ".opus",
-            Codecs.WMAV2 => ".wma",
-            Codecs.FLAC => ".flac",
-            Codecs.PCM_S16_LE => ".wav",
-            Codecs.PCM_U8 => ".wav",
-            Codecs.VORBIS => ".ogg",
-            _ => ""
-        };
+    public static string GetSuggestedFileNameExtension(string codec) => codec switch
+    {
+        Codecs.AAC => ".m4b",
+        Codecs.MP3 => ".mp3",
+        Codecs.OPUS => ".opus",
+        Codecs.WMAV2 => ".wma",
+        Codecs.FLAC => ".flac",
+        Codecs.PCM_S16_LE => ".wav",
+        Codecs.PCM_U8 => ".wav",
+        Codecs.VORBIS => ".ogg",
+        _ => ""
+    };
 
     private const string OTHER_AUDIO_EXTENSION = "Other Audio|*.*";
     public static string GetAddFilesExtensionFilter(string codec) => codec switch
@@ -114,4 +112,12 @@ internal static class Settings
              "OGG Vorbis|*.ogg|" +
              OTHER_AUDIO_EXTENSION
     };
+
+    public static class ChapterWizard
+    {
+        public static string DefaultSelectedTag { get; set; } = "title";
+        public static string DefaultTemplate { get; set; } = "Chapter {}";
+        public static int DefaultSilenceThreshold { get; set; } = Constants.DEFAULT_SILENCE_THRESHOLD;
+        public static int DefaultAudioThreshold { get; set; } = Constants.DEFAULT_SILENCE_DURATION;
+    }
 }

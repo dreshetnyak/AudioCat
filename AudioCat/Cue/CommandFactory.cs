@@ -48,7 +48,7 @@ internal static class CommandFactory
         public override string ToString() => $"{Command.SONGWRITER} \"{Songwriter}\"";
     }
 
-    private sealed class TagCommand(string tag, string value) : ITagCommand
+    private sealed class TagCommand(string tag, ReadOnlySpan<char> value) : ITagCommand
     {
         public string Name => tag;
         public string Value { get; } = value;
@@ -204,24 +204,20 @@ internal static class CommandFactory
             return Response<object>.Success(new TagCommand(Command.REM, valueSpan.Trim().ToString()));
 
         var valueStartIdx = valueSpan.SkipWhitespace(firstLiteralEndIdx);
-        if (valueSpan[valueStartIdx] == '\"')
-            return Response<object>.Success(new TagCommand(firstLiteral.ToString(), GetQuotedValueFullString(valueSpan[valueStartIdx..]).ToString()));
-        
-        return Response<object>.Success(new TagCommand(firstLiteral.ToString(),
-            (valueSpan[valueStartIdx] != '\"' //TODO This is always true, should it be removed?
-                ? valueSpan[valueStartIdx..].Trim() 
-                : GetQuotedValueFullString(valueSpan[valueStartIdx..])).ToString()));
+        return Response<object>.Success(valueSpan[valueStartIdx] == '\"' 
+            ? new TagCommand(firstLiteral.ToString(), GetQuotedValueFullString(valueSpan[valueStartIdx..]).ToString()) 
+            : new TagCommand(firstLiteral.ToString(), valueSpan[valueStartIdx..].Trim()));
+    }
 
-        static bool IsSubCommand(ReadOnlySpan<char> valueSpan)
+    private static bool IsSubCommand(ReadOnlySpan<char> valueSpan)
+    {
+        foreach (var ch in valueSpan)
         {
-            foreach (var ch in valueSpan)
-            {
-                if (!(char.IsUpper(ch) || ch == '_'))
-                    return false;
-            }
-
-            return true;
+            if (!(char.IsUpper(ch) || ch == '_'))
+                return false;
         }
+
+        return true;
     }
 
     private static IResponse<object> CreateCueTagCommand(ReadOnlySpan<char> tagName, ReadOnlySpan<char> valueSpan) => Response<object>.Success(!valueSpan.IsEmpty

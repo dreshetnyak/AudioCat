@@ -24,11 +24,11 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     private const int DEFAULT_SEQUENCE_START = 1;
 
     private bool _trimStartingNonChars;
-    private string _selectedTagName = "";                                // TODO Move to settings
-    private string _template = "Chapter {}";                             // TODO Move to settings
+    private string _selectedTagName;
+    private string _template;
     private string _templateStartNumber = DEFAULT_SEQUENCE_START.ToString();
-    private int _silenceThreshold = Constants.DEFAULT_SILENCE_THRESHOLD; // TODO Move to settings
-    private int _silenceDuration = Constants.DEFAULT_SILENCE_DURATION;   // TODO Move to settings
+    private int _silenceThreshold;
+    private int _silenceDuration;
     private Visibility _silenceScanProgressVisibility = Visibility.Hidden;
     private Visibility _silenceScanButtonVisibility = Visibility.Visible;
     private Visibility _cancelSilenceScanButtonVisibility = Visibility.Hidden;
@@ -434,6 +434,11 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         FixItemsEncodingCommand fixItemsEncodingCommand,
         ScanForSilenceCommand scanForSilence)
     {
+        _selectedTagName = Settings.ChapterWizard.DefaultSelectedTag;
+        _template = Settings.ChapterWizard.DefaultTemplate;
+        _silenceThreshold = Settings.ChapterWizard.DefaultSilenceThreshold;
+        _silenceDuration = Settings.ChapterWizard.DefaultAudioThreshold;
+
         ChapterSources = new ObservableCollection<ChapterSourceItem>(GetChapterSources(files));
         SetInitialSelectedChapterSource();
         _ = Task.Run(OnGenerateChapters);
@@ -613,13 +618,13 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     {
         if (string.IsNullOrEmpty(SelectedTagName))
         {
-            if (!TagNames.Has("title"))
+            if (!TagNames.Has(Settings.ChapterWizard.DefaultSelectedTag))
             {
                 CreatedChapters.Clear();
                 return;
             }
 
-            SelectedTagName = "title";
+            SelectedTagName = Settings.ChapterWizard.DefaultSelectedTag;
         }
 
         var chapters = CreateChapters(GetTitleFromTags);

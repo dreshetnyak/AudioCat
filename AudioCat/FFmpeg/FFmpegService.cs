@@ -226,14 +226,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
                     await OnError($"Image embedding errors:{Environment.NewLine}{imagesResult.Message}");
             }
             #endregion
-
-            // TODO Temporary code to create a cue file
-            //var cue = Cue.Create(mediaFiles, codec, outputFileName);
-            //var dir = new FileInfo(outputFileName).Directory!.FullName;
-            //var fileName = Path.GetFileNameWithoutExtension(outputFileName);
-            //var filePath = Path.Combine(dir, fileName + ".cue");
-            //await File.WriteAllTextAsync(filePath, cue, new UTF8Encoding(false), ctx);
-
+            
             #region Delete Temporary Files
             await OnStatus("Cleaning up...");
             

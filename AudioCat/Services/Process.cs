@@ -1,8 +1,6 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Text;
-using static AudioCat.Services.Process;
 
 namespace AudioCat.Services;
 
@@ -17,6 +15,23 @@ internal static class Process
         var outTask = ReadOutStream(process, onOutput, outputType, ctx);
         await process.WaitForExitAsync(ctx);
         await outTask;
+    }
+
+    public static async Task<string> Run(string executable, string arguments, OutputType outputType, CancellationToken ctx)
+    {
+        using var process = CreateProcess(executable, arguments);
+        process.Start();
+
+        var outErrorTask = ReadOutputStream(process, OutputType.Error, ctx);
+        var outStandardTask = ReadOutputStream(process, OutputType.Standard, ctx);
+
+        await process.WaitForExitAsync(ctx);
+        var errorOutput = await outErrorTask;
+        var standardOutput = await outStandardTask;
+
+        return outputType == OutputType.Standard
+            ? standardOutput
+            : errorOutput;
     }
 
     private static async Task ReadOutStream(System.Diagnostics.Process process, Func<string, Task> onOutput, OutputType outputType, CancellationToken ctx)
@@ -47,27 +62,12 @@ internal static class Process
         ctx.ThrowIfCancellationRequested();
     }
 
-    public static async Task<string> Run(string executable, string arguments, OutputType outputType, CancellationToken ctx)
-    {
-        using var process = CreateProcess(executable, arguments);
-        process.Start();
-        
-        var outErrorTask = ReadOutputStream(process, OutputType.Error, ctx);
-        var outStandardTask = ReadOutputStream(process, OutputType.Standard, ctx);
-
-        await process.WaitForExitAsync(ctx);
-        var errorOutput = await outErrorTask;
-        var standardOutput = await outStandardTask;
-
-        return outputType == OutputType.Standard 
-            ? standardOutput 
-            : errorOutput;
-    }
-
     private static async Task<string> ReadOutputStream(System.Diagnostics.Process process, OutputType outputType, CancellationToken ctx)
     {
         var responseBuilder = new StringBuilder(1024);
-        TextReader textReader = outputType == OutputType.Error ? process.StandardError : process.StandardOutput;
+        TextReader textReader = outputType == OutputType.Error 
+            ? process.StandardError 
+            : process.StandardOutput;
         
         while (!ctx.IsCancellationRequested)
         {

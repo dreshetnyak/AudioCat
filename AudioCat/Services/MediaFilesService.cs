@@ -2,6 +2,7 @@
 using AudioCat.ViewModels;
 using AudioCat.Windows;
 using System.Diagnostics;
+using System.Windows.Threading;
 
 namespace AudioCat.Services;
 
@@ -162,12 +163,6 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
 
         var coverSelected = SelectionFlags.GetCoverSelectedFrom(files);
 
-
-
-        //TODO CUE FILES SHOULD BE ADDED HERE
-
-
-
         var response = await GetMediaFiles(fileNames, !coverSelected, selectedCodec, CancellationToken.None);
 
         if (selectedCodec == "")
@@ -182,27 +177,7 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
 
         var mediaFiles = response.MediaFiles;
         var duplicates = GetDuplicates(files, mediaFiles);
-        if (duplicates.Count > 0)
-        {
-            var duplicatesToAdd = await uiDispatcher.InvokeAsync(() =>
-            {
-                var duplicateFilesWindow = new DuplicateFilesWindow(duplicates);
-                duplicateFilesWindow.ShowDialog();
-                return duplicateFilesWindow.GetSelectedDuplicateFiles();
-            });
-
-            if (duplicatesToAdd.Count != duplicates.Count)
-            {
-                var mediaFilesWithoutDuplicates = new List<IMediaFileViewModel>(mediaFiles.Count);
-                foreach (var file in mediaFiles)
-                {
-                    if (duplicates.All(duplicate => duplicate.FilePath != file.FilePath) || duplicatesToAdd.Any(duplicate => duplicate.FilePath == file.FilePath))
-                        mediaFilesWithoutDuplicates.Add(file);
-                }
-
-                mediaFiles = mediaFilesWithoutDuplicates;
-            }
-        }
+        mediaFiles = await HandleDuplicates(mediaFiles, duplicates);
         
         foreach (var audioFile in mediaFiles)
             await uiDispatcher.InvokeAsync(() => files.Add(audioFile));
@@ -211,6 +186,31 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
             await uiDispatcher.InvokeAsync(() => MediaFilesContainer.SelectedFile = files[0]);
 
         return response;
+    }
+
+    private static async Task<IReadOnlyList<IMediaFileViewModel>> HandleDuplicates(IReadOnlyList<IMediaFileViewModel> mediaFiles, IReadOnlyList<IMediaFileViewModel> duplicates)
+    {
+        if (duplicates.Count <= 0) 
+            return mediaFiles;
+
+        var duplicatesToAdd = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            var duplicateFilesWindow = new DuplicateFilesWindow(duplicates);
+            duplicateFilesWindow.ShowDialog();
+            return duplicateFilesWindow.GetSelectedDuplicateFiles();
+        });
+
+        if (duplicatesToAdd.Count == duplicates.Count) 
+            return mediaFiles;
+
+        var mediaFilesWithoutDuplicates = new List<IMediaFileViewModel>(mediaFiles.Count);
+        foreach (var file in mediaFiles)
+        {
+            if (duplicates.All(duplicate => duplicate.FilePath != file.FilePath) || duplicatesToAdd.Any(duplicate => duplicate.FilePath == file.FilePath))
+                mediaFilesWithoutDuplicates.Add(file);
+        }
+
+        return mediaFilesWithoutDuplicates;
     }
 
     private static IMediaFilesService.IGetMediaFilesResponse SkipImages(IMediaFilesService.IGetMediaFilesResponse response, string codec)

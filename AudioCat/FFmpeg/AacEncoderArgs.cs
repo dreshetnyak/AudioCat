@@ -2,6 +2,7 @@
 
 namespace AudioCat.FFmpeg;
 
+// TODO This class is a work in progress.
 internal sealed class AacEncoderArgs : IEncoderArgs
 {
     public enum EncodingType { Vbr, Cbr }
