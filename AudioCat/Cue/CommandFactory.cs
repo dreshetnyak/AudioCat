@@ -48,7 +48,7 @@ internal static class CommandFactory
         public override string ToString() => $"{Command.SONGWRITER} \"{Songwriter}\"";
     }
 
-    private sealed class TagCommand(string tag, ReadOnlySpan<char> value) : ITagCommand
+    private sealed class TagCommand(string tag, string value) : ITagCommand
     {
         public string Name => tag;
         public string Value { get; } = value;
@@ -206,7 +206,7 @@ internal static class CommandFactory
         var valueStartIdx = valueSpan.SkipWhitespace(firstLiteralEndIdx);
         return Response<object>.Success(valueSpan[valueStartIdx] == '\"' 
             ? new TagCommand(firstLiteral.ToString(), GetQuotedValueFullString(valueSpan[valueStartIdx..]).ToString()) 
-            : new TagCommand(firstLiteral.ToString(), valueSpan[valueStartIdx..].Trim()));
+            : new TagCommand(firstLiteral.ToString(), valueSpan[valueStartIdx..].ToString().Trim()));
     }
 
     private static bool IsSubCommand(ReadOnlySpan<char> valueSpan)

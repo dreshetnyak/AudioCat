@@ -40,6 +40,7 @@ internal sealed class Parser
             return Response<ICue>.Failure("File not found");
 
         var context = new Context();
+        context.CueBuilder.SetSourceFileFullName(cueFileFullName);
 
         await using var fileStream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var streamReader = new StreamReader(fileStream);

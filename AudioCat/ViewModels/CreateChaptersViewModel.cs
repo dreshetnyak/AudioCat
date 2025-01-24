@@ -1,6 +1,7 @@
 ﻿using AudioCat.Commands;
 using AudioCat.Models;
 using AudioCat.Services;
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -10,7 +11,7 @@ using System.Windows.Input;
 
 namespace AudioCat.ViewModels;
 
-public enum ChapterSourceType { Unknown, FileNames, MetadataTags, Template, Existing, SilenceScan }
+public enum ChapterSourceType { Unknown, FileNames, MetadataTags, CueFiles, Template, Existing, SilenceScan }
 public sealed class ChapterSourceItem
 {
     public ChapterSourceType SourceType { get; init; } = ChapterSourceType.Unknown;
@@ -49,6 +50,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     private bool _isTextToAddSequenceStartValid = true;
     private int _textToAddSequenceStartValue = DEFAULT_SEQUENCE_START;
     private bool _isTemplateStartNumberValid = true;
+    private int _selectedCueFileIndex;
 
     #endregion
 
@@ -66,6 +68,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             OnPropertyChanged();
             OnPropertyChanged(nameof(FileNamesOptionsVisibility));
             OnPropertyChanged(nameof(MetadataTagsOptionsVisibility));
+            OnPropertyChanged(nameof(CueFilesVisibility));
             OnPropertyChanged(nameof(TemplateOptionsVisibility));
             OnPropertyChanged(nameof(ExistingChaptersOptionsVisibility));
             OnPropertyChanged(nameof(SilenceScanOptionsVisibility));
@@ -77,6 +80,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     #region Options Visibility
     public Visibility FileNamesOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.FileNames ? Visibility.Visible : Visibility.Collapsed;
     public Visibility MetadataTagsOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.MetadataTags ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility CueFilesVisibility => SelectedChapterSource.SourceType == ChapterSourceType.CueFiles ? Visibility.Visible : Visibility.Collapsed;
     public Visibility TemplateOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.Template ? Visibility.Visible : Visibility.Collapsed;
     public Visibility ExistingChaptersOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.Existing ? Visibility.Visible : Visibility.Collapsed;
     public Visibility SilenceScanOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.SilenceScan ? Visibility.Visible : Visibility.Collapsed;
@@ -108,6 +112,33 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             OnPropertyChanged();
         }
     }
+    #endregion
+
+    #region Cue Files Options
+    public ObservableCollection<Cue.ICue> CueFiles { get; } = [];
+    public int SelectedCueFileIndex
+    {
+        get => _selectedCueFileIndex;
+        set
+        {
+            if (value == _selectedCueFileIndex) 
+                return;
+            _selectedCueFileIndex = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanMoveCueUp));
+            OnPropertyChanged(nameof(CanMoveCueDown));
+            OnPropertyChanged(nameof(CanRemoveCue));
+        }
+    }
+    
+    public bool CanMoveCueUp => SelectedCueFileIndex > 0;
+    public bool CanMoveCueDown => CueFiles.Count > 0 && SelectedCueFileIndex < CueFiles.Count - 1;
+    public bool CanRemoveCue => CueFiles.Count > 0 && SelectedCueFileIndex < CueFiles.Count;
+
+    public ICommand GetCueFiles { get; }
+    public ICommand MoveCueFile { get; }
+    public ICommand ClearCueFiles { get; }
+
     #endregion
 
     #region Template Options
@@ -412,7 +443,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
 
     public bool IsGenerateEnabled => SelectedChapterSource.SourceType switch
     {
-        ChapterSourceType.FileNames or ChapterSourceType.MetadataTags or ChapterSourceType.Template or ChapterSourceType.Existing or ChapterSourceType.SilenceScan => true,
+        ChapterSourceType.FileNames or ChapterSourceType.MetadataTags or ChapterSourceType.CueFiles or ChapterSourceType.Template or ChapterSourceType.Existing or ChapterSourceType.SilenceScan => true,
         ChapterSourceType.Unknown => false,
         _ => false
     };
@@ -460,6 +491,12 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         CancelScanForSilence = new RelayCommand(scanForSilence.Cancel);
         ScanForSilence = scanForSilence;
 
+        var getQueueFile = new GetCueFileCommand();
+        getQueueFile.Finished += OnGetQueueFileFinished;
+        GetCueFiles = getQueueFile;
+        MoveCueFile = new RelayParameterCommand(OnMoveQueueFile);
+        ClearCueFiles = new RelayCommand(CueFiles.Clear);
+        
         SetInitialSelectedChapterSource();
 
         TrimStart = new RelayCommand(() => CreatedChapters.TrimStart(TextToTrim, IsTrimExactText, IsTrimCharsFromText, IsTrimCaseSensitive));
@@ -475,6 +512,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         yield return new ChapterSourceItem { SourceType = ChapterSourceType.FileNames, Description = "File Names" };
         if (TagsExist(files))
             yield return new ChapterSourceItem { SourceType = ChapterSourceType.MetadataTags, Description = "Metadata Tags" };
+        yield return new ChapterSourceItem { SourceType = ChapterSourceType.CueFiles, Description = "Cue Files" };
         yield return new ChapterSourceItem { SourceType = ChapterSourceType.Template, Description = "Template" };
         yield return new ChapterSourceItem { SourceType = ChapterSourceType.SilenceScan, Description = "Silence Scan" };
         if (ChaptersExist(files))
@@ -542,6 +580,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         {
             case ChapterSourceType.FileNames: CreateChaptersFromFileNames(); break;
             case ChapterSourceType.MetadataTags: CreateChaptersFromMetadataTags(); break;
+            case ChapterSourceType.CueFiles: CreateChaptersFromCueFiles(); break;
             case ChapterSourceType.Template: CreateChaptersFromTemplate(); break;
             case ChapterSourceType.Existing: CreateChaptersFromExisting(); break;
             case ChapterSourceType.SilenceScan:
@@ -549,6 +588,118 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             default: break;
         }
     }
+
+    #region Create from Cue Files
+
+    private void OnMoveQueueFile(object? parameter)
+    {
+        if (parameter is not string direction)
+            return;
+        var currentIndex = SelectedCueFileIndex;
+        switch (direction)
+        {
+            case "Up" when currentIndex <= 0:
+                return;
+            case "Up":
+            {
+                var newIndex = currentIndex - 1;
+                CueFiles.Move(currentIndex, newIndex);
+                SelectedCueFileIndex = newIndex;
+                break;
+            }
+            case "Down" when currentIndex >= CueFiles.Count - 1:
+                return;
+            case "Down":
+            {
+                var newIndex = currentIndex + 1;
+                CueFiles.Move(currentIndex, newIndex);
+                SelectedCueFileIndex = newIndex;
+                break;
+            }
+            case "Remove" when currentIndex < 0 || currentIndex >= CueFiles.Count:
+                return;
+            case "Remove":
+            {
+                CueFiles.RemoveAt(currentIndex);
+                SelectedCueFileIndex = currentIndex < CueFiles.Count ? currentIndex : CueFiles.Count - 1;
+                break;
+            }
+        }
+    }
+
+    private void OnGetQueueFileFinished(object sender, ResponseEventArgs eventArgs)
+    {
+        CueFiles.Clear();
+        if (eventArgs.Response.IsFailure || eventArgs.Response.Data is not ReadOnlyCollection<Cue.ICue> cueFiles || cueFiles.Count == 0)
+            return;
+        foreach (var cueFile in cueFiles) 
+            CueFiles.Add(cueFile);
+    }
+
+    private void CreateChaptersFromCueFiles()
+    {
+        if (CueFiles.Count == 0)
+            return;
+
+        var chapterIndex = 0;
+        var currentStartTime = TimeSpan.Zero;
+        var totalFilesDuration = GetFilesTotalDuration();
+        foreach (var cueFile in CueFiles)
+        {
+            foreach (var file in cueFile.Files)
+            {
+                //var fileStartTime = currentStartTime;
+                for (var trackIndex = 0; trackIndex < file.Tracks.Count; trackIndex++)
+                {
+                    var isLastTrack = trackIndex == file.Tracks.Count - 1; // The duration of the last track is equal to the duration of the file less the start time of the last track
+
+
+                    var track = file.Tracks[trackIndex]; 
+
+                    
+                    // track.Index.Time // The start time relative to the file beginning
+                    // duration is known only when we get to the next track
+
+                    //var chapter = CreateChapter(fileStartTime + track.Index.Time, duration, track.Title, chapterIndex++);
+                }
+
+                // Which file we are in? When we know it we know the duration
+
+                // currentStartTime += fileDuration;
+            }
+        }
+
+
+        // Do not assume that the tracks are consecutive
+
+        // TODO Implementation in progress
+        // We need to know the total length of the audio files, then we overlay on that the cue files index points
+
+
+        //IMediaChapterViewModel CreateChapter(TimeSpan startTime, TimeSpan duration, string title, int index)
+
+
+
+
+        //var chapters = CreateChapters(GetTitleFromTags);
+        //CreatedChapters.Clear();
+        //foreach (var chapter in chapters)
+        //    CreatedChapters.Add(chapter);
+    }
+
+    private TimeSpan GetFilesTotalDuration()
+    {
+        var totalDuration = TimeSpan.Zero;
+        foreach (var file in Files)
+        {
+            if (file is { IsImage: false, Duration: not null }) 
+                totalDuration += file.Duration.Value;
+        }
+
+        return totalDuration;
+    }
+
+    #endregion
 
     #region Create from Silence Scan
     private void OnScanForSilenceStarting(object? sender, EventArgs eventArgs)

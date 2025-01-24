@@ -270,6 +270,330 @@
                                     </Grid>
                                     <Grid
                                         IsEnabled="{Binding IsUserInputEnabled}"
+                                        Visibility="{Binding CueFilesVisibility}"
+                                        d:IsHidden="True">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+                                        <Border
+                                            Grid.Row="0"
+                                            BorderBrush="LightGray"
+                                            BorderThickness="1"
+                                            CornerRadius="10">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Button
+                                                    Grid.Column="0"
+                                                    Command="{Binding GetCueFiles, Mode=OneTime}"
+                                                    ToolTip="Add Cue Files"
+                                                    Margin="3,0,0,0">
+                                                    <Button.Style>
+                                                        <Style
+                                                            TargetType="{x:Type Button}">
+                                                            <Setter Property="Background" Value="Transparent" />
+                                                            <Setter Property="BorderBrush" Value="Transparent" />
+                                                            <Setter Property="BorderThickness" Value="0" />
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="{x:Type Button}">
+                                                                        <Grid>
+                                                                            <Image
+                                                                                x:Name="buttonImage"
+                                                                                Source="/Images/Add.png"
+                                                                                RenderOptions.BitmapScalingMode="Fant"
+                                                                                Height="20"
+                                                                                Margin="1,1,1,1">
+                                                                            </Image>
+                                                                            <Ellipse
+                                                                                x:Name="hoverEllipse"
+                                                                                Fill="Transparent"
+                                                                                StrokeThickness="2"
+                                                                                Stroke="Gray"
+                                                                                Width="20"
+                                                                                Height="20"
+                                                                                Opacity="0"
+                                                                                Margin="0,0,0,0" />
+                                                                        </Grid>
+                                                                        <ControlTemplate.Triggers>
+                                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                                <Setter TargetName="hoverEllipse" Property="Opacity" Value="0.4" />
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsPressed" Value="True">
+                                                                                <Setter Property="Background" Value="Transparent" />
+                                                                                <Setter TargetName="hoverEllipse" Property="Fill" Value="LightSkyBlue" />
+                                                                                <Setter TargetName="hoverEllipse" Property="Opacity" Value="0.3" />
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsEnabled" Value="False">
+                                                                                <Setter TargetName="buttonImage" Property="Source" Value="/Images/AddGray.png" />
+                                                                                <Setter TargetName="hoverEllipse" Property="Opacity" Value="0" />
+                                                                            </Trigger>
+                                                                        </ControlTemplate.Triggers>
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                                <Button
+                                                    Grid.Column="1"
+                                                    Command="{Binding MoveCueFile, Mode=OneTime}"
+                                                    CommandParameter="Up"
+                                                    IsEnabled="{Binding CanMoveCueUp}"
+                                                    ToolTip="Move Selected File Up"
+                                                    Margin="0,0,0,0">
+                                                    <Button.Style>
+                                                        <Style
+                                                            TargetType="{x:Type Button}">
+                                                            <Setter Property="Background" Value="Transparent" />
+                                                            <Setter Property="BorderBrush" Value="Transparent" />
+                                                            <Setter Property="BorderThickness" Value="0" />
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="{x:Type Button}">
+                                                                        <Grid>
+                                                                            <Image
+                                                                                x:Name="buttonImage"
+                                                                                Source="/Images/Up.png"
+                                                                                RenderOptions.BitmapScalingMode="Fant"
+                                                                                Height="20"
+                                                                                Margin="1,1,1,1">
+                                                                            </Image>
+                                                                            <Ellipse
+                                                                                x:Name="hoverEllipse"
+                                                                                Fill="Transparent"
+                                                                                StrokeThickness="2"
+                                                                                Stroke="Gray"
+                                                                                Width="20"
+                                                                                Height="20"
+                                                                                Opacity="0"
+                                                                                Margin="0,0,0,0" />
+                                                                        </Grid>
+                                                                        <ControlTemplate.Triggers>
+                                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                                <Setter TargetName="hoverEllipse" Property="Opacity" Value="0.4" />
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsPressed" Value="True">
+                                                                                <Setter Property="Background" Value="Transparent" />
+                                                                                <Setter TargetName="hoverEllipse" Property="Fill" Value="LightSkyBlue" />
+                                                                                <Setter TargetName="hoverEllipse" Property="Opacity" Value="0.3" />
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsEnabled" Value="False">
+                                                                                <Setter TargetName="buttonImage" Property="Source" Value="/Images/UpGray.png" />
+                                                                                <Setter TargetName="hoverEllipse" Property="Opacity" Value="0" />
+                                                                            </Trigger>
+                                                                        </ControlTemplate.Triggers>
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                                <Button
+                                                    Grid.Column="2"
+                                                    Command="{Binding MoveCueFile, Mode=OneTime}"
+                                                    CommandParameter="Down"
+                                                    IsEnabled="{Binding CanMoveCueDown}"
+                                                    ToolTip="Move Selected File Down"
+                                                    Margin="0,0,0,0">
+                                                    <Button.Style>
+                                                        <Style
+                                                            TargetType="{x:Type Button}">
+                                                            <Setter Property="Background" Value="Transparent" />
+                                                            <Setter Property="BorderBrush" Value="Transparent" />
+                                                            <Setter Property="BorderThickness" Value="0" />
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="{x:Type Button}">
+                                                                        <Grid>
+                                                                            <Image
+                                                                                x:Name="buttonImage"
+                                                                                Source="/Images/Down.png"
+                                                                                RenderOptions.BitmapScalingMode="Fant"
+                                                                                Height="20"
+                                                                                Margin="1,1,1,1">
+                                                                            </Image>
+                                                                            <Ellipse
+                                                                                x:Name="hoverEllipse"
+                                                                                Fill="Transparent"
+                                                                                StrokeThickness="2"
+                                                                                Stroke="Gray"
+                                                                                Width="20"
+                                                                                Height="20"
+                                                                                Opacity="0"
+                                                                                Margin="0,0,0,0" />
+                                                                        </Grid>
+                                                                        <ControlTemplate.Triggers>
+                                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                                <Setter TargetName="hoverEllipse" Property="Opacity" Value="0.4" />
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsPressed" Value="True">
+                                                                                <Setter Property="Background" Value="Transparent" />
+                                                                                <Setter TargetName="hoverEllipse" Property="Fill" Value="LightSkyBlue" />
+                                                                                <Setter TargetName="hoverEllipse" Property="Opacity" Value="0.3" />
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsEnabled" Value="False">
+                                                                                <Setter TargetName="buttonImage" Property="Source" Value="/Images/DownGray.png" />
+                                                                                <Setter TargetName="hoverEllipse" Property="Opacity" Value="0" />
+                                                                            </Trigger>
+                                                                        </ControlTemplate.Triggers>
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                                <Button
+                                                    Grid.Column="3"
+                                                    Command="{Binding MoveCueFile, Mode=OneTime}"
+                                                    CommandParameter="Remove"
+                                                    IsEnabled="{Binding CanRemoveCue}"
+                                                    ToolTip="Remove Selected File"
+                                                    Margin="0,0,0,0">
+                                                    <Button.Style>
+                                                        <Style
+                                                            TargetType="{x:Type Button}">
+                                                            <Setter Property="Background" Value="Transparent" />
+                                                            <Setter Property="BorderBrush" Value="Transparent" />
+                                                            <Setter Property="BorderThickness" Value="0" />
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="{x:Type Button}">
+                                                                        <Grid>
+                                                                            <Image
+                                                                                x:Name="buttonImage"
+                                                                                Source="/Images/Remove.png"
+                                                                                RenderOptions.BitmapScalingMode="Fant"
+                                                                                Height="20"
+                                                                                Margin="1,1,1,1">
+                                                                            </Image>
+                                                                            <Ellipse
+                                                                                x:Name="hoverEllipse"
+                                                                                Fill="Transparent"
+                                                                                StrokeThickness="2"
+                                                                                Stroke="Gray"
+                                                                                Width="20"
+                                                                                Height="20"
+                                                                                Opacity="0"
+                                                                                Margin="0,0,0,0" />
+                                                                        </Grid>
+                                                                        <ControlTemplate.Triggers>
+                                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                                <Setter TargetName="hoverEllipse" Property="Opacity" Value="0.4" />
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsPressed" Value="True">
+                                                                                <Setter Property="Background" Value="Transparent" />
+                                                                                <Setter TargetName="hoverEllipse" Property="Fill" Value="LightSkyBlue" />
+                                                                                <Setter TargetName="hoverEllipse" Property="Opacity" Value="0.3" />
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsEnabled" Value="False">
+                                                                                <Setter TargetName="buttonImage" Property="Source" Value="/Images/RemoveGray.png" />
+                                                                                <Setter TargetName="hoverEllipse" Property="Opacity" Value="0" />
+                                                                            </Trigger>
+                                                                        </ControlTemplate.Triggers>
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                                <Button
+                                                    Grid.Column="5"
+                                                    ToolTip="Clear Cue Files"
+                                                    Command="{Binding ClearCueFiles, Mode=OneTime}"
+                                                    Margin="0,0,4,0">
+                                                    <Button.Style>
+                                                        <Style
+                                                            TargetType="{x:Type Button}">
+                                                            <Setter Property="Background" Value="Transparent" />
+                                                            <Setter Property="BorderBrush" Value="Transparent" />
+                                                            <Setter Property="BorderThickness" Value="0" />
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="{x:Type Button}">
+                                                                        <Grid>
+                                                                            <Image
+                                                                                x:Name="buttonImage"
+                                                                                Source="/Images/Clear.png"
+                                                                                RenderOptions.BitmapScalingMode="Fant"
+                                                                                Height="15"
+                                                                                Margin="1,1,1,1">
+                                                                            </Image>
+                                                                            <Ellipse
+                                                                                x:Name="hoverEllipse"
+                                                                                Fill="Transparent"
+                                                                                StrokeThickness="2"
+                                                                                Stroke="Gray"
+                                                                                Width="20"
+                                                                                Height="20"
+                                                                                Opacity="0"
+                                                                                Margin="0,0,0,0" />
+                                                                        </Grid>
+                                                                        <ControlTemplate.Triggers>
+                                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                                <Setter TargetName="hoverEllipse" Property="Opacity" Value="0.4" />
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsPressed" Value="True">
+                                                                                <Setter Property="Background" Value="Transparent" />
+                                                                                <Setter TargetName="hoverEllipse" Property="Fill" Value="LightSkyBlue" />
+                                                                                <Setter TargetName="hoverEllipse" Property="Opacity" Value="0.3" />
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsEnabled" Value="False">
+                                                                                <Setter TargetName="buttonImage" Property="Source" Value="/Images/ClearGray.png" />
+                                                                                <Setter TargetName="hoverEllipse" Property="Opacity" Value="0" />
+                                                                            </Trigger>
+                                                                        </ControlTemplate.Triggers>
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                        <GroupBox
+                                            Header="Cue Files"
+                                            MinHeight="50"
+                                            Grid.Row="1">
+                                            <DataGrid
+                                                VerticalScrollBarVisibility="Auto"
+                                                HeadersVisibility="None"
+                                                IsReadOnly="True"
+                                                CanUserAddRows="False"
+                                                CanUserReorderColumns="False"
+                                                CanUserResizeRows="True"
+                                                CanUserSortColumns="False"
+                                                AlternationCount="2"
+                                                SelectionMode="Single"
+                                                SelectionUnit="FullRow"
+                                                AutoGenerateColumns="False"
+                                                MinRowHeight="20"
+                                                BorderThickness="1"
+                                                BorderBrush="DarkGray"
+                                                AlternatingRowBackground="SeaShell"
+                                                ItemsSource="{Binding CueFiles, Mode=OneTime}"
+                                                SelectedIndex="{Binding SelectedCueFileIndex, UpdateSourceTrigger=PropertyChanged}"
+                                                MaxHeight="203"
+                                                Margin="0,2,0,0">
+                                                <DataGrid.Columns>
+                                                    <DataGridTextColumn
+                                                        IsReadOnly="True"
+                                                        Binding="{Binding}"
+                                                        MinWidth="200"
+                                                        CellStyle="{StaticResource TextBlockLeftStyle}" />
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+                                        </GroupBox>
+                                    </Grid>
+                                    <Grid
+                                        IsEnabled="{Binding IsUserInputEnabled}"
                                         Visibility="{Binding TemplateOptionsVisibility}"
                                         d:IsHidden="True"
                                         Margin="0,0,0,1">
@@ -902,8 +1226,8 @@
                         Y2="18"
                         Stroke="DarkGray"
                         StrokeThickness="2"
-                        VerticalAlignment="Center" 
-                        Margin="3,0,3,0"/>
+                        VerticalAlignment="Center"
+                        Margin="3,0,3,0" />
                     <Button
                         Grid.Column="4"
                         Command="{Binding GenerateChapters}"

@@ -1,18 +1,18 @@
 ﻿namespace AudioCat.Cue;
 
-internal interface ITag
+public interface ITag
 {
     string Name { get; }
     string Value { get; }
 }
 
-internal interface IIndex
+public interface IIndex
 {
     int Number { get; }
     TimeSpan Time { get; }
 }
 
-internal interface ITrack
+public interface ITrack
 {
     int Number { get; }
     string Type { get; }
@@ -23,15 +23,16 @@ internal interface ITrack
     IReadOnlyList<ITag> Tags { get; }
 }
 
-internal interface IFile
+public interface IFile
 {
     string Name { get; }
     string Type { get; }
     IReadOnlyList<ITrack> Tracks { get; }
 }
 
-internal interface ICue
+public interface ICue
 {
+    string SourceFileFullName { get; }
     string Title { get; }
     string Performer { get; }
     string Songwriter { get; }

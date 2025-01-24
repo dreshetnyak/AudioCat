@@ -104,15 +104,15 @@ internal sealed class AudioFilePlayer : IAudioFilePlayer, IAsyncDisposable, IDis
         throw new NotImplementedException();
     }
     
-    private void TimerTick(object sender, EventArgs e)
-    {
-        if (audioFile != null)
-        {
-            var currentTime = AudioFile.CurrentTime;
-            var totalTime = AudioFile.TotalTime;
-            //PositionLabel.Content = $"{currentTime:mm\\:ss} / {totalTime:mm\\:ss}";
-        }
-    }
+    //private void TimerTick(object sender, EventArgs e)
+    //{
+    //    if (audioFile != null)
+    //    {
+    //        var currentTime = AudioFile.CurrentTime;
+    //        var totalTime = AudioFile.TotalTime;
+    //        //PositionLabel.Content = $"{currentTime:mm\\:ss} / {totalTime:mm\\:ss}";
+    //    }
+    //}
 
     private void OnPlaybackError(string message) => 
         PlaybackError?.Invoke(this, new MessageEventArgs(message));

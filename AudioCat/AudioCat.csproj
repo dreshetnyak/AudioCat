@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net9.0-windows7.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -10,8 +10,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Images\Add.png" />
     <None Remove="Images\AddFiles.png" />
     <None Remove="Images\AddFilesGray.png" />
+    <None Remove="Images\AddGray.png" />
     <None Remove="Images\AddPath.png" />
     <None Remove="Images\AddPathGray.png" />
     <None Remove="Images\Backward.png" />
@@ -22,8 +24,6 @@
     <None Remove="Images\CancelGray.png" />
     <None Remove="Images\Chapters.png" />
     <None Remove="Images\ChaptersGray.png" />
-    <None Remove="Images\Clear.png" />
-    <None Remove="Images\ClearGray.png" />
     <None Remove="Images\Cue.png" />
     <None Remove="Images\CueGray.png" />
     <None Remove="Images\Down.png" />
@@ -73,18 +73,20 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.1" />
     <PackageReference Include="NAudio" Version="2.2.1" />
-    <PackageReference Include="System.Text.Encoding.CodePages" Version="9.0.0" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="9.0.1" />
   </ItemGroup>
 
   <ItemGroup>
     <Resource Include="Cat.ico" />
+    <Resource Include="Images\Add.png" />
   </ItemGroup>
 
   <ItemGroup>
     <Resource Include="Images\AddFiles.png" />
     <Resource Include="Images\AddFilesGray.png" />
+    <Resource Include="Images\AddGray.png" />
     <Resource Include="Images\AddPath.png" />
     <Resource Include="Images\AddPathGray.png" />
     <Resource Include="Images\Backward.png" />
