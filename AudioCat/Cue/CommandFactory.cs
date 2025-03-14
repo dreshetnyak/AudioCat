@@ -1,4 +1,5 @@
-﻿using AudioCat.Models;
+﻿using System.Diagnostics;
+using AudioCat.Models;
 
 namespace AudioCat.Cue;
 

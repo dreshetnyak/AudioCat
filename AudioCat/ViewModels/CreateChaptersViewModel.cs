@@ -1,7 +1,6 @@
 ﻿using AudioCat.Commands;
 using AudioCat.Models;
 using AudioCat.Services;
-using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -591,6 +590,8 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
 
     #region Create from Cue Files
 
+    // TODO: All this code must be moved to a separate class
+
     private void OnMoveQueueFile(object? parameter)
     {
         if (parameter is not string direction)
@@ -641,62 +642,72 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         if (CueFiles.Count == 0)
             return;
 
+        CreatedChapters.Clear();
         var chapterIndex = 0;
-        var currentStartTime = TimeSpan.Zero;
-        var totalFilesDuration = GetFilesTotalDuration();
+        var fileStartTime = TimeSpan.Zero;          // Current file start time
+        var absoluteTrackStartTime = TimeSpan.Zero; // Current track absolute start time (previous files duration included)
+        var chapters = new List<IMediaChapterViewModel>();
         foreach (var cueFile in CueFiles)
         {
             foreach (var file in cueFile.Files)
             {
-                //var fileStartTime = currentStartTime;
+                var trackDuration = TimeSpan.Zero;
                 for (var trackIndex = 0; trackIndex < file.Tracks.Count; trackIndex++)
                 {
-                    var isLastTrack = trackIndex == file.Tracks.Count - 1; // The duration of the last track is equal to the duration of the file less the start time of the last track
+                    var track = file.Tracks[trackIndex];
+                    absoluteTrackStartTime = fileStartTime + track.Index.Time;
 
+                    try { trackDuration = GetTrackDuration(file, track, absoluteTrackStartTime, trackIndex); }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Failed to create chapter for file '{file.Name}', track '{track.Title}'; Error: {ex.Message}", "Chapters Creation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
 
-                    var track = file.Tracks[trackIndex]; 
-
-                    
-                    // track.Index.Time // The start time relative to the file beginning
-                    // duration is known only when we get to the next track
-
-                    //var chapter = CreateChapter(fileStartTime + track.Index.Time, duration, track.Title, chapterIndex++);
+                    var chapter = CreateChapter(absoluteTrackStartTime, trackDuration, track.Title, chapterIndex++);
+                    chapters.Add(chapter);
                 }
 
-                // Which file we are in? When we know it we know the duration
-
-                // currentStartTime += fileDuration;
+                fileStartTime = absoluteTrackStartTime + trackDuration;
             }
         }
-
-
-        // Do not assume that the tracks are consecutive
-
-        // TODO Implementation in progress
-        // We need to know the total length of the audio files, then we overlay on that the cue files index points
-
-
-        //IMediaChapterViewModel CreateChapter(TimeSpan startTime, TimeSpan duration, string title, int index)
-
-
-
-
-        //var chapters = CreateChapters(GetTitleFromTags);
-        //CreatedChapters.Clear();
-        //foreach (var chapter in chapters)
-        //    CreatedChapters.Add(chapter);
+        
+        foreach (var chapter in chapters)
+            CreatedChapters.Add(chapter);
     }
 
-    private TimeSpan GetFilesTotalDuration()
+    private TimeSpan GetTrackDuration(Cue.IFile file, Cue.ITrack track, TimeSpan trackStartTime, int trackIndex)
+    {
+        TimeSpan trackDuration;
+        if (trackIndex != file.Tracks.Count - 1)
+        {
+            if (file.Tracks[trackIndex + 1].Index.Time < track.Index.Time)
+                throw new InvalidOperationException("The next track start time is less than the current track start time");
+            trackDuration = file.Tracks[trackIndex + 1].Index.Time - track.Index.Time;
+        }
+        else
+        {
+            trackDuration = GetTimespanToEndOfFileFrom(trackStartTime);
+            if (trackDuration == TimeSpan.Zero)
+                throw new InvalidOperationException("The track start is out of range");
+        }
+
+        return trackDuration;
+    }
+
+    private TimeSpan GetTimespanToEndOfFileFrom(TimeSpan trackStart)
     {
         var totalDuration = TimeSpan.Zero;
         foreach (var file in Files)
         {
-            if (file is { IsImage: false, Duration: not null }) 
-                totalDuration += file.Duration.Value;
+            if (file is not { IsImage: false, Duration: not null })
+                continue;
+            if (trackStart >= totalDuration && trackStart <= totalDuration + file.Duration.Value)
+                return totalDuration + file.Duration.Value - trackStart;
+            totalDuration += file.Duration.Value;
         }
 
-        return totalDuration;
+        return TimeSpan.Zero; // The track is not in the files
     }
 
     #endregion
