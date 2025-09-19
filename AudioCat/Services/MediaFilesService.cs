@@ -2,7 +2,6 @@
 using AudioCat.ViewModels;
 using AudioCat.Windows;
 using System.Diagnostics;
-using System.Windows.Threading;
 
 namespace AudioCat.Services;
 
@@ -179,6 +178,8 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
         var duplicates = GetDuplicates(files, mediaFiles);
         mediaFiles = await HandleDuplicates(mediaFiles, duplicates);
         
+        // TODO When adding files that triggers the event every time, which creates a performance overhead, this should be addressed
+
         foreach (var audioFile in mediaFiles)
             await uiDispatcher.InvokeAsync(() => files.Add(audioFile));
 
@@ -259,9 +260,7 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
 
         return duplicateFiles;
     }
-
-
-
+    
     #endregion
 
     public static string GetAudioCodec(IReadOnlyCollection<IMediaFileViewModel> mediaFiles)

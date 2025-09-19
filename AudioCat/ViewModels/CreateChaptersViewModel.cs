@@ -3,7 +3,6 @@ using AudioCat.Models;
 using AudioCat.Services;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
@@ -470,7 +469,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         _silenceDuration = Settings.ChapterWizard.DefaultAudioThreshold;
 
         ChapterSources = new ObservableCollection<ChapterSourceItem>(GetChapterSources(files));
-        SetInitialSelectedChapterSource();
+        SetInitialSelectedChapterSource(files);
         _ = Task.Run(OnGenerateChapters);
 
         CreatedChapters = [];
@@ -495,8 +494,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         GetCueFiles = getQueueFile;
         MoveCueFile = new RelayParameterCommand(OnMoveQueueFile);
         ClearCueFiles = new RelayCommand(CueFiles.Clear);
-        
-        SetInitialSelectedChapterSource();
 
         TrimStart = new RelayCommand(() => CreatedChapters.TrimStart(TextToTrim, IsTrimExactText, IsTrimCharsFromText, IsTrimCaseSensitive));
         TrimEnd = new RelayCommand(() => CreatedChapters.TrimEnd(TextToTrim, IsTrimExactText, IsTrimCharsFromText, IsTrimCaseSensitive));
@@ -540,9 +537,35 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         return false;
     }
 
-    private void SetInitialSelectedChapterSource()
+    private void SetInitialSelectedChapterSource(ObservableCollection<IMediaFileViewModel> files)
     {
+        foreach (var file in files)
+        {
+            if (file.Chapters.Count <= 0) 
+                continue;
+            if (TryGetChaptersSource(ChapterSourceType.Existing, out var chaptersSource))
+            {
+                SelectedChapterSource = chaptersSource!;
+                return;
+            }
+            break;
+        }
+
         SelectedChapterSource = ChapterSources[0];
+    }
+
+    private bool TryGetChaptersSource(ChapterSourceType chapterSourceType, out ChapterSourceItem? chapterSource)
+    {
+        foreach (var source in ChapterSources)
+        {
+            if (source.SourceType != chapterSourceType) 
+                continue;
+            chapterSource = source;
+            return true;
+        }
+
+        chapterSource = null;
+        return false;
     }
     #endregion
 
@@ -573,25 +596,47 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         return false;
     }
 
+    #region Chapters Generation
     private void OnGenerateChapters()
     {
         switch (SelectedChapterSource.SourceType)
         {
-            case ChapterSourceType.FileNames: CreateChaptersFromFileNames(); break;
-            case ChapterSourceType.MetadataTags: CreateChaptersFromMetadataTags(); break;
-            case ChapterSourceType.CueFiles: CreateChaptersFromCueFiles(); break;
-            case ChapterSourceType.Template: CreateChaptersFromTemplate(); break;
-            case ChapterSourceType.Existing: CreateChaptersFromExisting(); break;
+            case ChapterSourceType.FileNames: 
+                UpdateChapters(ChaptersFactory.CreateFromFileNames(Files, TrimStartingNonChars)); 
+                break;
+            case ChapterSourceType.MetadataTags:
+                if (TryGetSelectedTagNameOrDefault(out var selectedTagName))
+                    UpdateChapters(ChaptersFactory.CreateFromMetadataTags(Files, selectedTagName, TrimStartingNonChars));
+                else
+                    CreatedChapters.Clear();
+                break;
+            case ChapterSourceType.CueFiles:
+                UpdateChapters(ChaptersFactory.CreateFromCueFiles(Files, CueFiles));
+                break;
+            case ChapterSourceType.Template:
+                UpdateChapters(ChaptersFactory.CreateFromTemplate(Files, Template, TemplateStartNumberValue, TemplateStartNumber, IsTemplateStartNumberValid));
+                break;
+            case ChapterSourceType.Existing: 
+                UpdateChapters(ChaptersFactory.CreateFromExisting(Files, TrimStartingNonChars));
+                break;
             case ChapterSourceType.SilenceScan:
             case ChapterSourceType.Unknown:
-            default: break;
+            default: 
+                break;
         }
     }
 
+    private void UpdateChapters(IReadOnlyList<IMediaChapterViewModel> newChapters)
+    {
+        CreatedChapters.Clear();
+        if (newChapters.Count == 0)
+            return;
+        foreach (var newChapter in newChapters)
+            CreatedChapters.Add(newChapter);
+    }
+    #endregion
+
     #region Create from Cue Files
-
-    // TODO: All this code must be moved to a separate class
-
     private void OnMoveQueueFile(object? parameter)
     {
         if (parameter is not string direction)
@@ -636,80 +681,6 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         foreach (var cueFile in cueFiles) 
             CueFiles.Add(cueFile);
     }
-
-    private void CreateChaptersFromCueFiles()
-    {
-        if (CueFiles.Count == 0)
-            return;
-
-        CreatedChapters.Clear();
-        var chapterIndex = 0;
-        var fileStartTime = TimeSpan.Zero;          // Current file start time
-        var absoluteTrackStartTime = TimeSpan.Zero; // Current track absolute start time (previous files duration included)
-        var chapters = new List<IMediaChapterViewModel>();
-        foreach (var cueFile in CueFiles)
-        {
-            foreach (var file in cueFile.Files)
-            {
-                var trackDuration = TimeSpan.Zero;
-                for (var trackIndex = 0; trackIndex < file.Tracks.Count; trackIndex++)
-                {
-                    var track = file.Tracks[trackIndex];
-                    absoluteTrackStartTime = fileStartTime + track.Index.Time;
-
-                    try { trackDuration = GetTrackDuration(file, track, absoluteTrackStartTime, trackIndex); }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Failed to create chapter for file '{file.Name}', track '{track.Title}'; Error: {ex.Message}", "Chapters Creation Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                        return;
-                    }
-
-                    var chapter = CreateChapter(absoluteTrackStartTime, trackDuration, track.Title, chapterIndex++);
-                    chapters.Add(chapter);
-                }
-
-                fileStartTime = absoluteTrackStartTime + trackDuration;
-            }
-        }
-        
-        foreach (var chapter in chapters)
-            CreatedChapters.Add(chapter);
-    }
-
-    private TimeSpan GetTrackDuration(Cue.IFile file, Cue.ITrack track, TimeSpan trackStartTime, int trackIndex)
-    {
-        TimeSpan trackDuration;
-        if (trackIndex != file.Tracks.Count - 1)
-        {
-            if (file.Tracks[trackIndex + 1].Index.Time < track.Index.Time)
-                throw new InvalidOperationException("The next track start time is less than the current track start time");
-            trackDuration = file.Tracks[trackIndex + 1].Index.Time - track.Index.Time;
-        }
-        else
-        {
-            trackDuration = GetTimespanToEndOfFileFrom(trackStartTime);
-            if (trackDuration == TimeSpan.Zero)
-                throw new InvalidOperationException("The track start is out of range");
-        }
-
-        return trackDuration;
-    }
-
-    private TimeSpan GetTimespanToEndOfFileFrom(TimeSpan trackStart)
-    {
-        var totalDuration = TimeSpan.Zero;
-        foreach (var file in Files)
-        {
-            if (file is not { IsImage: false, Duration: not null })
-                continue;
-            if (trackStart >= totalDuration && trackStart <= totalDuration + file.Duration.Value)
-                return totalDuration + file.Duration.Value - trackStart;
-            totalDuration += file.Duration.Value;
-        }
-
-        return TimeSpan.Zero; // The track is not in the files
-    }
-
     #endregion
 
     #region Create from Silence Scan
@@ -736,8 +707,8 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
                 return;
             }
 
-            if (response.Data != null)
-                CreateChaptersFromIntervals((IReadOnlyList<IInterval>)response.Data);
+            if (response.Data != null) 
+                UpdateChapters(ChaptersFactory.CreateFromIntervals((IReadOnlyList<IInterval>)response.Data));
         }
         finally
         {
@@ -746,139 +717,25 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             IsUserInputEnabled = true;
         }
     }
-
-    private void CreateChaptersFromIntervals(IReadOnlyList<IInterval> intervals)
-    {
-        var startTime = TimeSpan.Zero;
-        CreatedChapters.Clear();
-        foreach (var interval in intervals)
-        {
-            var chapter = CreateChapter(startTime, interval.Start - startTime, CreatedChapters.Count.ToString(), CreatedChapters.Count);
-            CreatedChapters.Add(chapter);
-            startTime += interval.End - startTime;
-        }
-    }
     #endregion
 
-    #region Create from File Names
-    private void CreateChaptersFromFileNames()
+    private bool TryGetSelectedTagNameOrDefault(out string selectedTagName)
     {
-        var chapters = CreateChapters(GetTitleFromFileName);
-        CreatedChapters.Clear();
-        foreach (var chapter in chapters)
-            CreatedChapters.Add(chapter);
-    }
-
-    private string GetTitleFromFileName(IMediaFileViewModel file, int _)
-    {
-        var title = Path.GetFileNameWithoutExtension(file.File.Name);
-        return TrimStartingNonChars ? title.TrimStartNonChars() : title;
-    }
-    #endregion
-
-    private void CreateChaptersFromMetadataTags()
-    {
-        if (string.IsNullOrEmpty(SelectedTagName))
+        if (!string.IsNullOrEmpty(SelectedTagName))
         {
-            if (!TagNames.Has(Settings.ChapterWizard.DefaultSelectedTag))
-            {
-                CreatedChapters.Clear();
-                return;
-            }
-
-            SelectedTagName = Settings.ChapterWizard.DefaultSelectedTag;
+            selectedTagName = SelectedTagName;
+            return true;
         }
 
-        var chapters = CreateChapters(GetTitleFromTags);
-        CreatedChapters.Clear();
-        foreach (var chapter in chapters)
-            CreatedChapters.Add(chapter);
-    }
-
-    private string GetTitleFromTags(IMediaFileViewModel file, int _)
-    {
-        var title = file.Tags.GetTagValue(SelectedTagName);
-        return TrimStartingNonChars ? title.TrimStartNonChars() : title;
-    }
-
-    private void CreateChaptersFromTemplate()
-    {
-        var chapters = CreateChapters(GetTitleFromTemplate);
-        CreatedChapters.Clear();
-        foreach (var chapter in chapters)
-            CreatedChapters.Add(chapter);
-    }
-
-    private string GetTitleFromTemplate(IMediaFileViewModel _, int index) => IsTemplateStartNumberValid
-        ? Template.Replace("{}", (TemplateStartNumberValue + index).ToString(new string('0', TemplateStartNumber.Length)))
-        : Template;
-
-    private IReadOnlyList<IMediaChapterViewModel> CreateChapters(Func<IMediaFileViewModel, int, string> getTitle)
-    {
-        var startTime = TimeSpan.Zero;
-        var chapters = new List<IMediaChapterViewModel>(Files.Count);
-        for (var index = 0; index < Files.Count; index++)
+        if (!TagNames.Has(Settings.ChapterWizard.DefaultSelectedTag))
         {
-            var file = Files[index];
-            if (file.IsImage || file.Duration == null)
-                continue;
-            var title = getTitle(file, index);
-            var chapter = CreateChapter(startTime, file.Duration.Value, title, index);
-            chapters.Add(chapter);
-            startTime = chapter.EndTime!.Value;
+            selectedTagName = "";
+            return false;
         }
 
-        return chapters;
-    }
-
-    private static IMediaChapterViewModel CreateChapter(TimeSpan startTime, TimeSpan duration, string title, int index)
-    {
-        const decimal divident = 1m;
-        const decimal divisor = 1000m;
-
-        var endTime = startTime.Add(duration);
-        var calculatedStart = (long)((decimal)startTime.TotalSeconds * divisor);
-        var calculatedEnd = (long)((decimal)endTime.TotalSeconds * divisor);
-
-        return new ChapterViewModel
-        {
-            Id = index,
-            Start = calculatedStart,
-            End = calculatedEnd,
-            TimeBaseDivident = divident,
-            TimeBaseDivisor = divisor,
-            StartTime = startTime,
-            EndTime = endTime,
-            Title = title
-        };
-    }
-
-    private void CreateChaptersFromExisting()
-    {
-        var startTime = TimeSpan.Zero;
-        CreatedChapters.Clear();
-        foreach (var file in Files)
-        {
-            if (file.IsImage || !file.Duration.HasValue)
-                continue;
-
-            if (file.Chapters.Count == 0)
-            {
-                var chapter = CreateChapter(startTime, file.Duration.Value, "", CreatedChapters.Count);
-                CreatedChapters.Add(chapter);
-                startTime += file.Duration.Value;
-                continue;
-            }
-
-            foreach (var sourceChapter in file.Chapters)
-            {
-                var duration = sourceChapter.EndTime!.Value - sourceChapter.StartTime!.Value;
-                var title = TrimStartingNonChars ? sourceChapter.Title.TrimStartNonChars() : sourceChapter.Title;
-                var chapter = CreateChapter(startTime, duration, title, CreatedChapters.Count);
-                CreatedChapters.Add(chapter);
-                startTime += duration;
-            }
-        }
+        SelectedTagName = Settings.ChapterWizard.DefaultSelectedTag;
+        selectedTagName = SelectedTagName;
+        return true;
     }
 
     private void OnClose() => Close?.Invoke(this, EventArgs.Empty);

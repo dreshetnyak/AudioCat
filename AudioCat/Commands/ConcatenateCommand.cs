@@ -91,7 +91,7 @@ public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkit
 
     private static string GetSuggestedFileName(string codec, FileInfo firstFile) =>
         (Keyboard.Modifiers.HasFlag(ModifierKeys.Control)
-            ? (Path.GetFileNameWithoutExtension(firstFile.Name)).Trim()
+            ? Path.GetFileNameWithoutExtension(firstFile.Name).Trim()
             : firstFile.Directory?.Name.Trim() ?? "") + Settings.GetSuggestedFileNameExtension(codec);
 
     private static string GetFileDirectory(FileInfo firstFile) =>
