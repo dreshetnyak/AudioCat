@@ -52,7 +52,8 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         get => _selectedCodec;
         set
         {
-            if (value == _selectedCodec) return;
+            if (value == _selectedCodec) 
+                return;
             _selectedCodec = value;
             OnPropertyChanged();
         }
