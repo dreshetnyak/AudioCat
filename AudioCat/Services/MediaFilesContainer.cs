@@ -9,6 +9,7 @@ namespace AudioCat.Services;
 internal sealed class MediaFilesContainer : IMediaFilesContainer, INotifyPropertyChanged
 {
     private IMediaFileViewModel? _selectedFile;
+    public bool DoNotInvokeFilesCollectionChangedEvent { get; set; }
     public ObservableCollection<IMediaFileViewModel> Files { get; } = [];
 
     public IMediaFileViewModel? SelectedFile

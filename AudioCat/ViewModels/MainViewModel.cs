@@ -1,6 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
@@ -659,7 +660,8 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
     private bool ChaptersWasDisabledByCodec { get; set; } 
     private void OnFilesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        //TODO When it is a bulk change, wait for the last item
+        if (MediaFilesContainer.DoNotInvokeFilesCollectionChangedEvent)
+            return;
 
         if (Files.Count == 0)
         {

@@ -177,11 +177,19 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
         var mediaFiles = response.MediaFiles;
         var duplicates = GetDuplicates(files, mediaFiles);
         mediaFiles = await HandleDuplicates(mediaFiles, duplicates);
-        
-        // TODO When adding files that triggers the event every time, which creates a performance overhead, this should be addressed
 
-        foreach (var audioFile in mediaFiles)
-            await uiDispatcher.InvokeAsync(() => files.Add(audioFile));
+        if (mediaFiles.Count > 0)
+            MediaFilesContainer.DoNotInvokeFilesCollectionChangedEvent = true;
+        for (var index = 0; index < mediaFiles.Count; index++)
+        {
+            var audioFile = mediaFiles[index];
+            await uiDispatcher.InvokeAsync(() =>
+            {
+                if (index == mediaFiles.Count - 1)
+                    MediaFilesContainer.DoNotInvokeFilesCollectionChangedEvent = false;
+                files.Add(audioFile);
+            });
+        }
 
         if (files.Count > 0)
             await uiDispatcher.InvokeAsync(() => MediaFilesContainer.SelectedFile = files[0]);
