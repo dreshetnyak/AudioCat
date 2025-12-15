@@ -18,51 +18,29 @@ public sealed class ChapterSourceItem
 
 public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyChanged
 {
-    #region Backing Fields
-
     private const int DEFAULT_SEQUENCE_START = 1;
 
-    private bool _trimStartingNonChars;
+    #region Backing Fields
+
     private string _selectedTagName;
     private string _template;
-    private string _templateStartNumber = DEFAULT_SEQUENCE_START.ToString();
     private int _silenceThreshold;
     private int _silenceDuration;
-    private Visibility _silenceScanProgressVisibility = Visibility.Hidden;
-    private Visibility _silenceScanButtonVisibility = Visibility.Visible;
-    private Visibility _cancelSilenceScanButtonVisibility = Visibility.Hidden;
-    private bool _isUserInputEnabled = true;
-    private ChapterSourceItem _selectedChapterSource = new() {  SourceType = ChapterSourceType.Unknown, Description = "" };
-    private string _textToTrim = "";
-    private bool _isTrimExactText = true;
-    private bool _isTrimCharsFromText;
-    private bool _isTrimCaseSensitive;
-    private bool _isTrimEnabled;
-    private string _replaceWhatText = "";
-    private string _replaceWithText = "";
-    private bool _isReplaceCaseSensitive;
-    private bool _isReplaceEnabled;
-    private string _textToAdd = "";
-    private string _textToAddSequenceStart = "";
-    private bool _isAddEnabled;
-    private bool _isTextToAddSequenceStartValid = true;
-    private int _textToAddSequenceStartValue = DEFAULT_SEQUENCE_START;
-    private bool _isTemplateStartNumberValid = true;
-    private int _selectedCueFileIndex;
 
     #endregion
 
     public IReadOnlyList<IMediaFileViewModel> Files { get; }
 
     public ObservableCollection<ChapterSourceItem> ChapterSources { get; }
+
     public ChapterSourceItem SelectedChapterSource
     {
-        get => _selectedChapterSource;
+        get;
         set
         {
-            if (value == _selectedChapterSource) 
+            if (value == field)
                 return;
-            _selectedChapterSource = value;
+            field = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(FileNamesOptionsVisibility));
             OnPropertyChanged(nameof(MetadataTagsOptionsVisibility));
@@ -73,7 +51,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             OnPropertyChanged(nameof(IsGenerateEnabled));
             OnPropertyChanged(nameof(OptionsVisibility));
         }
-    }
+    } = new() { SourceType = ChapterSourceType.Unknown, Description = "" };
 
     #region Options Visibility
     public Visibility FileNamesOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.FileNames ? Visibility.Visible : Visibility.Collapsed;
@@ -87,12 +65,12 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
 
     public bool TrimStartingNonChars
     {
-        get => _trimStartingNonChars;
+        get;
         set
         {
-            if (value == _trimStartingNonChars)
+            if (value == field)
                 return;
-            _trimStartingNonChars = value;
+            field = value;
             OnPropertyChanged();
         }
     }
@@ -114,21 +92,22 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
 
     #region Cue Files Options
     public ObservableCollection<Cue.ICue> CueFiles { get; } = [];
+
     public int SelectedCueFileIndex
     {
-        get => _selectedCueFileIndex;
+        get;
         set
         {
-            if (value == _selectedCueFileIndex) 
+            if (value == field)
                 return;
-            _selectedCueFileIndex = value;
+            field = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(CanMoveCueUp));
             OnPropertyChanged(nameof(CanMoveCueDown));
             OnPropertyChanged(nameof(CanRemoveCue));
         }
     }
-    
+
     public bool CanMoveCueUp => SelectedCueFileIndex > 0;
     public bool CanMoveCueDown => CueFiles.Count > 0 && SelectedCueFileIndex < CueFiles.Count - 1;
     public bool CanRemoveCue => CueFiles.Count > 0 && SelectedCueFileIndex < CueFiles.Count;
@@ -151,14 +130,15 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             OnPropertyChanged(); 
         }
     }
+
     public string TemplateStartNumber
     {
-        get => _templateStartNumber;
+        get;
         set
         {
-            if (value == _templateStartNumber) 
+            if (value == field)
                 return;
-            _templateStartNumber = value;
+            field = value;
             OnPropertyChanged();
 
             if (int.TryParse(TemplateStartNumber, out var numberValue))
@@ -172,19 +152,22 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
                 TemplateStartNumberValue = DEFAULT_SEQUENCE_START;
             }
         }
-    }
+    } = DEFAULT_SEQUENCE_START.ToString();
+
     public int TemplateStartNumberValue { get; set; } = DEFAULT_SEQUENCE_START;
+
     public bool IsTemplateStartNumberValid
     {
-        get => _isTemplateStartNumberValid;
+        get;
         set
         {
-            if (value == _isTemplateStartNumberValid) 
+            if (value == field)
                 return;
-            _isTemplateStartNumberValid = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
+    } = true;
+
     #endregion
 
     #region Silence Scan Options
@@ -210,168 +193,183 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             OnPropertyChanged();
         }
     }
+
     public Visibility SilenceScanProgressVisibility
     {
-        get => _silenceScanProgressVisibility;
+        get;
         set
         {
-            if (value == _silenceScanProgressVisibility) 
+            if (value == field)
                 return;
-            _silenceScanProgressVisibility = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
+    } = Visibility.Hidden;
+
     public Visibility SilenceScanButtonVisibility
     {
-        get => _silenceScanButtonVisibility;
+        get;
         set
         {
-            if (value == _silenceScanButtonVisibility) 
+            if (value == field)
                 return;
-            _silenceScanButtonVisibility = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
+    } = Visibility.Visible;
+
     public Visibility CancelSilenceScanButtonVisibility
     {
-        get => _cancelSilenceScanButtonVisibility;
+        get;
         set
         {
-            if (value == _cancelSilenceScanButtonVisibility) 
+            if (value == field)
                 return;
-            _cancelSilenceScanButtonVisibility = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
+    } = Visibility.Hidden;
+
     #endregion
 
     #region Modifying the Chapters
+
     public string TextToTrim
     {
-        get => _textToTrim;
+        get;
         set
         {
-            if (value == _textToTrim) 
+            if (value == field)
                 return;
-            _textToTrim = value;
+            field = value;
             OnPropertyChanged();
             IsTrimEnabled = !string.IsNullOrEmpty(value);
         }
-    }
+    } = "";
+
     public bool IsTrimExactText
     {
-        get => _isTrimExactText;
+        get;
         set
         {
-            if (value == _isTrimExactText) 
+            if (value == field)
                 return;
-            _isTrimExactText = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
+    } = true;
+
     public bool IsTrimCharsFromText
     {
-        get => _isTrimCharsFromText;
+        get;
         set
         {
-            if (value == _isTrimCharsFromText) 
+            if (value == field)
                 return;
-            _isTrimCharsFromText = value;
+            field = value;
             OnPropertyChanged();
         }
     }
+
     public bool IsTrimCaseSensitive
     {
-        get => _isTrimCaseSensitive;
+        get;
         set
         {
-            if (value == _isTrimCaseSensitive) 
+            if (value == field)
                 return;
-            _isTrimCaseSensitive = value;
+            field = value;
             OnPropertyChanged();
         }
     }
+
     public bool IsTrimEnabled
     {
-        get => _isTrimEnabled;
+        get;
         set
         {
-            if (value == _isTrimEnabled) 
+            if (value == field)
                 return;
-            _isTrimEnabled = value;
+            field = value;
             OnPropertyChanged();
         }
     }
+
     public ICommand TrimStart { get; }
     public ICommand TrimEnd { get; }
 
     public string ReplaceWhatText
     {
-        get => _replaceWhatText;
+        get;
         set
         {
-            if (value == _replaceWhatText) 
+            if (value == field)
                 return;
-            _replaceWhatText = value;
+            field = value;
             OnPropertyChanged();
             IsReplaceEnabled = !string.IsNullOrEmpty(value);
         }
-    }
+    } = "";
+
     public string ReplaceWithText
     {
-        get => _replaceWithText;
+        get;
         set
         {
-            if (value == _replaceWithText) 
+            if (value == field)
                 return;
-            _replaceWithText = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
+    } = "";
+
     public bool IsReplaceCaseSensitive
     {
-        get => _isReplaceCaseSensitive;
+        get;
         set
         {
-            if (value == _isReplaceCaseSensitive) 
+            if (value == field)
                 return;
-            _isReplaceCaseSensitive = value;
+            field = value;
             OnPropertyChanged();
         }
     }
+
     public bool IsReplaceEnabled
     {
-        get => _isReplaceEnabled;
+        get;
         set
         {
-            if (value == _isReplaceEnabled) 
+            if (value == field)
                 return;
-            _isReplaceEnabled = value;
+            field = value;
             OnPropertyChanged();
         }
     }
+
     public ICommand ReplaceInTitles { get; }
 
     public string TextToAdd
     {
-        get => _textToAdd;
+        get;
         set
         {
-            if (value == _textToAdd) 
+            if (value == field)
                 return;
-            _textToAdd = value;
+            field = value;
             OnPropertyChanged();
             IsAddEnabled = !string.IsNullOrEmpty(value);
         }
-    }
+    } = "";
+
     public string TextToAddSequenceStart
     {
-        get => _textToAddSequenceStart;
+        get;
         set
         {
-            if (value == _textToAddSequenceStart) 
+            if (value == field)
                 return;
-            _textToAddSequenceStart = value;
+            field = value;
             OnPropertyChanged();
             if (!string.IsNullOrWhiteSpace(value))
             {
@@ -383,42 +381,45 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
                 IsTextToAddSequenceStartValid = true;
                 TextToAddSequenceStartValue = DEFAULT_SEQUENCE_START;
             }
-
         }
-    }
+    } = "";
+
     public bool IsTextToAddSequenceStartValid
     {
-        get => _isTextToAddSequenceStartValid;
+        get;
         set
         {
-            if (value == _isTextToAddSequenceStartValid) 
+            if (value == field)
                 return;
-            _isTextToAddSequenceStartValid = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
+    } = true;
+
     public int TextToAddSequenceStartValue
     {
-        get => _textToAddSequenceStartValue;
+        get;
         set
         {
-            if (value == _textToAddSequenceStartValue) 
+            if (value == field)
                 return;
-            _textToAddSequenceStartValue = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
+    } = DEFAULT_SEQUENCE_START;
+
     public bool IsAddEnabled
     {
-        get => _isAddEnabled;
+        get;
         set
         {
-            if (value == _isAddEnabled) 
+            if (value == field)
                 return;
-            _isAddEnabled = value;
+            field = value;
             OnPropertyChanged();
         }
     }
+
     public ICommand AddToStart { get; }
     public ICommand AddToEnd { get; }
     #endregion
@@ -427,22 +428,22 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
 
     public bool IsExistingChaptersEnabled { get; }
     public bool IsUseCreatedEnabled => CreatedChapters.Count > 0;
+
     public bool IsUserInputEnabled
     {
-        get => _isUserInputEnabled;
+        get;
         set
         {
-            if (value == _isUserInputEnabled) 
+            if (value == field)
                 return;
-            _isUserInputEnabled = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
+    } = true;
 
     public bool IsGenerateEnabled => SelectedChapterSource.SourceType switch
     {
         ChapterSourceType.FileNames or ChapterSourceType.MetadataTags or ChapterSourceType.CueFiles or ChapterSourceType.Template or ChapterSourceType.Existing or ChapterSourceType.SilenceScan => true,
-        ChapterSourceType.Unknown => false,
         _ => false
     };
 
@@ -506,35 +507,13 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     private static IEnumerable<ChapterSourceItem> GetChapterSources(IReadOnlyList<IMediaFileViewModel> files)
     {
         yield return new ChapterSourceItem { SourceType = ChapterSourceType.FileNames, Description = "File Names" };
-        if (TagsExist(files))
+        if (files.TagsExist())
             yield return new ChapterSourceItem { SourceType = ChapterSourceType.MetadataTags, Description = "Metadata Tags" };
         yield return new ChapterSourceItem { SourceType = ChapterSourceType.CueFiles, Description = "Cue Files" };
         yield return new ChapterSourceItem { SourceType = ChapterSourceType.Template, Description = "Template" };
         yield return new ChapterSourceItem { SourceType = ChapterSourceType.SilenceScan, Description = "Silence Scan" };
-        if (ChaptersExist(files))
+        if (files.ChaptersExist())
             yield return new ChapterSourceItem { SourceType = ChapterSourceType.Existing, Description = "Existing Chapters" };
-    }
-
-    private static bool TagsExist(IReadOnlyList<IMediaFileViewModel> files)
-    {
-        foreach (var file in files)
-        {
-            if (file.HasTags)
-                return true;
-        }
-
-        return false;
-    }
-
-    private static bool ChaptersExist(IReadOnlyList<IMediaFileViewModel> files)
-    {
-        foreach (var file in files)
-        {
-            if (file.Chapters.Count > 0)
-                return true;
-        }
-
-        return false;
     }
 
     private void SetInitialSelectedChapterSource(ObservableCollection<IMediaFileViewModel> files)
