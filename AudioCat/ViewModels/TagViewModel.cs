@@ -14,45 +14,41 @@ public interface IMediaTagViewModel : IMediaTag, IEnableCapable
 [DebuggerDisplay("{Name,nq}: {Value}; IsEnabled: {IsEnabled,nq}")]
 public sealed class TagViewModel : IMediaTagViewModel, INotifyPropertyChanged
 {
-    #region Backing Fields
-    private bool _isEnabled = true;
-    private string _name = "";
-    private string _value = "";
-    #endregion
-
     public bool IsEnabled
     {
-        get => _isEnabled;
+        get;
         set
         {
-            if (value == _isEnabled)
+            if (value == field)
                 return;
-            _isEnabled = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
+    } = true;
+
     public string Name
     {
-        get => _name;
+        get;
         set
         {
-            if (value == _name)
+            if (value == field)
                 return;
-            _name = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
+    } = "";
+
     public string Value
     {
-        get => _value;
+        get;
         set
         {
-            if (value == _value)
+            if (value == field)
                 return;
-            _value = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
+    } = "";
 
     public static IMediaTagViewModel CreateFrom(IMediaTag tag) => new TagViewModel { Name = tag.Name, Value = tag.Value };
     public static IMediaTagViewModel Copy(IMediaTagViewModel tag) => new TagViewModel { IsEnabled = tag.IsEnabled, Name = tag.Name, Value = tag.Value };

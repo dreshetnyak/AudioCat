@@ -62,7 +62,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     public Visibility SilenceScanOptionsVisibility => SelectedChapterSource.SourceType == ChapterSourceType.SilenceScan ? Visibility.Visible : Visibility.Collapsed;
     public Visibility OptionsVisibility => SelectedChapterSource.SourceType != ChapterSourceType.FileNames && SelectedChapterSource.SourceType != ChapterSourceType.Existing ? Visibility.Visible : Visibility.Collapsed;
     #endregion
-
+    
     public bool TrimStartingNonChars
     {
         get;
@@ -595,6 +595,10 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             case ChapterSourceType.Template:
                 UpdateChapters(ChaptersFactory.CreateFromTemplate(Files, Template, TemplateStartNumberValue, TemplateStartNumber, IsTemplateStartNumberValid));
                 break;
+
+            // TODO: We need to load from the OutputChapters
+            // Existing here just generates chapters from files, that is not entirely correct thing to do on startup
+
             case ChapterSourceType.Existing: 
                 UpdateChapters(ChaptersFactory.CreateFromExisting(Files, TrimStartingNonChars));
                 break;

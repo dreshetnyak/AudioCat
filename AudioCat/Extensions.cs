@@ -266,8 +266,7 @@ internal static class Extensions
 
         return -1;
     }
-
-
+    
     public static int SkipNonWhitespace(this ReadOnlySpan<char> span, int startIndex = 0)
     {
         for (var i = startIndex; i < span.Length; i++)
