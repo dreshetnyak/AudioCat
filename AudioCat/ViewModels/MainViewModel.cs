@@ -700,14 +700,6 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
             ClearOutput();
         }
 
-        OnPropertyChanged(nameof(IsConcatenateEnabled));
-        OnPropertyChanged(nameof(IsClearPathsEnabled));
-        OnPropertyChanged(nameof(IsMoveUpEnabled));
-        OnPropertyChanged(nameof(IsMoveDownEnabled));
-        OnPropertyChanged(nameof(IsRemoveEnabled));
-        OnPropertyChanged(nameof(IsChaptersFromTagsEnabled));
-        OnPropertyChanged(nameof(IsChaptersFromFilesEnabled));
-        OnPropertyChanged(nameof(IsCreateChapters));
         TotalSize = Files.GetFilesTotalSize();
         TotalDuration = Files.GetTotalDuration();
         SelectedCodec = Services.MediaFilesService.GetAudioCodec(Files);
@@ -723,6 +715,16 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         }
         else 
             RefreshChaptersWarning();
+
+        // Must go after the TotalDuration and other code above due to dependencies
+        OnPropertyChanged(nameof(IsConcatenateEnabled));
+        OnPropertyChanged(nameof(IsClearPathsEnabled));
+        OnPropertyChanged(nameof(IsMoveUpEnabled));
+        OnPropertyChanged(nameof(IsMoveDownEnabled));
+        OnPropertyChanged(nameof(IsRemoveEnabled));
+        OnPropertyChanged(nameof(IsChaptersFromTagsEnabled));
+        OnPropertyChanged(nameof(IsChaptersFromFilesEnabled));
+        OnPropertyChanged(nameof(IsCreateChapters));
 
         if (Files.Count == 0 || !Files.ChaptersExist()) // No files or no chapters in files
         {
