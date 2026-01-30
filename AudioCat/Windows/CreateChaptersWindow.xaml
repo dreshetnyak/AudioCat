@@ -89,6 +89,11 @@
                                 IsReadOnly="True"
                                 Binding="{Binding EndTime, Mode=OneWay, Converter={StaticResource DurationConverter}}"
                                 CellStyle="{StaticResource TextBlockLeftStyle}" />
+                            <DataGridTextColumn
+                                Header="End"
+                                IsReadOnly="True"
+                                Binding="{Binding Duration, Mode=OneWay, Converter={StaticResource DurationConverter},ConverterParameter=Trim}"
+                                CellStyle="{StaticResource TextBlockLeftStyle}" />
                             <DataGridTemplateColumn Header="Title">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>

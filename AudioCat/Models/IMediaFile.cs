@@ -34,6 +34,7 @@ public interface IMediaChapter
     decimal? TimeBaseDivisor { get; }
     TimeSpan? StartTime { get; }
     TimeSpan? EndTime { get; }
+    TimeSpan? Duration { get; }
     IReadOnlyList<IMediaTag> Tags { get; }
 }
 

@@ -17,7 +17,7 @@ public interface IMediaChapterViewModel : IMediaChapter
     string Title { get; set; }
 }
 
-[DebuggerDisplay("StartTime: {StartTime,nq}; EndTime: {EndTime,nq}; Title: {Title}")]
+[DebuggerDisplay("StartTime: {StartTime,nq}; EndTime: {EndTime,nq}; Duration: {Duration,nq}; Title: {Title}")]
 internal sealed class ChapterViewModel : IMediaChapterViewModel, INotifyPropertyChanged
 {
     private const string TITLE_TAG_NAME = "title";
@@ -98,6 +98,7 @@ internal sealed class ChapterViewModel : IMediaChapterViewModel, INotifyProperty
                 return;
             _startTime = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(Duration));
         }
     }
     public TimeSpan? EndTime
@@ -105,11 +106,15 @@ internal sealed class ChapterViewModel : IMediaChapterViewModel, INotifyProperty
         get => _endTime;
         set
         {
-            if (Nullable.Equals(value, _endTime)) return;
+            if (Nullable.Equals(value, _endTime)) 
+                return;
             _endTime = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(Duration));
         }
     }
+    public TimeSpan? Duration => StartTime.HasValue && EndTime.HasValue ? EndTime - StartTime : null;
+
     public IReadOnlyList<IMediaTag> Tags => _tags;
 
     public string Title
