@@ -12,9 +12,9 @@ internal sealed class Mp3EncoderArgs : IEncoderArgs
     private int CutOff { get; init; }            // cutoff (--lowpass): Set lowpass cutoff frequency. If unspecified, the encoder dynamically adjusts the cutoff.
 
     private Mp3EncoderArgs() { }
-    public IEncoderArgs CreateVbr(int quality, int cutOff = 0) => new Mp3EncoderArgs { Encoding = EncodingType.Vbr, Quality = quality, CutOff = cutOff };
-    public IEncoderArgs CreateCbr(int bitrate, int cutOff = 0) => new Mp3EncoderArgs { Encoding = EncodingType.Cbr, Bitrate = bitrate, CutOff = cutOff };
-    public IEncoderArgs CreateAbr(int bitrate, int cutOff = 0) => new Mp3EncoderArgs { Encoding = EncodingType.Abr, Bitrate = bitrate, CutOff = cutOff };
+    public static IEncoderArgs CreateVbr(int quality, int cutOff = 0) => new Mp3EncoderArgs { Encoding = EncodingType.Vbr, Quality = quality, CutOff = cutOff };
+    public static IEncoderArgs CreateCbr(int bitrate, int cutOff = 0) => new Mp3EncoderArgs { Encoding = EncodingType.Cbr, Bitrate = bitrate, CutOff = cutOff };
+    public static IEncoderArgs CreateAbr(int bitrate, int cutOff = 0) => new Mp3EncoderArgs { Encoding = EncodingType.Abr, Bitrate = bitrate, CutOff = cutOff };
 
     public string Build() => Encoding switch
     {

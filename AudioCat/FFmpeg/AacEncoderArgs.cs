@@ -12,8 +12,8 @@ internal sealed class AacEncoderArgs : IEncoderArgs
     private int CutOff { get; init; }            // cutoff: Set cutoff frequency. If unspecified will allow the encoder to dynamically adjust the cutoff to improve clarity on low bitrates.
     
     private AacEncoderArgs() { }
-    public IEncoderArgs CreateVbr(int quality, int cutOff = 0) => new AacEncoderArgs { Encoding = EncodingType.Vbr, Quality = quality, CutOff = cutOff };
-    public IEncoderArgs CreateCbr(int bitrate, int cutOff = 0) => new AacEncoderArgs { Encoding = EncodingType.Cbr, Bitrate = bitrate, CutOff = cutOff };
+    public static IEncoderArgs CreateVbr(int quality, int cutOff = 0) => new AacEncoderArgs { Encoding = EncodingType.Vbr, Quality = quality, CutOff = cutOff };
+    public static IEncoderArgs CreateCbr(int bitrate, int cutOff = 0) => new AacEncoderArgs { Encoding = EncodingType.Cbr, Bitrate = bitrate, CutOff = cutOff };
 
     public string Build() => Encoding switch
     {

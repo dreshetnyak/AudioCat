@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using AudioCat.Models;
 using AudioCat.Services;
@@ -154,7 +155,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
                 ? await GenerateTempOutputFileFrom(Path.GetExtension(outputFileName)) 
                 : outputFileName;
 
-            IReadOnlyList<string>? remuxedFiles = null;
+            ReadOnlyCollection<string>? remuxedFiles = null;
             totalDuration = await totalDurationTask;
             do
             {
@@ -273,7 +274,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         public IProcessingStats? Stats { get; set; } = stats;
     }
 
-    private static async Task<IResponse<IReadOnlyList<string>>> RemuxFiles(IReadOnlyList<IMediaFileViewModel> mediaFiles, Func<Progress, Task> onProgress, CancellationToken ctx)
+    private static async Task<IResponse<ReadOnlyCollection<string>>> RemuxFiles(IReadOnlyList<IMediaFileViewModel> mediaFiles, Func<Progress, Task> onProgress, CancellationToken ctx)
     {
         var sync = new object();
         var errors = new StringBuilder();
@@ -307,8 +308,8 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         catch { /* ignore */ }
         
         return errors.Length == 0
-            ? Response<IReadOnlyList<string>>.Success(sortedRemuxedFiles)
-            : Response<IReadOnlyList<string>>.Failure(sortedRemuxedFiles, errors.ToString());
+            ? Response<ReadOnlyCollection<string>>.Success(sortedRemuxedFiles)
+            : Response<ReadOnlyCollection<string>>.Failure(sortedRemuxedFiles, errors.ToString());
     }
 
     private static bool IsUnrecoverableError(ConcurrentBag<(IMediaFileViewModel, string)> remuxedFiles)
@@ -335,7 +336,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         }
     }
 
-    private static IReadOnlyList<string> SortRemuxedFiles(IReadOnlyList<IMediaFileViewModel> mediaFiles, ConcurrentBag<(IMediaFileViewModel, string)> remuxedFiles)
+    private static ReadOnlyCollection<string> SortRemuxedFiles(IReadOnlyList<IMediaFileViewModel> mediaFiles, ConcurrentBag<(IMediaFileViewModel, string)> remuxedFiles)
     {
         var sortedFiles = new List<string>(mediaFiles.Count);
         foreach (var mediaFile in mediaFiles)
@@ -349,7 +350,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             }
         }
 
-        return sortedFiles;
+        return sortedFiles.AsReadOnly();
     }
 
     private static async Task ProgressTracking(IReadOnlyList<IMediaFileViewModel> mediaFiles, BlockingCollection<RemuxProgress> statusMessages, Func<Progress, Task> onProgress, CancellationToken ctx)
@@ -735,7 +736,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         return (imageFiles, errors.ToString());
     }
 
-    private static IReadOnlyList<IMediaStream> GetImageStreams(IMediaFileViewModel mediaFile)
+    private static ReadOnlyCollection<IMediaStream> GetImageStreams(IMediaFileViewModel mediaFile)
     {
         var streams = new List<IMediaStream>();
         foreach (var stream in mediaFile.Streams)
@@ -744,7 +745,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
                 streams.Add(stream);
         }
 
-        return streams;
+        return streams.AsReadOnly();
     }
 
     private static async Task<IResult> ExtractImageStream(string sourceFileName, string outputFileName, int sourceStreamIndex, CancellationToken ctx)

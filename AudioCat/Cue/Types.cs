@@ -1,4 +1,6 @@
-﻿namespace AudioCat.Cue;
+﻿using System.Collections.ObjectModel;
+
+namespace AudioCat.Cue;
 
 public interface ITag
 {
@@ -20,14 +22,14 @@ public interface ITrack
     string Performer { get; }
     string Songwriter { get; }
     IIndex Index { get; }
-    IReadOnlyList<ITag> Tags { get; }
+    ReadOnlyCollection<ITag> Tags { get; }
 }
 
 public interface IFile
 {
     string Name { get; }
     string Type { get; }
-    IReadOnlyList<ITrack> Tracks { get; }
+    ReadOnlyCollection<ITrack> Tracks { get; }
 }
 
 public interface ICue
@@ -36,8 +38,8 @@ public interface ICue
     string Title { get; }
     string Performer { get; }
     string Songwriter { get; }
-    IReadOnlyList<ITag> Tags { get; }
-    IReadOnlyList<IFile> Files { get; }
+    ReadOnlyCollection<ITag> Tags { get; }
+    ReadOnlyCollection<IFile> Files { get; }
 }
 
 public interface IFileCommand

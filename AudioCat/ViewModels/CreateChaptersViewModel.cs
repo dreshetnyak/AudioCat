@@ -29,7 +29,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
 
     #endregion
 
-    public IReadOnlyList<IMediaFileViewModel> Files { get; }
+    public ReadOnlyCollection<IMediaFileViewModel> Files { get; }
 
     public ObservableCollection<ChapterSourceItem> ChapterSources { get; }
 
@@ -478,7 +478,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
 
         GenerateChapters = new RelayCommand(OnGenerateChapters);
         CloseDialog = new RelayCommand(OnClose);
-        Files = files;
+        Files = files.AsReadOnly();
         FixAllIso8859ToWin1251 = fixItemsEncodingCommand;
         FixSelectedIso8859ToWin1251 = fixItemEncodingCommand;
         UseCreatedChapters = new RelayCommand(() => { OnUseCreated(); OnClose(); });
@@ -590,7 +590,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
                     CreatedChapters.Clear();
                 break;
             case ChapterSourceType.CueFiles:
-                UpdateChapters(ChaptersFactory.CreateFromCueFiles(Files, CueFiles));
+                UpdateChapters(ChaptersFactory.CreateFromCueFiles(Files, CueFiles.AsReadOnly()));
                 break;
             case ChapterSourceType.Template:
                 UpdateChapters(ChaptersFactory.CreateFromTemplate(Files, Template, TemplateStartNumberValue, TemplateStartNumber, IsTemplateStartNumberValid));
@@ -609,7 +609,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         }
     }
 
-    private void UpdateChapters(IReadOnlyList<IMediaChapterViewModel> newChapters)
+    private void UpdateChapters(ReadOnlyCollection<IMediaChapterViewModel> newChapters)
     {
         CreatedChapters.Clear();
         if (newChapters.Count == 0)
@@ -691,7 +691,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             }
 
             if (response.Data != null) 
-                UpdateChapters(ChaptersFactory.CreateFromIntervals((IReadOnlyList<IInterval>)response.Data));
+                UpdateChapters(ChaptersFactory.CreateFromIntervals((ReadOnlyCollection<IInterval>)response.Data));
         }
         finally
         {

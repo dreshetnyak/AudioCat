@@ -1,5 +1,6 @@
 ﻿using AudioCat.Models;
 using AudioCat.ViewModels;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 
@@ -8,7 +9,7 @@ namespace AudioCat.Services;
 internal static class ChaptersFactory
 {
     #region Create from File Names
-    public static IReadOnlyList<IMediaChapterViewModel> CreateFromFileNames(IReadOnlyList<IMediaFileViewModel> files, bool trimStartingNonChars) => CreateChapters(files, (file, _) =>
+    public static ReadOnlyCollection<IMediaChapterViewModel> CreateFromFileNames(ReadOnlyCollection<IMediaFileViewModel> files, bool trimStartingNonChars) => CreateChapters(files, (file, _) =>
     {
         var title = Path.GetFileNameWithoutExtension(file.File.Name);
         return trimStartingNonChars ? title.TrimStartNonChars() : title;
@@ -16,7 +17,7 @@ internal static class ChaptersFactory
     #endregion
 
     #region Create from Metadata Tags
-    public static IReadOnlyList<IMediaChapterViewModel> CreateFromMetadataTags(IReadOnlyList<IMediaFileViewModel> files, string selectedTagName, bool trimStartingNonChars) => CreateChapters(files, (file, _) =>
+    public static ReadOnlyCollection<IMediaChapterViewModel> CreateFromMetadataTags(ReadOnlyCollection<IMediaFileViewModel> files, string selectedTagName, bool trimStartingNonChars) => CreateChapters(files, (file, _) =>
     {
         var title = file.Tags.GetTagValue(selectedTagName);
         return trimStartingNonChars ? title.TrimStartNonChars() : title;
@@ -24,7 +25,7 @@ internal static class ChaptersFactory
     #endregion
 
     #region Create from Cue Files
-    public static IReadOnlyList<IMediaChapterViewModel> CreateFromCueFiles(IReadOnlyList<IMediaFileViewModel> files, IReadOnlyList<Cue.ICue> cueFiles)
+    public static ReadOnlyCollection<IMediaChapterViewModel> CreateFromCueFiles(ReadOnlyCollection<IMediaFileViewModel> files, ReadOnlyCollection<Cue.ICue> cueFiles)
     {
         if (cueFiles.Count == 0)
             return [];
@@ -58,10 +59,10 @@ internal static class ChaptersFactory
             }
         }
 
-        return chapters;
+        return chapters.AsReadOnly();
     }
 
-    private static TimeSpan GetTrackDuration(IReadOnlyList<IMediaFileViewModel> files, Cue.IFile file, Cue.ITrack track, TimeSpan trackStartTime, int trackIndex)
+    private static TimeSpan GetTrackDuration(ReadOnlyCollection<IMediaFileViewModel> files, Cue.IFile file, Cue.ITrack track, TimeSpan trackStartTime, int trackIndex)
     {
         TimeSpan trackDuration;
         if (trackIndex != file.Tracks.Count - 1)
@@ -80,7 +81,7 @@ internal static class ChaptersFactory
         return trackDuration;
     }
 
-    private static TimeSpan GetTimespanToEndOfFileFrom(IReadOnlyList<IMediaFileViewModel> files, TimeSpan trackStart)
+    private static TimeSpan GetTimespanToEndOfFileFrom(ReadOnlyCollection<IMediaFileViewModel> files, TimeSpan trackStart)
     {
         var totalDuration = TimeSpan.Zero;
         foreach (var file in files)
@@ -97,8 +98,8 @@ internal static class ChaptersFactory
     #endregion
 
     #region Create from Template
-    public static IReadOnlyList<IMediaChapterViewModel> CreateFromTemplate(
-        IReadOnlyList<IMediaFileViewModel> files,
+    public static ReadOnlyCollection<IMediaChapterViewModel> CreateFromTemplate(
+        ReadOnlyCollection<IMediaFileViewModel> files,
         string template,
         int templateStartNumberValue,
         string templateStartNumber,
@@ -109,7 +110,7 @@ internal static class ChaptersFactory
     #endregion
 
     #region Create from Existing Chapters
-    public static IReadOnlyList<IMediaChapterViewModel> CreateFromExisting(IReadOnlyList<IMediaFileViewModel> files, bool trimStartingNonChars)
+    public static ReadOnlyCollection<IMediaChapterViewModel> CreateFromExisting(ReadOnlyCollection<IMediaFileViewModel> files, bool trimStartingNonChars)
     {
         var startTime = TimeSpan.Zero;
         var chapters = new List<IMediaChapterViewModel>();
@@ -136,12 +137,12 @@ internal static class ChaptersFactory
             }
         }
 
-        return chapters;
+        return chapters.AsReadOnly();
     }
     #endregion
 
     #region Create from Silence Intervals
-    public static IReadOnlyList<IMediaChapterViewModel> CreateFromIntervals(IReadOnlyList<IInterval> intervals)
+    public static ReadOnlyCollection<IMediaChapterViewModel> CreateFromIntervals(ReadOnlyCollection<IInterval> intervals)
     {
         var startTime = TimeSpan.Zero;
         var chapters = new List<IMediaChapterViewModel>();
@@ -152,11 +153,11 @@ internal static class ChaptersFactory
             startTime += interval.End - startTime;
         }
 
-        return chapters;
+        return chapters.AsReadOnly();
     }
     #endregion
 
-    private static IReadOnlyList<IMediaChapterViewModel> CreateChapters(IReadOnlyList<IMediaFileViewModel> files, Func<IMediaFileViewModel, int, string> getTitle)
+    private static ReadOnlyCollection<IMediaChapterViewModel> CreateChapters(ReadOnlyCollection<IMediaFileViewModel> files, Func<IMediaFileViewModel, int, string> getTitle)
     {
         var startTime = TimeSpan.Zero;
         var chapters = new List<IMediaChapterViewModel>(files.Count);
@@ -171,7 +172,7 @@ internal static class ChaptersFactory
             startTime = chapter.EndTime!.Value;
         }
 
-        return chapters;
+        return chapters.AsReadOnly();
     }
 
     private static IMediaChapterViewModel CreateChapter(TimeSpan startTime, TimeSpan duration, string title, int index)

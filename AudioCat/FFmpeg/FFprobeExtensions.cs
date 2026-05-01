@@ -1,11 +1,12 @@
-﻿using System.Xml.Linq;
-using AudioCat.Models;
+﻿using AudioCat.Models;
+using System.Collections.ObjectModel;
+using System.Xml.Linq;
 
 namespace AudioCat.FFmpeg;
 
 internal static class FFprobeExtensions
 {
-    public static IReadOnlyList<IMediaTag> GetTags(this XElement? parentElement)
+    public static ReadOnlyCollection<IMediaTag> GetTags(this XElement? parentElement)
     {
         if (parentElement is not { HasElements: true })
             return [];
@@ -23,6 +24,6 @@ internal static class FFprobeExtensions
             tags.Add(new MediaTag(key, value));
         }
 
-        return tags;
+        return tags.AsReadOnly();
     }
 }

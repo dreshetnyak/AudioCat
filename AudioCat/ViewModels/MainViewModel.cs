@@ -535,7 +535,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
             try
             {
                 DoNotInvokeOutputChaptersCountChangedEvent = true;
-                var newChapters = ChaptersFactory.CreateFromExisting(Files, false); // TODO: Settings.TrimStartingNonChars
+                var newChapters = ChaptersFactory.CreateFromExisting(Files.AsReadOnly(), false); // TODO: Settings.TrimStartingNonChars
                 for (var index = 0; index < newChapters.Count; index++)
                 {
                     if (index == newChapters.Count - 1)
@@ -741,7 +741,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
             {
                 DoNotInvokeOutputChaptersCountChangedEvent = true;
                 OutputChapters.Clear();
-                var newChapters = ChaptersFactory.CreateFromExisting(Files, false);
+                var newChapters = ChaptersFactory.CreateFromExisting(Files.AsReadOnly(), false);
                 for (var index = 0; index < newChapters.Count; index++)
                 {
                     if (index == newChapters.Count - 1)

@@ -1,12 +1,13 @@
-﻿using System.Runtime.CompilerServices;
-using AudioCat.Models;
+﻿using AudioCat.Models;
 using AudioCat.ViewModels;
+using System.Collections.ObjectModel;
+using System.Runtime.CompilerServices;
 
 namespace AudioCat.Commands;
 
 public interface ISilenceScanArgs
 {
-    IReadOnlyList<IMediaFileViewModel> Files { get; }
+    ReadOnlyCollection<IMediaFileViewModel> Files { get; }
     int SilenceDuration { get; }
     int SilenceThreshold { get; }
 }
