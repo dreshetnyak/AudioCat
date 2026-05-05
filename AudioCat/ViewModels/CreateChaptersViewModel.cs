@@ -1,4 +1,5 @@
 ﻿using AudioCat.Commands;
+using AudioCat.Controls;
 using AudioCat.Models;
 using AudioCat.Services;
 using System.Collections.ObjectModel;
@@ -423,7 +424,46 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     public ICommand AddToStart { get; }
     public ICommand AddToEnd { get; }
     #endregion
-    
+
+    #region Playback
+    public int PlaybackCapacity
+    {
+        get;
+        set
+        {
+            if (value == field) 
+                return;
+            field = value;
+            OnPropertyChanged();
+        }
+    }
+    public ObservableCollection<float> WaveformSamples { get; } = [];
+    public ObservableCollection<IStripBookmark> PlaybackBookmarks { get; } = [];
+    public int CurrentPosition
+    {
+        get;
+        set
+        {
+            if (value == field) 
+                return;
+            field = value;
+            OnPropertyChanged();
+        }
+    }
+    public ZoomRange ZoomRange
+    {
+        get;
+        set
+        {
+            if (value == field) 
+                return;
+            field = value;
+            OnPropertyChanged();
+        }
+    } = ZoomRange.Sentinel;
+
+    #endregion
+
     public ObservableCollection<IMediaChapterViewModel> CreatedChapters { get; }
 
     public bool IsExistingChaptersEnabled { get; }
@@ -472,6 +512,8 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         ChapterSources = new ObservableCollection<ChapterSourceItem>(GetChapterSources(files));
         SetInitialSelectedChapterSource(files);
         _ = Task.Run(OnGenerateChapters);
+
+        // TODO Playback setup
 
         CreatedChapters = [];
         CreatedChapters.CollectionChanged += OnCreatedChaptersChanged;

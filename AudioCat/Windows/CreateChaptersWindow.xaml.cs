@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Windows;
+using AudioCat.Controls;
 using AudioCat.ViewModels;
 
 namespace AudioCat.Windows;
@@ -22,5 +23,11 @@ public partial class CreateChaptersWindow : Window
     {
         if (DataContext is CreateChaptersViewModel { IsUserInputEnabled: false } viewModel) 
             viewModel.CancelScanForSilence.Execute(null);
+    }
+
+    private void OnSeekRequested(object? sender, PositionChangeRequestedEventArgs e)
+    {
+        // TODO
+        throw new NotImplementedException();
     }
 }

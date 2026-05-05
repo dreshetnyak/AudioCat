@@ -43,40 +43,37 @@ internal interface IAudioFilePlayer
 
 internal sealed class AudioFilePlayer : IAudioFilePlayer, IAsyncDisposable, IDisposable
 {
-    #region Backing Fields
-    private AudioPlayerState _currentState = AudioPlayerState.Stopped;
-    private TimeSpan _currentPosition = TimeSpan.Zero;
-
-    #endregion
-
     private bool IsDisposed { get; set; }
     private SemaphoreSlim Sync { get; }
     private WaveOutEvent OutputDevice { get; }
     private AudioFileReader AudioFileReader { get; }
     private MeteringSampleProvider MeteringProvider { get; }
     private PeriodicInvoker PlayerStatusInvoker { get; }
+
     private AudioPlayerState CurrentState
     {
-        get => _currentState;
+        get;
         set
         {
-            if (_currentState == value)
-                return; 
-            _currentState = value;
+            if (field == value)
+                return;
+            field = value;
             OnPlaybackStateChanged();
         }
-    }
+    } = AudioPlayerState.Stopped;
+
     private TimeSpan CurrentPosition
     {
-        get => _currentPosition;
+        get;
         set
         {
-            if (_currentPosition == value)
+            if (field == value)
                 return;
-            _currentPosition = value;
+            field = value;
             OnPlaybackPositionChanged();
         }
-    }
+    } = TimeSpan.Zero;
+
     private TimeSpan Duration { get; }
 
     public event EventHandler<StreamVolumeEventArgs>? PlaybackVolume;
@@ -194,58 +191,3 @@ internal sealed class AudioFilePlayer : IAudioFilePlayer, IAsyncDisposable, IDis
         _ => throw new ArgumentOutOfRangeException(nameof(playbackState))
     };
 }
-
-
-//internal interface IAudioChapter
-//{
-//    string Title { get; }
-//    string FilePath { get; }
-//    TimeSpan StartTime { get; }
-//}
-
-//public ObservableCollection<IAudioChapter> Chapters { get; } = new();
-//float GetSystemVolume();
-
-//internal interface IAudioPlayerSettings
-//{
-//    float TargetSystemVolume { get; }
-//}
-
-//// Start the timer to update the playback position
-//timer.Start();
-
-//// Display audio format information
-//SampleRateLabel.Content = $"Sample Rate: {AudioFile.WaveFormat.SampleRate} Hz";
-//ChannelsLabel.Content = $"Channels: {AudioFile.WaveFormat.Channels}";
-
-//private float GetStartingVolume()
-//{
-//    // TODO Get the system volume and target the starting volume to be 60% of the system volume.
-//    // TODO The calculated or then changed volume should be remembered and used while the application is running.
-//}
-
-//private float GetSystemVolume()
-//{
-//    using var deviceEnumerator = new MMDeviceEnumerator();
-//    using var defaultDevice = deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-//    return defaultDevice.AudioEndpointVolume.MasterVolumeLevelScalar; // Return the current master volume level (between 0.0 and 1.0)
-//}
-
-
-//public void Play()
-//{
-//    OutputDevice.Play();
-//}
-
-//private void Stop_Click(object sender, RoutedEventArgs e)
-//{
-//    OutputDevice?.Stop();
-//    OutputDevice?.Dispose();
-//    OutputDevice = null;
-//    AudioFile?.Dispose();
-//    AudioFile = null;
-//    Timer.Stop();
-
-//    // Reset labels
-//    PositionLabel.Content = "00:00 / 00:00";
-//}
