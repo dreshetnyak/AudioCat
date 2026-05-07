@@ -462,6 +462,102 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         }
     } = ZoomRange.Sentinel;
 
+    public bool IsPlayerEnabled
+    {
+        get;
+        set
+        {
+            if (value == field)
+                return;
+            field = value;
+            OnPropertyChanged();
+        }
+    } = true;
+
+    public bool IsPlaying
+    {
+        get;
+        set
+        {
+            if (value == field)
+                return;
+            field = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool IsMuted
+    {
+        get;
+        set
+        {
+            if (value == field)
+                return;
+            field = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public float Volume
+    {
+        get;
+        set
+        {
+            if (value == field)
+                return;
+            field = value;
+            OnPropertyChanged();
+        }
+    } = 0.75f;
+
+    public bool CanRewind
+    {
+        get;
+        set
+        {
+            if (value == field)
+                return;
+            field = value;
+            OnPropertyChanged();
+        }
+    } = false;
+
+    public bool CanForward
+    {
+        get;
+        set
+        {
+            if (value == field)
+                return;
+            field = value;
+            OnPropertyChanged();
+        }
+    } = false;
+
+    public TimeSpan PlayerPosition
+    {
+        get;
+        set
+        {
+            if (value == field)
+                return;
+            field = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public TimeSpan PlayerDuration
+    {
+        get;
+        set
+        {
+            if (value == field)
+                return;
+            field = value;
+            OnPropertyChanged();
+        }
+    }
+
     #endregion
 
     public ObservableCollection<IMediaChapterViewModel> CreatedChapters { get; }
@@ -514,6 +610,13 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         _ = Task.Run(OnGenerateChapters);
 
         // TODO Playback setup
+        // PlaybackCapacity to be equal to the total duration
+        // Start populating WaveformSamples
+        // When chapters generated update PlaybackBookmarks
+
+        // ChaptersPlayer - can play chapters
+        // DataStripControl - playback controls and visualization
+        // PlayerControl - playback controls
 
         CreatedChapters = [];
         CreatedChapters.CollectionChanged += OnCreatedChaptersChanged;
