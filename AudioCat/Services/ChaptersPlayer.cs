@@ -8,6 +8,7 @@ namespace AudioCat.Services;
 internal sealed class ChaptersPlayer : IDisposable
 {
     public event EventHandler<IMediaChapterViewModel>? ChapterChanged;
+    public event EventHandler<PlaybackProgressEventArgs>? PlaybackProgress;
     public event EventHandler<string>? PlaybackError;
 
     private ReadOnlyCollection<IMediaFileViewModel> Files { get; }
@@ -167,8 +168,16 @@ internal sealed class ChaptersPlayer : IDisposable
                 if (ActiveChapterIndex >= CreatedChapters.Count - 1)
                 {
                     StopInternal();
+                    return;
                 }
             }
+
+            // Fire playback progress — chapter position is global position relative to chapter start
+            var chapterPosition = ActiveChapter.StartTime is { } chapterStart
+                ? globalPosition - chapterStart
+                : globalPosition;
+
+            PlaybackProgress?.Invoke(this, new PlaybackProgressEventArgs(ActiveChapter, globalPosition, chapterPosition));
         }
         finally
         {
@@ -199,8 +208,6 @@ internal sealed class ChaptersPlayer : IDisposable
             // Compute the global offset of the next file
             var nextFileGlobalOffset = ActiveFileGlobalOffset + (Files[ActiveFileIndex].Duration ?? TimeSpan.Zero);
 
-            // Check if the active chapter's end is already past this point (chapter spans next file)
-            // or we've already advanced chapters — either way, just continue into next file
             var oldPlayer = ActivePlayer;
 
             var nextFile = Files[nextFileIndex];
@@ -267,7 +274,6 @@ internal sealed class ChaptersPlayer : IDisposable
             var duration = Files[i].Duration ?? TimeSpan.Zero;
             var fileEnd = accumulated + duration;
 
-            // Use the last file if position is at or beyond the end (clamp)
             if (globalPosition < fileEnd || i == Files.Count - 1)
             {
                 fileIndex = i;

@@ -1,4 +1,5 @@
 ﻿using AudioCat.Models;
+using AudioCat.ViewModels;
 using NAudio.Wave.SampleProviders;
 using NAudio.Wave;
 
@@ -26,6 +27,16 @@ internal class PlaybackPositionEventArgs(TimeSpan duration, TimeSpan currentPosi
 internal class StreamVolumeEventArgs(float[] maxSampleValues) : EventArgs
 {
     public float[] MaxSampleValues { get; } = maxSampleValues;
+}
+
+internal class PlaybackProgressEventArgs(
+    IMediaChapterViewModel activeChapter,
+    TimeSpan globalPosition,
+    TimeSpan chapterPosition) : EventArgs
+{
+    public IMediaChapterViewModel ActiveChapter { get; } = activeChapter;
+    public TimeSpan GlobalPosition { get; } = globalPosition;
+    public TimeSpan ChapterPosition { get; } = chapterPosition;
 }
 
 internal interface IAudioFilePlayer

@@ -558,9 +558,25 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         }
     }
 
+    private ChaptersPlayer ChaptersPlayer { get; }
+
+    public ICommand PlayPause { get; }
+
     #endregion
 
     public ObservableCollection<IMediaChapterViewModel> CreatedChapters { get; }
+
+    public IMediaChapterViewModel? SelectedCreatedChapter
+    {
+        get;
+        set
+        {
+            if (value == field)
+                return;
+            field = value;
+            OnPropertyChanged();
+        }
+    }
 
     public bool IsExistingChaptersEnabled { get; }
     public bool IsUseCreatedEnabled => CreatedChapters.Count > 0;
@@ -609,7 +625,10 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         SetInitialSelectedChapterSource(files);
         _ = Task.Run(OnGenerateChapters);
 
-        // TODO Playback setup
+        CreatedChapters = [];
+        CreatedChapters.CollectionChanged += OnCreatedChaptersChanged;
+
+        // TODO Playback wiring
         // PlaybackCapacity to be equal to the total duration
         // Start populating WaveformSamples
         // When chapters generated update PlaybackBookmarks
@@ -617,9 +636,22 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         // ChaptersPlayer - can play chapters
         // DataStripControl - playback controls and visualization
         // PlayerControl - playback controls
+        
+        ChaptersPlayer = new ChaptersPlayer(files.AsReadOnly(), CreatedChapters);
+        
+        //PlayPause = new RelayCommand(() =>
+        //{
+        //    // TODO this need to change, just a dummy code here
+        //    if (IsPlaying)
+        //        ChaptersPlayer.Stop();
+        //    else if (SelectedCreatedChapter != null)
+        //        ChaptersPlayer.Play(SelectedCreatedChapter, TimeSpan.Zero);
+        //});
 
-        CreatedChapters = [];
-        CreatedChapters.CollectionChanged += OnCreatedChaptersChanged;
+
+
+        ////////////////////////
+
 
         GenerateChapters = new RelayCommand(OnGenerateChapters);
         CloseDialog = new RelayCommand(OnClose);

@@ -22,6 +22,14 @@ public partial class PlayerControl : UserControl
         nameof(CanForward), typeof(bool), typeof(PlayerControl),
         new PropertyMetadata(false));
 
+    public static readonly DependencyProperty CanGoPreviousProperty = DependencyProperty.Register(
+        nameof(CanGoPrevious), typeof(bool), typeof(PlayerControl),
+        new PropertyMetadata(false));
+
+    public static readonly DependencyProperty CanGoNextProperty = DependencyProperty.Register(
+        nameof(CanGoNext), typeof(bool), typeof(PlayerControl),
+        new PropertyMetadata(false));
+
     public static readonly DependencyProperty IsMutedProperty = DependencyProperty.Register(
         nameof(IsMuted), typeof(bool), typeof(PlayerControl),
         new PropertyMetadata(false));
@@ -78,6 +86,18 @@ public partial class PlayerControl : UserControl
     {
         get => (bool)GetValue(CanForwardProperty);
         set => SetValue(CanForwardProperty, value);
+    }
+
+    public bool CanGoPrevious
+    {
+        get => (bool)GetValue(CanGoPreviousProperty);
+        set => SetValue(CanGoPreviousProperty, value);
+    }
+
+    public bool CanGoNext
+    {
+        get => (bool)GetValue(CanGoNextProperty);
+        set => SetValue(CanGoNextProperty, value);
     }
 
     public bool IsMuted

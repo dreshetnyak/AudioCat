@@ -47,6 +47,7 @@
                         BorderBrush="DarkGray"
                         AlternatingRowBackground="SeaShell"
                         ItemsSource="{Binding CreatedChapters, Mode=OneWay, FallbackValue=''}"
+                        SelectedItem="{Binding SelectedCreatedChapter, UpdateSourceTrigger=PropertyChanged}"
                         AllowDrop="False"
                         CanUserSortColumns="False"
                         Margin="0,1,0,0">
