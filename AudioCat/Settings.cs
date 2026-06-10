@@ -29,14 +29,15 @@ internal static class Settings
         Codecs.VORBIS,      // OGG Vorbis
         Codecs.WMAV2,       // WMA
         Codecs.PCM_S16_LE,  // WAV; Most of the files with this format will have this codec
+        Codecs.PCM_F32_LE,  // WAV
         Codecs.PCM_U8,      // WAV; Less common
         Codecs.FLAC
     ];
     public static IEnumerable<string> SupportedImageCodecs { get; } = [Codecs.MJPEG, Codecs.PNG];
     public static IEnumerable<string> CodecsWithTwoStepsConcat { get; } = [Codecs.VORBIS]; // Concat and embedding of metadata must be done in two separate steps
     public static IEnumerable<string> CodecsWithTagsInStream { get; } = [Codecs.OPUS, Codecs.VORBIS]; // In OPUS and OGG Vorbis files the tags are placed in the stream
-    public static IEnumerable<string> CodecsThatDoesNotSupportChapters { get; } = [Codecs.VORBIS, Codecs.PCM_S16_LE, Codecs.PCM_U8, Codecs.FLAC];
-    public static IEnumerable<string> CodecsThatDoesNotSupportImages { get; } = [Codecs.VORBIS, Codecs.PCM_S16_LE, Codecs.PCM_U8];
+    public static IEnumerable<string> CodecsThatDoesNotSupportChapters { get; } = [Codecs.VORBIS, Codecs.PCM_S16_LE, Codecs.PCM_F32_LE, Codecs.PCM_U8, Codecs.FLAC];
+    public static IEnumerable<string> CodecsThatDoesNotSupportImages { get; } = [Codecs.VORBIS, Codecs.PCM_S16_LE, Codecs.PCM_F32_LE, Codecs.PCM_U8];
 
     private static string DefaultEncodingCommand => "-c copy";
     private static IEnumerable<NameValue> CodecEncodingCommands { get; } =
@@ -62,6 +63,7 @@ internal static class Settings
         Codecs.WMAV2 => "Windows Media Audio|*.wma",
         Codecs.FLAC => "Free Lossless Audio Codec|*.flac",
         Codecs.PCM_S16_LE => "Waveform Audio|*.wav",
+        Codecs.PCM_F32_LE => "Waveform Audio|*.wav",
         Codecs.PCM_U8 => "Waveform Audio|*.wav",
         Codecs.VORBIS => "OGG Vorbis|*.ogg",
         _ => "Other Files|*.*"
@@ -75,6 +77,7 @@ internal static class Settings
         Codecs.WMAV2 => ".wma",
         Codecs.FLAC => ".flac",
         Codecs.PCM_S16_LE => ".wav",
+        Codecs.PCM_F32_LE => ".wav",
         Codecs.PCM_U8 => ".wav",
         Codecs.VORBIS => ".ogg",
         _ => ""
@@ -96,6 +99,8 @@ internal static class Settings
         Codecs.FLAC => "Free Lossless Audio Codec|*.flac|" +
                        OTHER_AUDIO_EXTENSION,
         Codecs.PCM_S16_LE => "Waveform Audio|*.wav|" +
+                             OTHER_AUDIO_EXTENSION,
+        Codecs.PCM_F32_LE => "Waveform Audio|*.wav|" +
                              OTHER_AUDIO_EXTENSION,
         Codecs.PCM_U8 => "Waveform Audio|*.wav|" +
                          OTHER_AUDIO_EXTENSION,
