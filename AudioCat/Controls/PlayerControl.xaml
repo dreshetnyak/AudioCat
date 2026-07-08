@@ -576,7 +576,7 @@
                 VolumeFillDisabledColor="LightGray"
                 PercentageOffsetX="0"
                 PercentageOffsetY="0"
-                Volume="0.75"
+                Volume="{Binding Volume, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Mode=TwoWay}"
                 Margin="3,0,3,0">
                 <controls:VolumeLevel.Style>
                     <Style TargetType="{x:Type controls:VolumeLevel}">

@@ -15,6 +15,7 @@ public interface IMediaChapterViewModel : IMediaChapter
     new TimeSpan? StartTime { get; set; }
     new TimeSpan? EndTime { get; set; }
     string Title { get; set; }
+    bool IsPlaying { get; set; }
 }
 
 [DebuggerDisplay("StartTime: {StartTime,nq}; EndTime: {EndTime,nq}; Duration: {Duration,nq}; Title: {Title}")]
@@ -30,6 +31,7 @@ internal sealed class ChapterViewModel : IMediaChapterViewModel, INotifyProperty
     private decimal? _timeBaseDivisor;
     private TimeSpan? _startTime;
     private TimeSpan? _endTime;
+    private bool _isPlaying;
     private List<IMediaTag> _tags = [];
 
     #endregion
@@ -114,6 +116,19 @@ internal sealed class ChapterViewModel : IMediaChapterViewModel, INotifyProperty
         }
     }
     public TimeSpan? Duration => StartTime.HasValue && EndTime.HasValue ? EndTime - StartTime : null;
+
+    /// <summary>True while playback is inside this chapter; drives the playing-row indicator in the chapters grid.</summary>
+    public bool IsPlaying
+    {
+        get => _isPlaying;
+        set
+        {
+            if (value == _isPlaying)
+                return;
+            _isPlaying = value;
+            OnPropertyChanged();
+        }
+    }
 
     public IReadOnlyList<IMediaTag> Tags => _tags;
 

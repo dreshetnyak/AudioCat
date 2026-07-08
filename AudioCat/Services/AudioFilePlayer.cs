@@ -1,5 +1,4 @@
 ﻿using AudioCat.Models;
-using AudioCat.ViewModels;
 using NAudio.Wave.SampleProviders;
 using NAudio.Wave;
 
@@ -29,16 +28,6 @@ internal class StreamVolumeEventArgs(float[] maxSampleValues) : EventArgs
     public float[] MaxSampleValues { get; } = maxSampleValues;
 }
 
-internal class PlaybackProgressEventArgs(
-    IMediaChapterViewModel activeChapter,
-    TimeSpan globalPosition,
-    TimeSpan chapterPosition) : EventArgs
-{
-    public IMediaChapterViewModel ActiveChapter { get; } = activeChapter;
-    public TimeSpan GlobalPosition { get; } = globalPosition;
-    public TimeSpan ChapterPosition { get; } = chapterPosition;
-}
-
 internal interface IAudioFilePlayer
 {
     void Play();
@@ -54,36 +43,17 @@ internal interface IAudioFilePlayer
 
 internal sealed class AudioFilePlayer : IAudioFilePlayer, IAsyncDisposable, IDisposable
 {
-    private bool IsDisposed { get; set; }
-    private SemaphoreSlim Sync { get; }
+    private bool IsDisposed { get; set; } // Guarded by Sync
+    private Lock Sync { get; } = new();
     private WaveOutEvent OutputDevice { get; }
     private AudioFileReader AudioFileReader { get; }
+    private DisposalGuardedSampleProvider GuardedReader { get; }
     private MeteringSampleProvider MeteringProvider { get; }
     private PeriodicInvoker PlayerStatusInvoker { get; }
+    private bool IsStatusPollerStarted { get; set; } // Guarded by Sync; the status poller must be started at most once per player lifetime
 
-    private AudioPlayerState CurrentState
-    {
-        get;
-        set
-        {
-            if (field == value)
-                return;
-            field = value;
-            OnPlaybackStateChanged();
-        }
-    } = AudioPlayerState.Stopped;
-
-    private TimeSpan CurrentPosition
-    {
-        get;
-        set
-        {
-            if (field == value)
-                return;
-            field = value;
-            OnPlaybackPositionChanged();
-        }
-    } = TimeSpan.Zero;
+    private AudioPlayerState CurrentState { get; set; } = AudioPlayerState.Stopped; // Guarded by Sync
+    private TimeSpan CurrentPosition { get; set; } = TimeSpan.Zero; // Guarded by Sync
 
     private TimeSpan Duration { get; }
 
@@ -94,10 +64,10 @@ internal sealed class AudioFilePlayer : IAudioFilePlayer, IAsyncDisposable, IDis
 
     private AudioFilePlayer(string audioFile)
     {
-        Sync = new SemaphoreSlim(1, 1);
         OutputDevice = new WaveOutEvent();
         AudioFileReader = new AudioFileReader(audioFile);
-        MeteringProvider = new MeteringSampleProvider(AudioFileReader);
+        GuardedReader = new DisposalGuardedSampleProvider(AudioFileReader);
+        MeteringProvider = new MeteringSampleProvider(GuardedReader);
         MeteringProvider.StreamVolume += (sender, e) => PlaybackVolume?.Invoke(sender, new StreamVolumeEventArgs(e.MaxSampleValues));
         OutputDevice.PlaybackStopped += OnPlaybackStopped;
         OutputDevice.Init(MeteringProvider);
@@ -107,57 +77,85 @@ internal sealed class AudioFilePlayer : IAudioFilePlayer, IAsyncDisposable, IDis
 
     public static IResponse<IAudioFilePlayer> Create(string audioFile)
     {
-        try 
+        try
         { return Response<IAudioFilePlayer>.Success(new AudioFilePlayer(audioFile)); }
-        catch (Exception ex) 
+        catch (Exception ex)
         { return Response<IAudioFilePlayer>.Failure(ex.Message); }
     }
 
     public void Dispose()
     {
-        if (IsDisposed)
-            return;
-        IsDisposed = true;
-        Sync.Dispose();
-        OutputDevice.Dispose();
-        AudioFileReader.Dispose();
+        lock (Sync)
+        {
+            if (IsDisposed)
+                return;
+            IsDisposed = true;
+        }
+        // Join the status poller first so it cannot touch the disposed device/reader.
+        // Must not hold Sync here: the poll callback takes Sync, so joining it under the lock deadlocks.
         PlayerStatusInvoker.Dispose();
+        lock (Sync)
+        {
+            try { OutputDevice.Dispose(); }
+            finally { GuardedReader.Dispose(); }
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (IsDisposed)
-            return;
-        IsDisposed = true;
-        await CastAndDispose(Sync);
-        await CastAndDispose(OutputDevice);
-        await AudioFileReader.DisposeAsync();
-        await PlayerStatusInvoker.DisposeAsync();
-
-        return;
-
-        static async ValueTask CastAndDispose(IDisposable resource)
+        lock (Sync)
         {
-            if (resource is IAsyncDisposable resourceAsyncDisposable)
-                await resourceAsyncDisposable.DisposeAsync();
-            else
-                resource.Dispose();
+            if (IsDisposed)
+                return;
+            IsDisposed = true;
+        }
+        // Join the status poller first so it cannot touch the disposed device/reader.
+        // Must not hold Sync here: the poll callback takes Sync, so joining it under the lock deadlocks.
+        await PlayerStatusInvoker.DisposeAsync();
+        lock (Sync)
+        {
+            try { OutputDevice.Dispose(); }
+            finally { GuardedReader.Dispose(); }
         }
     }
 
     public void Play()
     {
-        if (CurrentState == AudioPlayerState.Playing)
-            return;
-        PlayerStatusInvoker.Start();
-        OutputDevice.Play();
+        lock (Sync)
+        {
+            // Guard on the device's real state, not the polled CurrentState — the cache
+            // is stale for up to one poll tick after Pause(), which would swallow a
+            // resume issued within that window (issue #28).
+            if (IsDisposed || OutputDevice.PlaybackState == PlaybackState.Playing)
+                return;
+            if (!IsStatusPollerStarted)
+            {
+                IsStatusPollerStarted = true; // Start the poller exactly once; PeriodicInvoker.Start spawns a new loop on every call
+                PlayerStatusInvoker.Start();
+            }
+            OutputDevice.Play();
+        }
     }
 
-    public void Pause() => 
-        OutputDevice.Pause();
+    public void Pause()
+    {
+        lock (Sync)
+        {
+            if (IsDisposed)
+                return;
+            OutputDevice.Pause();
+        }
+    }
 
-    public void SetVolume(float volume) => 
-        OutputDevice.Volume = volume;
+    public void SetVolume(float volume)
+    {
+        lock (Sync)
+        {
+            if (IsDisposed)
+                return;
+            OutputDevice.Volume = volume;
+        }
+    }
 
     public void SetPosition(string filePath, TimeSpan position)
     {
@@ -165,7 +163,12 @@ internal sealed class AudioFilePlayer : IAudioFilePlayer, IAsyncDisposable, IDis
             position = TimeSpan.Zero;
         else if (position > Duration)
             position = Duration;
-        AudioFileReader.CurrentTime = position;
+        lock (Sync)
+        {
+            if (IsDisposed)
+                return;
+            AudioFileReader.CurrentTime = position;
+        }
     }
 
     private void OnPlaybackStopped(object? sender, StoppedEventArgs e)
@@ -173,23 +176,37 @@ internal sealed class AudioFilePlayer : IAudioFilePlayer, IAsyncDisposable, IDis
         if (e.Exception != null)
             OnPlaybackError(e.Exception.Message);
     }
-    
+
     private Task OnPlaybackStateUpdate()
     {
-        var playerState = ToAudioPlayerState(OutputDevice.PlaybackState);
-        if (playerState != CurrentState)
-            CurrentState = playerState;
-        var currentTime = AudioFileReader.CurrentTime;
-        if (currentTime != CurrentPosition)
-            CurrentPosition = currentTime;
+        // Compute state/position changes under the lock, then raise the events after releasing it.
+        // Consumers (ChaptersPlayer) hold their own lock while calling into this player, and our
+        // events call back into their handlers; raising while holding Sync inverts the lock order.
+        AudioPlayerState? changedState = null;
+        TimeSpan? changedPosition = null;
+        lock (Sync)
+        {
+            if (IsDisposed)
+                return Task.CompletedTask;
+            var playerState = ToAudioPlayerState(OutputDevice.PlaybackState);
+            if (playerState != CurrentState)
+            {
+                CurrentState = playerState;
+                changedState = playerState;
+            }
+            var currentTime = AudioFileReader.CurrentTime;
+            if (currentTime != CurrentPosition)
+            {
+                CurrentPosition = currentTime;
+                changedPosition = currentTime;
+            }
+        }
+        if (changedState.HasValue)
+            PlaybackStateChanged?.Invoke(this, new AudioPlayStateEventArgs(changedState.Value));
+        if (changedPosition.HasValue)
+            PlaybackPositionChanged?.Invoke(this, new PlaybackPositionEventArgs(Duration, changedPosition.Value));
         return Task.CompletedTask;
     }
-
-    private void OnPlaybackStateChanged() => 
-        PlaybackStateChanged?.Invoke(this, new AudioPlayStateEventArgs(CurrentState));
-    
-    private void OnPlaybackPositionChanged() =>
-        PlaybackPositionChanged?.Invoke(this, new PlaybackPositionEventArgs(Duration, CurrentPosition));
 
     private void OnPlaybackError(string message) =>
         PlaybackError?.Invoke(this, new MessageEventArgs(message));
@@ -201,4 +218,35 @@ internal sealed class AudioFilePlayer : IAudioFilePlayer, IAsyncDisposable, IDis
         PlaybackState.Paused => AudioPlayerState.Paused,
         _ => throw new ArgumentOutOfRangeException(nameof(playbackState))
     };
+
+    // WaveOutEvent's playback thread pulls samples on its own schedule and offers no way to wait
+    // for it to go idle, so the reader can be disposed while one of its reads is still in flight;
+    // MediaFoundation reacts to that with undefined behavior (COMException 0x8000FFFF
+    // "Catastrophic failure"). This wrapper serializes reads against disposal and reports
+    // end-of-stream once disposed.
+    private sealed class DisposalGuardedSampleProvider(AudioFileReader source) : ISampleProvider, IDisposable
+    {
+        private AudioFileReader Source { get; } = source;
+        private Lock Sync { get; } = new();
+        private bool IsDisposed { get; set; } // Guarded by Sync
+
+        public WaveFormat WaveFormat { get; } = source.WaveFormat;
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            lock (Sync)
+                return IsDisposed ? 0 : Source.Read(buffer, offset, count);
+        }
+
+        public void Dispose()
+        {
+            lock (Sync)
+            {
+                if (IsDisposed)
+                    return;
+                IsDisposed = true;
+                Source.Dispose();
+            }
+        }
+    }
 }

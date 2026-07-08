@@ -45,11 +45,11 @@
                         AutoGenerateColumns="False"
                         BorderThickness="1"
                         BorderBrush="DarkGray"
-                        AlternatingRowBackground="SeaShell"
                         ItemsSource="{Binding CreatedChapters, Mode=OneWay, FallbackValue=''}"
                         SelectedItem="{Binding SelectedCreatedChapter, UpdateSourceTrigger=PropertyChanged}"
                         AllowDrop="False"
                         CanUserSortColumns="False"
+                        MouseDoubleClick="OnChapterRowDoubleClick"
                         Margin="0,1,0,0">
                         <DataGrid.ContextMenu>
                             <ContextMenu>
@@ -75,7 +75,41 @@
                                 </MenuItem>
                             </ContextMenu>
                         </DataGrid.ContextMenu>
+                        <DataGrid.RowStyle>
+                            <!-- Alternation is done here instead of AlternatingRowBackground because the
+                                 DataGrid-level property is applied via coercion and would override the
+                                 IsPlaying trigger; within a style the later trigger wins, so the playing
+                                 highlight takes precedence over the alternating color -->
+                            <Style TargetType="{x:Type DataGridRow}">
+                                <Style.Triggers>
+                                    <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                                        <Setter Property="Background" Value="SeaShell" />
+                                    </Trigger>
+                                    <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                                        <Setter Property="Background" Value="#FFE3F2FD" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
                         <DataGrid.Columns>
+                            <DataGridTemplateColumn
+                                IsReadOnly="True"
+                                CanUserResize="False"
+                                Width="18"
+                                MinWidth="18">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Image
+                                            Source="/Images/Play.png"
+                                            Height="13"
+                                            RenderOptions.BitmapScalingMode="Fant"
+                                            VerticalAlignment="Center"
+                                            HorizontalAlignment="Center"
+                                            Visibility="{Binding IsPlaying, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Collapse}"
+                                            d:DataContext="{d:DesignInstance viewModels:IMediaChapterViewModel}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTextColumn
                                 Header="Id"
                                 IsReadOnly="True"
@@ -1042,20 +1076,29 @@
                 </TabControl>
             </Grid>
         </Grid>
-        <Grid 
-            Visibility="Visible"
-            Grid.Row="1" 
-            Height="30">
-            <!--<controls:DataStripControl
+        <Border
+            Grid.Row="1"
+            Visibility="{Binding WaveformVisibility}"
+            BorderBrush="DarkGray"
+            BorderThickness="1"
+            Margin="5,5,5,0">
+            <controls:DataStripControl
+                x:Name="WaveformStrip"
                 Height="60"
-                Capacity="{Binding TotalSampleCount}"
+                Capacity="{Binding PlaybackCapacity}"
                 Data="{Binding WaveformSamples}"
-                Bookmarks="{Binding Chapters}"
-                CurrentPosition="{Binding PlaybackIndex}"
-                ZoomRange="{Binding CurrentZoom}"
-                InterpolationTension="0.5"
-                PositionChangeRequested="OnSeekRequested" />-->
-        </Grid>
+                Bookmarks="{Binding PlaybackBookmarks}"
+                BookmarkLineColor="SteelBlue"
+                CurrentPosition="{Binding CurrentPosition}"
+                PositionChangeRequested="OnSeekRequested"
+                MouseWheel="OnStripMouseWheel"
+                MouseDown="OnStripMouseDown"
+                MouseMove="OnStripMouseMove"
+                MouseUp="OnStripMouseUp"
+                LostMouseCapture="OnStripLostMouseCapture"
+                PreviewMouseLeftButtonDown="OnStripPreviewMouseLeftButtonDown"
+                InterpolationTension="0.5" />
+        </Border>
         <Grid
             Grid.Row="2"
             IsEnabled="{Binding IsUserInputEnabled}"
@@ -1067,7 +1110,6 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <!-- TODO Finish the player -->
             <controls:PlayerControl
                 Grid.Column="0"
                 IsEnabled="{Binding IsPlayerEnabled}"
@@ -1076,8 +1118,16 @@
                 Volume="{Binding Volume, Mode=TwoWay}"
                 CanRewind="{Binding CanRewind}"
                 CanForward="{Binding CanForward}"
+                CanGoPrevious="{Binding CanGoPrevious}"
+                CanGoNext="{Binding CanGoNext}"
                 Position="{Binding PlayerPosition}"
-                Duration="{Binding PlayerDuration}" />
+                Duration="{Binding PlayerDuration}"
+                PlayPauseCommand="{Binding PlayPause}"
+                StopCommand="{Binding StopPlayback}"
+                PreviousCommand="{Binding PreviousChapter}"
+                BackwardCommand="{Binding RewindPlayback}"
+                ForwardCommand="{Binding ForwardPlayback}"
+                NextCommand="{Binding NextChapter}" />
 
             <Button
                 Grid.Column="2"

@@ -180,15 +180,27 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
 
         if (mediaFiles.Count > 0)
             MediaFilesContainer.DoNotInvokeFilesCollectionChangedEvent = true;
-        for (var index = 0; index < mediaFiles.Count; index++)
+        try
         {
-            var audioFile = mediaFiles[index];
-            await uiDispatcher.InvokeAsync(() =>
+            for (var index = 0; index < mediaFiles.Count; index++)
             {
-                if (index == mediaFiles.Count - 1)
-                    MediaFilesContainer.DoNotInvokeFilesCollectionChangedEvent = false;
-                files.Add(audioFile);
-            });
+                var audioFile = mediaFiles[index];
+                await uiDispatcher.InvokeAsync(() =>
+                {
+                    // The flag must go false BEFORE the last Add so that Add still raises the
+                    // suppressed-until-now CollectionChanged handler exactly once for the batch.
+                    // Resetting after the loop instead would swallow that one notification too.
+                    if (index == mediaFiles.Count - 1)
+                        MediaFilesContainer.DoNotInvokeFilesCollectionChangedEvent = false;
+                    files.Add(audioFile);
+                });
+            }
+        }
+        finally
+        {
+            // Exception insurance only: if a dispatched Add throws mid-loop, the flag would
+            // otherwise stay true and suppress all future notifications (issue #35).
+            MediaFilesContainer.DoNotInvokeFilesCollectionChangedEvent = false;
         }
 
         if (files.Count > 0)

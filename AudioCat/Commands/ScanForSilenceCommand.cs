@@ -45,7 +45,8 @@ public sealed class ScanForSilenceCommand(IMediaFileToolkitService mediaFileTool
                 var fileIntervals = intervalsResponse.Data!;
                 AddFileIntervals(intervals, fileIntervals, startTime);
                 var fileDuration = file.Duration!.Value;
-                intervals.Add(new Interval(file.FilePath, fileDuration, fileDuration));
+                var fileEndTime = startTime + fileDuration;
+                intervals.Add(new Interval(file.FilePath, fileEndTime, fileEndTime));
                 startTime += fileDuration;
             }
 

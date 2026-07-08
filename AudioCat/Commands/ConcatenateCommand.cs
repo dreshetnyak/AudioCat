@@ -42,7 +42,8 @@ public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkit
     {
         try
         {
-            Cts = new CancellationTokenSource();
+            var cts = new CancellationTokenSource();
+            Cts = cts;
 
             if (MediaFiles.Count == 0)
                 return Response<object>.Failure("No files to concatenate");
@@ -64,7 +65,7 @@ public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkit
             try
             {
                 MediaFileToolkitService.Error += OnConcatErrors;
-                await MediaFileToolkitService.Concatenate(MediaFiles, concatParams, outputFileName, CancellationToken.None);
+                await MediaFileToolkitService.Concatenate(MediaFiles, concatParams, outputFileName, cts.Token);
             }
             finally { MediaFileToolkitService.Error -= OnConcatErrors; }
 

@@ -204,7 +204,9 @@ internal static class CommandFactory
             return Response<object>.Success(new TagCommand(Command.REM, valueSpan.Trim().ToString()));
 
         var valueStartIdx = valueSpan.SkipWhitespace(firstLiteralEndIdx);
-        return Response<object>.Success(valueSpan[valueStartIdx] == '\"' 
+        if (valueStartIdx == valueSpan.Length)
+            return Response<object>.Success(new TagCommand(firstLiteral.ToString(), ""));
+        return Response<object>.Success(valueSpan[valueStartIdx] == '\"'
             ? new TagCommand(firstLiteral.ToString(), GetQuotedValueFullString(valueSpan[valueStartIdx..]).ToString()) 
             : new TagCommand(firstLiteral.ToString(), valueSpan[valueStartIdx..].ToString().Trim()));
     }

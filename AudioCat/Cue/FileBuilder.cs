@@ -29,7 +29,7 @@ internal sealed class FileBuilder
         if (Tracks.Count == 0)
             return Response<IFile>.Failure("The FILE command doesn't have any TRACK commands");
         
-        return Response<IFile>.Success(new CueFile(Name, Type, Tracks.AsReadOnly())); // Do not  remove ToArray() here, it is intended to make a copy of the list
+        return Response<IFile>.Success(new CueFile(Name, Type, Tracks.ToArray().AsReadOnly())); // Do not remove ToArray() here, it is intended to make a copy of the list
     }
 
     public void Clear()

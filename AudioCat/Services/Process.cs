@@ -13,7 +13,14 @@ internal static class Process
         using System.Diagnostics.Process process = CreateProcess(executable, arguments);
         process.Start();
         var outTask = ReadOutStream(process, onOutput, outputType, ctx);
-        await process.WaitForExitAsync(ctx);
+        try { await process.WaitForExitAsync(ctx); }
+        catch (OperationCanceledException)
+        {
+            await KillAndWaitForExit(process);
+            try { await outTask; }
+            catch { /* ignore */ }
+            throw;
+        }
         await outTask;
     }
 
@@ -25,13 +32,30 @@ internal static class Process
         var outErrorTask = ReadOutputStream(process, OutputType.Error, ctx);
         var outStandardTask = ReadOutputStream(process, OutputType.Standard, ctx);
 
-        await process.WaitForExitAsync(ctx);
+        try { await process.WaitForExitAsync(ctx); }
+        catch (OperationCanceledException)
+        {
+            await KillAndWaitForExit(process);
+            try { await Task.WhenAll(outErrorTask, outStandardTask); }
+            catch { /* ignore */ }
+            throw;
+        }
         var errorOutput = await outErrorTask;
         var standardOutput = await outStandardTask;
 
         return outputType == OutputType.Standard
             ? standardOutput
             : errorOutput;
+    }
+
+    // The child process must be fully terminated before the cancellation propagates to the caller,
+    // otherwise it keeps write locks on its output files and they can't be cleaned up.
+    private static async Task KillAndWaitForExit(System.Diagnostics.Process process)
+    {
+        try { process.Kill(entireProcessTree: true); }
+        catch { /* the process has already exited */ }
+        try { await process.WaitForExitAsync(CancellationToken.None); }
+        catch { /* ignore */ }
     }
 
     private static async Task ReadOutStream(System.Diagnostics.Process process, Func<string, Task> onOutput, OutputType outputType, CancellationToken ctx)

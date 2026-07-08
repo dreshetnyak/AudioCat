@@ -32,6 +32,7 @@ public partial class App : Application
     {
         try { Encoding.RegisterProvider(CodePagesEncodingProvider.Instance); }
         catch {/* ignore */ }
+        _ = Task.Run(TempDirectory.Sweep);
         ServiceProvider.GetService<MainWindow>()?.Show();
     }
 }

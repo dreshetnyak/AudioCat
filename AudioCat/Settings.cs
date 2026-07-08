@@ -38,6 +38,9 @@ internal static class Settings
     public static IEnumerable<string> CodecsWithTagsInStream { get; } = [Codecs.OPUS, Codecs.VORBIS]; // In OPUS and OGG Vorbis files the tags are placed in the stream
     public static IEnumerable<string> CodecsThatDoesNotSupportChapters { get; } = [Codecs.VORBIS, Codecs.PCM_S16_LE, Codecs.PCM_F32_LE, Codecs.PCM_U8, Codecs.FLAC];
     public static IEnumerable<string> CodecsThatDoesNotSupportImages { get; } = [Codecs.VORBIS, Codecs.PCM_S16_LE, Codecs.PCM_F32_LE, Codecs.PCM_U8];
+    // NAudio/Media Foundation on stock Windows cannot decode OPUS or OGG Vorbis; this is a static list
+    // checked against ffprobe codec names — no runtime decode probe is performed.
+    public static IEnumerable<string> PlaybackUnsupportedCodecs { get; } = [Codecs.OPUS, Codecs.VORBIS];
 
     private static string DefaultEncodingCommand => "-c copy";
     private static IEnumerable<NameValue> CodecEncodingCommands { get; } =

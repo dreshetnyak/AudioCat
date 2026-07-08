@@ -133,12 +133,12 @@ public partial class MainWindow : Window
 
     private void OnTagsDataGridMouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not DataGrid { ItemsSource: ObservableCollection<IMediaTagViewModel> tags } dataGrid || dataGrid.Items.Count > 0)
+        // Seeds the first tag on double-clicking the empty grid. On a populated grid double-click
+        // must keep its standard begin-cell-edit meaning, so the guard bails out; use the Insert
+        // key to add rows there.
+        if (sender is not DataGrid { ItemsSource: ObservableCollection<IMediaTagViewModel> tags, Items.Count: 0 })
             return;
-        if (dataGrid.SelectedIndex >= 0)
-            tags.Insert(dataGrid.SelectedIndex, new TagViewModel());
-        else
-            tags.Add(new TagViewModel());
+        tags.Add(new TagViewModel());
     }
 
     private void OnTagsDataGridPreviewKeyDown(object sender, KeyEventArgs eventArgs)

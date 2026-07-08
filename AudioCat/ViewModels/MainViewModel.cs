@@ -1,6 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
@@ -435,10 +436,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
         Files.CollectionChanged += OnFilesCollectionChanged;
 
-        _ = VerifyMediaFileServiceIsAccessible()
-            .ContinueWith(AddCliFilesOnStartup)
-            .ContinueWith(AddOutputChaptersOnStartup)
-            .ContinueWith(EnableUserEntryOnStartup);
+        _ = InitializeAsync();
     }
 
     private void OnOutputTagsChanged(object? sender, NotifyCollectionChangedEventArgs e) => 
@@ -492,16 +490,24 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         OnPropertyChanged(nameof(TagsCount));
     }
 
-    private async Task VerifyMediaFileServiceIsAccessible()
+    private async Task InitializeAsync()
+    {
+        if (!await VerifyMediaFileServiceIsAccessible())
+            return; // FFmpeg/ffprobe missing — leave the UI disabled
+        await AddCliFilesOnStartup(); // Output chapters are populated by OnFilesCollectionChanged when the last file is added
+    }
+
+    private async Task<bool> VerifyMediaFileServiceIsAccessible()
     {
         var result = await MediaFileToolkitService.IsAccessible();
         if (result.IsSuccess)
             IsUserEntryEnabled = true;
         else
             MessageBox.Show($"{result.Message}{Environment.NewLine}The tools '{Settings.FFmpegName}' and '{Settings.FFprobeName}' are required for the application to work properly. Download the tools and place them in the system path.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        return result.IsSuccess;
     }
 
-    private async Task AddCliFilesOnStartup(Task _)
+    private async Task AddCliFilesOnStartup()
     {
         try
         {
@@ -521,49 +527,8 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
             if (response.SkippedFiles.Count > 0)
                 await Application.Current.Dispatcher.InvokeAsync(() => new SkippedFilesWindow(response.SkippedFiles).ShowDialog());
         }
-        catch
-        { /* ignore */ }
-    }
-
-    private async Task AddOutputChaptersOnStartup(Task _)
-    {
-        if (!Files.ChaptersExist())
-            return;
-
-        try
-        {
-            try
-            {
-                DoNotInvokeOutputChaptersCountChangedEvent = true;
-                var newChapters = ChaptersFactory.CreateFromExisting(Files.AsReadOnly(), false); // TODO: Settings.TrimStartingNonChars
-                for (var index = 0; index < newChapters.Count; index++)
-                {
-                    if (index == newChapters.Count - 1)
-                        DoNotInvokeOutputChaptersCountChangedEvent = true;
-                    var newChapter = newChapters[index];
-                    await Application.Current.Dispatcher.InvokeAsync(() => OutputChapters.Add(newChapter));
-                }
-            }
-            finally
-            {
-                DoNotInvokeOutputChaptersCountChangedEvent = false;
-            }
-            OutputChaptersSource = ChaptersSourceType.ExistingChapters;
-            RememberChaptersFilesOrder();
-            IsOutputChaptersExpanded = ChaptersEnabled && OutputChapters.Count > 0;
-            OnPropertyChanged(nameof(OutputChaptersCount));
-            // SelectedDataTabIndex = 1; // TODO: Maybe needed, evaluate
-        }
-        catch
-        {
-            if (OutputChapters.Count > 0)
-                OutputChapters.Clear();
-        }
-    }
-
-    private async Task EnableUserEntryOnStartup(Task _)
-    {
-        await Application.Current.Dispatcher.InvokeAsync(() => IsUserEntryEnabled = true);
+        catch (Exception ex)
+        { Debug.WriteLine(ex); } // Best effort — CLI-passed files silently not loading is preferable to a crash on startup
     }
 
     // Called when tags source is selected in the DataGrid. Not called for initial selection.
@@ -645,7 +610,14 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
     private void OnCreateChaptersFinished(object sender, ResponseEventArgs eventArgs)
     {
         var response = eventArgs.Response;
-        if (response is { IsSuccess: true, Data: null } || response.IsFailure)
+        if (response.IsFailure)
+        {
+            // CreateChaptersCommand itself only returns Success; a failure here is an unexpected
+            // exception surfaced by CommandBase, so it must be shown rather than swallowed.
+            MessageBox.Show(response.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+        if (response.Data is null)
             return;
 
         var outputChapters = (ObservableCollection<IMediaChapterViewModel>)response.Data!;
@@ -732,10 +704,8 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
             OutputChaptersSource = ChaptersSourceType.None;
             IsOutputChaptersExpanded = false;
             OnPropertyChanged(nameof(OutputChaptersCount));
-            OutputTags.Clear();
-            return;
         }
-        if (OutputChaptersSource == ChaptersSourceType.None || OutputChaptersSource == ChaptersSourceType.ExistingChapters && IsChaptersFilesOrderChanged()) // Re-generate chapters from existing files
+        else if (OutputChaptersSource == ChaptersSourceType.None || OutputChaptersSource == ChaptersSourceType.ExistingChapters && IsChaptersFilesOrderChanged()) // Re-generate chapters from existing files
         {
             try
             {

@@ -43,7 +43,7 @@ public sealed class FFmpegStats(string message) : IProcessingStats
     private static double? GetBitrate(string message)
     {
         var valueSpan = ExtractValue(message, "bitrate=", "kbits/s");
-        return !valueSpan.IsEmpty && double.TryParse(valueSpan, out var value)
+        return !valueSpan.IsEmpty && double.TryParse(valueSpan, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
             ? Math.Round(value, 1, MidpointRounding.AwayFromZero)
             : null;
     }
@@ -67,7 +67,7 @@ public sealed class FFmpegStats(string message) : IProcessingStats
         if (valueSpan.StartsWith(NO_VALUE, StringComparison.OrdinalIgnoreCase))
             return default;
 
-        var endOffset = message.IndexOf(end, StringComparison.OrdinalIgnoreCase);
+        var endOffset = message.IndexOf(end, startOffset, StringComparison.OrdinalIgnoreCase);
         if (endOffset < 0)
             return default;
 

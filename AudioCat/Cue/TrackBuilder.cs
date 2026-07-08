@@ -41,7 +41,7 @@ internal sealed class TrackBuilder
         if (Index == null)
             return Response<ITrack>.Failure("The track is missing the index command");
 
-        return Response<ITrack>.Success(new CueTrack(Number, Type, Title, Performer, Songwriter, Index, Tags.AsReadOnly())); // Do not  remove ToArray() here, it is intended to make a copy of the list
+        return Response<ITrack>.Success(new CueTrack(Number, Type, Title, Performer, Songwriter, Index, Tags.ToArray().AsReadOnly())); // Do not remove ToArray() here, it is intended to make a copy of the list
     }
 
     public void Clear()

@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using AudioCat.Models;
 using AudioCat.Services;
 using System.IO;
@@ -52,17 +53,17 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             var args = $"-hide_banner -stats -stats_period 0.1 -i \"{fileFullName}\" -af silencedetect=n=-{silenceThreshold}dB:d={durationMilliseconds}ms -f null -";
             Debug.WriteLine($"{Settings.FFmpegName} {args}");
 
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ctx);
-            var ct = cts.Token;
             // ReSharper disable once AccessToDisposedClosure
-            var intervalsTask = Task.Run(() => IntervalsProcessor(statusQueue, intervals, fileFullName, ct), ct);
+            var intervalsTask = Task.Run(() => IntervalsProcessor(statusQueue, intervals, fileFullName));
 
-            await Process.Run(Settings.FFmpegName, args, OnSilenceStatus, Process.OutputType.Error, ctx);
+            try { await Process.Run(Settings.FFmpegName, args, OnSilenceStatus, Process.OutputType.Error, ctx); }
+            finally
+            {
+                statusQueue.CompleteAdding(); // The processor drains the queued tail lines and exits; also unblocks it on the cancellation/exception paths
+                try { await intervalsTask; }
+                catch { /* ignore */ }
+            }
 
-            await cts.CancelAsync();
-            try { await intervalsTask; }
-            catch (OperationCanceledException) { /* ignore */ }
-            
             return Response<IReadOnlyList<IInterval>>.Success(intervals);
         }
         catch (TaskCanceledException) { return Response<IReadOnlyList<IInterval>>.Failure(nameof(TaskCanceledException)); }
@@ -78,12 +79,11 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         }
     }
 
-    private static void IntervalsProcessor(BlockingCollection<string> statusQueue, List<IInterval> silenceIntervals, string fileFullName, CancellationToken ctx)
+    private static void IntervalsProcessor(BlockingCollection<string> statusQueue, List<IInterval> silenceIntervals, string fileFullName)
     {
         var startTime = TimeSpan.Zero;
-        while (!ctx.IsCancellationRequested)
+        foreach (var status in statusQueue.GetConsumingEnumerable())
         {
-            var status = statusQueue.Take(ctx);
             if (!status.StartsWith("[silencedetect", StringComparison.Ordinal))
                 continue;
 
@@ -119,7 +119,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         var valueEnd = status.IndexOfNotDigitOrDot(valueStart);
         if (valueEnd == -1)
             valueEnd = status.Length;
-        if (!double.TryParse(status.AsSpan(valueStart, valueEnd - valueStart), out var timeStamp))
+        if (!double.TryParse(status.AsSpan(valueStart, valueEnd - valueStart), NumberStyles.Float, CultureInfo.InvariantCulture, out var timeStamp))
             return false;
         timeSpan = TimeSpan.FromSeconds(timeStamp);
         return true;
@@ -129,15 +129,19 @@ internal sealed class FFmpegService : IMediaFileToolkitService
 
     public async Task Concatenate(IReadOnlyList<IMediaFileViewModel> mediaFiles, IConcatParams concatParams, string outputFileName, CancellationToken ctx)
     {
-        TimeSpan totalDuration;
         var concatErrors = new StringBuilder();
+        var tempDir = "";
+        var outputFileWritten = false;
+        var isCancelled = false;
         try
         {
             await OnStatus("Starting...");
 
-            var listFileTask = CreateFilesListFile(mediaFiles);
-            var extractImagesTask = ExtractImages(mediaFiles, ctx);
-            var metadataFileTask = CreateMetadataFile(concatParams, ctx);
+            tempDir = TempDirectory.Create();
+
+            var listFileTask = CreateFilesListFile(tempDir, mediaFiles);
+            var extractImagesTask = ExtractImages(tempDir, mediaFiles, ctx);
+            var metadataFileTask = CreateMetadataFile(tempDir, concatParams, ctx);
             var totalDurationTask = Task.Run(mediaFiles.GetTotalDuration, ctx);
 
             var codec = MediaFilesService.GetAudioCodec(mediaFiles);
@@ -152,15 +156,16 @@ internal sealed class FFmpegService : IMediaFileToolkitService
 
             var hasImages = extractedImages.Count > 0;
             var outputToFile = hasImages || twoStepsConcat
-                ? await GenerateTempOutputFileFrom(Path.GetExtension(outputFileName)) 
+                ? await GenerateTempOutputFileFrom(tempDir, Path.GetExtension(outputFileName))
                 : outputFileName;
 
             ReadOnlyCollection<string>? remuxedFiles = null;
-            totalDuration = await totalDurationTask;
+            var totalDuration = await totalDurationTask;
             do
             {
                 var args1 = GetFFmpegArgs(codec, listFile, !twoStepsConcat ? metadataFile : "", outputToFile);
                 Debug.WriteLine($"{Settings.FFmpegName} {args1}");
+                outputFileWritten |= outputToFile == outputFileName;
                 await Process.Run(Settings.FFmpegName, args1, status => OnConcatStatus(status, totalDuration), Process.OutputType.Error, ctx);
 
                 var concatErrorsStr = concatErrors.ToString();
@@ -168,8 +173,8 @@ internal sealed class FFmpegService : IMediaFileToolkitService
 
                 if (concatErrorsStr == "")
                     break;
-                
-                if (remuxedFiles != null || !Settings.RemuxOnErrors.IsIn(concatErrorsStr)) //If not a remuxable error 
+
+                if (remuxedFiles != null || !Settings.RemuxOnErrors.IsIn(concatErrorsStr)) //If not a remuxable error
                 {
                     await OnError(concatErrorsStr);
                     break;
@@ -182,7 +187,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
                 // a single input file, we output it to a temporary file. Then we concatenate the temporary files.
 
                 await OnStatus("Remuxing files...");
-                var remuxResponse = await RemuxFiles(mediaFiles, OnProgress, ctx);
+                var remuxResponse = await RemuxFiles(tempDir, mediaFiles, OnProgress, ctx);
                 if (remuxResponse.IsFailure)
                 {
                     await OnError($"Remuxing errors:{Environment.NewLine}{remuxResponse.Message}");
@@ -194,9 +199,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
                 }
 
                 remuxedFiles = remuxResponse.Data!;
-                try { await Task.Run(() => File.Delete(listFile), CancellationToken.None); }
-                catch { /* ignore */ }
-                listFile = await CreateFilesListFile(remuxedFiles);
+                listFile = await CreateFilesListFile(tempDir, remuxedFiles);
 
                 #endregion
             } while (true);
@@ -204,16 +207,14 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             #region Second Step of Concatenation
             if (twoStepsConcat)
             {
-                try { await Task.Run(() => File.Delete(listFile), CancellationToken.None); }
-                catch { /* ignore */ }
-
-                listFile = await CreateFilesListFile(outputToFile);
+                listFile = await CreateFilesListFile(tempDir, outputToFile);
                 outputToFile = hasImages
-                    ? await GenerateTempOutputFileFrom(Path.GetExtension(outputFileName))
+                    ? await GenerateTempOutputFileFrom(tempDir, Path.GetExtension(outputFileName))
                     : outputFileName;
 
                 var args2 = GetFFmpegArgs(codec, listFile, metadataFile, outputToFile);
                 Debug.WriteLine($"{Settings.FFmpegName} {args2}");
+                outputFileWritten |= outputToFile == outputFileName;
                 await Process.Run(Settings.FFmpegName, args2, status => OnConcatStatus(status, totalDuration), Process.OutputType.Error, ctx);
             }
             #endregion
@@ -222,30 +223,39 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             if (hasImages)
             {
                 await OnStatus(extractedImages.Count == 1 ? "Embedding cover image..." : "Embedding cover images...");
+                outputFileWritten = true;
                 var imagesResult = await AddImages(outputToFile, extractedImages, outputFileName, ctx);
                 if (imagesResult.IsFailure)
                     await OnError($"Image embedding errors:{Environment.NewLine}{imagesResult.Message}");
             }
             #endregion
-            
-            #region Delete Temporary Files
-            await OnStatus("Cleaning up...");
-            
-            var deleteListFileTask = Task.Run(() => File.Delete(listFile), CancellationToken.None); // Delete the list file
-            var deleteMetadataFile = metadataFile != "" ? Task.Run(() => File.Delete(metadataFile), CancellationToken.None) : Task.CompletedTask; // Delete the metadata file
-            var deleteTempImages = extractedImages.AsParallel().Where(ei => ei.IsTemporaryFile).Select(extractedImage => Task.Run(() => File.Delete(extractedImage.Path), CancellationToken.None)).ToArray();
-            var deleterRemuxed = remuxedFiles != null ? remuxedFiles.AsParallel().Select(remuxedFile => Task.Run(() => File.Delete(remuxedFile), CancellationToken.None)).ToArray() : [];
-            var deleteEmptyOutput = new FileInfo(outputFileName) is { Exists: true, Length: 0 } ? Task.Run(() => File.Delete(outputFileName), CancellationToken.None) : Task.CompletedTask; // Delete Output File if it is Empty
-            await Task.WhenAll(deleteListFileTask, deleteMetadataFile, deleteEmptyOutput);
-            await Task.WhenAll(deleteTempImages);
-            await Task.WhenAll(deleterRemuxed);
-
-            #endregion
+        }
+        catch (OperationCanceledException)
+        {
+            isCancelled = true;
         }
         catch (Exception ex)
         {
             await OnError($"Concatenation exception:{Environment.NewLine}{ex.Message}");
-            return;
+        }
+        finally
+        {
+            await OnStatus("Cleaning up...");
+
+            if (tempDir != "")
+                await Task.Run(() => TempDirectory.Delete(tempDir), CancellationToken.None);
+
+            try
+            {
+                // A cancelled run leaves a partial output file, a failed one can leave an empty one; neither should survive.
+                var outputFile = new FileInfo(outputFileName);
+                if (outputFile.Exists && (isCancelled && outputFileWritten || outputFile.Length == 0))
+                    await Task.Run(() => outputFile.Delete(), CancellationToken.None);
+            }
+            catch { /* ignore */ }
+
+            if (isCancelled)
+                await OnStatus("Cancelled");
         }
 
         return;
@@ -274,7 +284,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         public IProcessingStats? Stats { get; set; } = stats;
     }
 
-    private static async Task<IResponse<ReadOnlyCollection<string>>> RemuxFiles(IReadOnlyList<IMediaFileViewModel> mediaFiles, Func<Progress, Task> onProgress, CancellationToken ctx)
+    private static async Task<IResponse<ReadOnlyCollection<string>>> RemuxFiles(string tempDir, IReadOnlyList<IMediaFileViewModel> mediaFiles, Func<Progress, Task> onProgress, CancellationToken ctx)
     {
         var sync = new object();
         var errors = new StringBuilder();
@@ -290,23 +300,30 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             if (file.IsImage)
                 return;
             // ReSharper disable once AccessToDisposedClosure
-            var remuxResponse = await RemuxFile(file, status => statusMessages.Add(status, CancellationToken.None), ctx);
+            var remuxResponse = await RemuxFile(tempDir, file, status => statusMessages.Add(status, CancellationToken.None), ctx);
             remuxedFiles.Add((file, remuxResponse.Data!));
             if (remuxResponse.IsFailure)
                 lock (sync) errors.AppendMessage(remuxResponse.Message);
         });
-        await Task.WhenAll(remuxTasks);
+        try { await Task.WhenAll(remuxTasks); }
+        finally
+        {
+            // The progress tracking task must be joined before the using blocks dispose it and its collections
+            await cts.CancelAsync();
+            try { await progressTrackingTask; }
+            catch { /* ignore */ }
+        }
 
-        await cts.CancelAsync();
-
-        if (errors.Length > 0 && IsUnrecoverableError(remuxedFiles)) 
+        if (errors.Length > 0 && IsUnrecoverableError(remuxedFiles))
+        {
             await DeleteAllTempFiles(remuxedFiles);
+            // Data must stay null here: the caller aborts on Data == null (issue #43). Returning the
+            // now-deleted paths would send the concatenation loop into a rerun against missing files.
+            return Response<ReadOnlyCollection<string>>.Failure(errors.ToString());
+        }
 
         var sortedRemuxedFiles = SortRemuxedFiles(mediaFiles, remuxedFiles);
 
-        try { await progressTrackingTask; }
-        catch { /* ignore */ }
-        
         return errors.Length == 0
             ? Response<ReadOnlyCollection<string>>.Success(sortedRemuxedFiles)
             : Response<ReadOnlyCollection<string>>.Failure(sortedRemuxedFiles, errors.ToString());
@@ -389,11 +406,11 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         return completedDuration;
     }
     
-    private static async Task<IResponse<string>> RemuxFile(IMediaFileViewModel mediaFile, Action<RemuxProgress> onStatus, CancellationToken ctx)
+    private static async Task<IResponse<string>> RemuxFile(string tempDir, IMediaFileViewModel mediaFile, Action<RemuxProgress> onStatus, CancellationToken ctx)
     {
         var errors = new StringBuilder();
-        var filesList = await CreateFilesListFile([mediaFile]);
-        var outputToFile = await GenerateTempOutputFileFrom(mediaFile.File.Extension);
+        var filesList = await CreateFilesListFile(tempDir, [mediaFile]);
+        var outputToFile = await GenerateTempOutputFileFrom(tempDir, mediaFile.File.Extension);
         var args = $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{filesList}\" -vn -c:a copy -update true \"{outputToFile}\"";
         Debug.WriteLine($"{Settings.FFmpegName} {args}");
         await Process.Run(Settings.FFmpegName, args, OnStatus, Process.OutputType.Error, ctx);
@@ -426,27 +443,29 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             : $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -vn {encodingCommand} -update true \"{outputToFile}\"";
     }
 
-    private static async Task<string> GenerateTempOutputFileFrom(string fileExtension)
+    private static async Task<string> GenerateTempOutputFileFrom(string tempDir, string fileExtension)
     {
-        var tryCount = 0;
-        while (tryCount++ < 3)
+        Exception? lastError = null;
+        for (var tryCount = 0; tryCount < 3; tryCount++)
         {
             try
             {
-                var filePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + fileExtension);
+                var filePath = Path.Combine(tempDir, Guid.NewGuid() + fileExtension);
                 await File.WriteAllBytesAsync(filePath, []);
                 return filePath;
             }
-            catch { /* ignore */ }
+            catch (Exception ex) { lastError = ex; }
         }
 
-        return "";
+        // Returning "" here would send ffmpeg an empty output path and produce a confusing
+        // downstream error (issue #39); all callers run inside try/catch that surfaces the message.
+        throw new IOException($"Failed to create a temporary output file: {lastError?.Message}", lastError);
     }
 
     private const string FILES_LIST_HEADER = "ffconcat version 1.0\n";
-    private static async Task<string> CreateFilesListFile(IEnumerable<IMediaFileViewModel> mediaFiles)
+    private static async Task<string> CreateFilesListFile(string tempDir, IEnumerable<IMediaFileViewModel> mediaFiles)
     {
-        var listFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        var listFile = Path.Combine(tempDir, Path.GetRandomFileName());
         await using var fileStream = new FileStream(listFile, FileMode.Create, FileAccess.Write);
         await fileStream.WriteAsync(Encoding.UTF8.GetBytes(FILES_LIST_HEADER));
         foreach (var mediaFile in mediaFiles)
@@ -458,9 +477,9 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         return listFile;
     }
 
-    private static async Task<string> CreateFilesListFile(IReadOnlyList<string> remuxedFiles)
+    private static async Task<string> CreateFilesListFile(string tempDir, IReadOnlyList<string> remuxedFiles)
     {
-        var listFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        var listFile = Path.Combine(tempDir, Path.GetRandomFileName());
         await using var fileStream = new FileStream(listFile, FileMode.Create, FileAccess.Write);
         await fileStream.WriteAsync(Encoding.UTF8.GetBytes(FILES_LIST_HEADER));
         
@@ -470,13 +489,13 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         return listFile;
     }
 
-    private static async Task<string> CreateFilesListFile(string file)
+    private static async Task<string> CreateFilesListFile(string tempDir, string file)
     {
         var fileInfo = new FileInfo(file);
         if (!fileInfo.Exists)
             return "";
 
-        var listFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        var listFile = Path.Combine(tempDir, Path.GetRandomFileName());
         await using var fileStream = new FileStream(listFile, FileMode.Create, FileAccess.Write);
         await fileStream.WriteAsync(Encoding.UTF8.GetBytes($"{FILES_LIST_HEADER}file '{EscapeFileListFilePath(fileInfo.FullName)}'\n"));
 
@@ -486,7 +505,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
     private static string EscapeFileListFilePath(string path) => path.Replace("\\", "/").Replace("'", "'\\''");
     
     private const string METADATA_FILE_START = ";FFMETADATA1\n";
-    private static async Task<string> CreateMetadataFile(IConcatParams concatParams, CancellationToken ctx)
+    private static async Task<string> CreateMetadataFile(string tempDir, IConcatParams concatParams, CancellationToken ctx)
     {
         var tagsMetadata = concatParams.TagsEnabled 
             ? GetTagsMetadata(concatParams.OutputTags) 
@@ -497,7 +516,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         if (tagsMetadata.Length == 0 && chaptersMetadata.Length == 0)
             return "";
 
-        var metadataFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        var metadataFile = Path.Combine(tempDir, Path.GetRandomFileName());
         try
         {
             var utf8WithoutBom = new UTF8Encoding(false);
@@ -516,11 +535,11 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         {
             throw;
         }
-        catch
+        catch (Exception ex)
         {
             try { await Task.Run(() => File.Delete(metadataFile), CancellationToken.None); }
             catch { /* ignore */ }
-            return "";
+            throw new IOException($"Failed to create metadata file: {ex.Message}", ex);
         }
     }
 
@@ -625,6 +644,10 @@ internal sealed class FFmpegService : IMediaFileToolkitService
                 ? Response<IResult>.Success()
                 : Response<IResult>.Failure(response);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             return Response<IResult>.Failure(ex.Message);
@@ -660,12 +683,44 @@ internal sealed class FFmpegService : IMediaFileToolkitService
 
             foreach (var tag in tags)
             {
-                if (tag.Name != "comment")
-                    query.Append($" -metadata:s:v:{i} {tag.Name}=\"{tag.Value.Replace("\"", "\\\"")}\"");
+                if (tag.Name == "comment")
+                    continue;
+                var name = tag.Name.FilterPrintable().Trim();
+                if (name.Length == 0 || name.Contains(' ') || name.Contains('"') || name.Contains('='))
+                    continue; // Such a name cannot be expressed in name=value form on the command line; drop the tag rather than emit a broken argument
+                query.Append($" -metadata:s:v:{i} {name}=\"{EscapeCliArgValue(tag.Value)}\"");
             }
         }
 
         return query.ToString();
+    }
+
+    // The value is placed inside double quotes in ProcessStartInfo.Arguments and parsed back by
+    // ffmpeg's C runtime: a backslash run is literal unless it precedes a double quote, in which
+    // case each backslash must be doubled and the quote itself escaped. Blanket-doubling every
+    // backslash would corrupt interior ones (AC\DC would parse back as AC\\DC).
+    private static string EscapeCliArgValue(string value)
+    {
+        var builder = new StringBuilder(value.Length + 8);
+        var backslashes = 0;
+        foreach (var ch in value)
+        {
+            if (ch == '\\')
+            {
+                backslashes++;
+                continue;
+            }
+            if (ch == '"')
+            {
+                builder.Append('\\', backslashes * 2 + 1).Append('"'); // 2n+1 backslashes + quote -> n literal backslashes + one literal quote
+                backslashes = 0;
+                continue;
+            }
+            builder.Append('\\', backslashes).Append(ch);
+            backslashes = 0;
+        }
+        builder.Append('\\', backslashes * 2); // Trailing backslashes precede our closing quote and must be doubled
+        return builder.ToString();
     }
 
     private sealed class ImageFile(IMediaStream mediaStream, string path, bool isTemporaryFile)
@@ -675,7 +730,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         public bool IsTemporaryFile { get; } = isTemporaryFile;
     }
 
-    private static async Task<(IReadOnlyList<ImageFile> imageFiles, string errors)> ExtractImages(IEnumerable<IMediaFileViewModel> mediaFiles, CancellationToken ctx)
+    private static async Task<(IReadOnlyList<ImageFile> imageFiles, string errors)> ExtractImages(string tempDir, IEnumerable<IMediaFileViewModel> mediaFiles, CancellationToken ctx)
     {
         var errors = new StringBuilder();
         var imageFiles = new List<ImageFile>();
@@ -688,7 +743,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             }
             else if (mediaFile.IsCoverSource)
             {
-                var (extractedImageFiles, extractionErrors) = await ExtractImages(mediaFile, ctx);
+                var (extractedImageFiles, extractionErrors) = await ExtractImages(tempDir, mediaFile, ctx);
                 imageFiles.AddRange(extractedImageFiles);
                 errors.Append(extractionErrors);
             }
@@ -697,7 +752,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         return (imageFiles, errors.ToString());
     }
 
-    private static async Task<(IReadOnlyList<ImageFile> imageFiles, string errors)> ExtractImages(IMediaFileViewModel mediaFile, CancellationToken ctx)
+    private static async Task<(IReadOnlyList<ImageFile> imageFiles, string errors)> ExtractImages(string tempDir, IMediaFileViewModel mediaFile, CancellationToken ctx)
     {
         var imageStreams = GetImageStreams(mediaFile);
         if (imageStreams.Count == 0)
@@ -707,7 +762,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         var imageFiles = new List<ImageFile>();
         foreach (var imageStream in imageStreams)
         {
-            var outputFileName = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            var outputFileName = Path.Combine(tempDir, Path.GetRandomFileName());
             var extractResult = await ExtractImageStream(mediaFile.FilePath, outputFileName, imageStream.Index, ctx);
             if (extractResult.IsSuccess)
                 imageFiles.Add(new ImageFile(imageStream, outputFileName, true));
@@ -767,6 +822,10 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             return fileInfo.Length != 0
                 ? Response<IResult>.Success()
                 : Response<IResult>.Failure($"Unable to extract the image from the stream #{sourceStreamIndex}, the image will not be present in the output file");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

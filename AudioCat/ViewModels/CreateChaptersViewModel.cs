@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 
 namespace AudioCat.ViewModels;
 
@@ -17,7 +18,7 @@ public sealed class ChapterSourceItem
     public string Description { get; init; } = "";
 }
 
-public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyChanged
+public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyChanged, IDisposable
 {
     private const int DEFAULT_SEQUENCE_START = 1;
 
@@ -474,6 +475,16 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         }
     } = true;
 
+    // True when at least one playable (non-image, duration-bearing) file exists and none of them use a codec
+    // from Settings.PlaybackUnsupportedCodecs. Computed once at construction from the already-stored probe
+    // data on Streams — no ffmpeg/ffprobe/NAudio calls. Transport entry points no-op when false, as defense
+    // in depth behind the disabled player UI.
+    private bool IsPlaybackSupported { get; }
+
+    // Collapses the waveform strip for unsupported formats, giving the space back to the chapter list.
+    // IsPlaybackSupported never changes after construction, so no change notification is needed.
+    public Visibility WaveformVisibility => IsPlaybackSupported ? Visibility.Visible : Visibility.Collapsed;
+
     public bool IsPlaying
     {
         get;
@@ -495,6 +506,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
                 return;
             field = value;
             OnPropertyChanged();
+            ApplyVolumeToEngine();
         }
     }
 
@@ -507,8 +519,11 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
                 return;
             field = value;
             OnPropertyChanged();
+            ApplyVolumeToEngine();
         }
     } = 0.75f;
+
+    private void ApplyVolumeToEngine() => ChaptersPlayer.Volume = IsMuted ? 0f : Volume;
 
     public bool CanRewind
     {
@@ -523,6 +538,30 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     } = false;
 
     public bool CanForward
+    {
+        get;
+        set
+        {
+            if (value == field)
+                return;
+            field = value;
+            OnPropertyChanged();
+        }
+    } = false;
+
+    public bool CanGoPrevious
+    {
+        get;
+        set
+        {
+            if (value == field)
+                return;
+            field = value;
+            OnPropertyChanged();
+        }
+    } = false;
+
+    public bool CanGoNext
     {
         get;
         set
@@ -560,7 +599,40 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
 
     private ChaptersPlayer ChaptersPlayer { get; }
 
+    /// <summary>Waveform resolution of the strip: one peak per 1/10 of a second. Must match WaveformPeaksGenerator.</summary>
+    private const int WAVEFORM_PEAKS_PER_SECOND = 10;
+
+    // Cancels the fire-and-forget waveform generation when the wizard closes. Cancelled and disposed in Dispose,
+    // before the engine — no cache is kept, so reopening the wizard regenerates the waveform from scratch.
+    private CancellationTokenSource WaveformCancellation { get; } = new();
+
+    private ScanForSilenceCommand ScanForSilenceCommand { get; }
+
+    // Engine events arrive on the player's poller thread; every handler marshals through this dispatcher
+    // before touching bound properties.
+    private Dispatcher Dispatcher { get; }
+
+    // A pending play origin armed from the waveform strip (Phase 2). Always null in Phase 1; consumed
+    // (and cleared) by PlayPause when starting from the Stopped state.
+    private TimeSpan? ArmedStripPosition { get; set; }
+
+    // Latest global timeline position reported by the engine; the engine exposes no position getter,
+    // so seek-relative commands are computed from this. Only touched on the UI thread.
+    private TimeSpan LastKnownGlobalPosition { get; set; }
+
+    // The chapter derived from the latest engine position; null while stopped or in a gap between chapters.
+    private IMediaChapterViewModel? ActivePlaybackChapter { get; set; }
+
+    // The chapter currently flagged with IsPlaying for the grid's playing-row indicator. Tracked here so
+    // flag updates never scan the chapters collection. Only touched on the UI thread (marshaled handlers).
+    private IMediaChapterViewModel? FlaggedPlaybackChapter { get; set; }
+
     public ICommand PlayPause { get; }
+    public ICommand StopPlayback { get; }
+    public ICommand PreviousChapter { get; }
+    public ICommand RewindPlayback { get; }
+    public ICommand ForwardPlayback { get; }
+    public ICommand NextChapter { get; }
 
     #endregion
 
@@ -623,35 +695,30 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
 
         ChapterSources = new ObservableCollection<ChapterSourceItem>(GetChapterSources(files));
         SetInitialSelectedChapterSource(files);
-        _ = Task.Run(OnGenerateChapters);
 
         CreatedChapters = [];
         CreatedChapters.CollectionChanged += OnCreatedChaptersChanged;
 
-        // TODO Playback wiring
-        // PlaybackCapacity to be equal to the total duration
-        // Start populating WaveformSamples
-        // When chapters generated update PlaybackBookmarks
+        Dispatcher = System.Windows.Application.Current.Dispatcher;
 
-        // ChaptersPlayer - can play chapters
-        // DataStripControl - playback controls and visualization
-        // PlayerControl - playback controls
-        
         ChaptersPlayer = new ChaptersPlayer(files.AsReadOnly(), CreatedChapters);
-        
-        //PlayPause = new RelayCommand(() =>
-        //{
-        //    // TODO this need to change, just a dummy code here
-        //    if (IsPlaying)
-        //        ChaptersPlayer.Stop();
-        //    else if (SelectedCreatedChapter != null)
-        //        ChaptersPlayer.Play(SelectedCreatedChapter, TimeSpan.Zero);
-        //});
+        ChaptersPlayer.StateChanged += OnPlayerStateChanged;
+        ChaptersPlayer.PositionChanged += OnPlayerPositionChanged;
+        ChaptersPlayer.ChapterChanged += OnPlayerChapterChanged;
+        ChaptersPlayer.PlaybackError += OnPlayerPlaybackError;
+        PlayerDuration = ChaptersPlayer.TotalDuration;
+        ApplyVolumeToEngine();
 
+        IsPlaybackSupported = GetIsPlaybackSupported(files);
+        IsPlayerEnabled = IsPlaybackSupported;
+        PlaybackCapacity = GetPlaybackCapacity(files);
 
-
-        ////////////////////////
-
+        PlayPause = new RelayCommand(OnPlayPause);
+        StopPlayback = new RelayCommand(OnStopPlayback);
+        PreviousChapter = new RelayCommand(OnPreviousChapter);
+        RewindPlayback = new RelayCommand(OnRewindPlayback);
+        ForwardPlayback = new RelayCommand(OnForwardPlayback);
+        NextChapter = new RelayCommand(OnNextChapter);
 
         GenerateChapters = new RelayCommand(OnGenerateChapters);
         CloseDialog = new RelayCommand(OnClose);
@@ -666,6 +733,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         scanForSilence.Finished += OnScanForSilenceFinished;
         CancelScanForSilence = new RelayCommand(scanForSilence.Cancel);
         ScanForSilence = scanForSilence;
+        ScanForSilenceCommand = scanForSilence;
 
         var getQueueFile = new GetCueFileCommand();
         getQueueFile.Finished += OnGetQueueFileFinished;
@@ -678,6 +746,15 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         ReplaceInTitles = new RelayCommand(() => CreatedChapters.Replace(ReplaceWhatText, ReplaceWithText, IsReplaceCaseSensitive));
         AddToStart = new RelayCommand(() => CreatedChapters.AddToStart(TextToAdd, TextToAddSequenceStartValue, TextToAddSequenceStart.Length));
         AddToEnd = new RelayCommand(() => CreatedChapters.AddToEnd(TextToAdd, TextToAddSequenceStartValue, TextToAddSequenceStart.Length));
+
+        // Must run after every property above is initialized, and on the UI thread since CreatedChapters is bound to the DataGrid
+        OnGenerateChapters();
+        RebuildPlaybackBookmarks();
+
+        // Waveform generation is fire-and-forget: never awaited on the UI thread, never gates any playback
+        // feature, and failures stay silent (the generator goes quiet and the strip simply stays partial).
+        if (IsPlaybackSupported && PlaybackCapacity > 0)
+            _ = WaveformPeaksGenerator.Generate(Files, DeliverWaveformBatch, WaveformCancellation.Token);
     }
 
     #region Initialization of Chapter Sources and the Selected Chapter Source
@@ -725,8 +802,344 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     }
     #endregion
 
-    private void OnCreatedChaptersChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) => 
+    private void OnCreatedChaptersChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
         OnPropertyChanged(nameof(IsUseCreatedEnabled));
+
+        RebuildPlaybackBookmarks();
+
+        // Chapter regeneration stops playback inside the engine (it also listens to CollectionChanged);
+        // here we only clear the playback UI leftovers the engine does not report on its stop path.
+        ArmedStripPosition = null;
+        if (IsPlaying)
+            IsPlaying = false;
+        if (PlayerPosition != TimeSpan.Zero)
+            PlayerPosition = TimeSpan.Zero;
+        if (CurrentPosition != 0)
+            CurrentPosition = 0;
+    }
+
+    #region Playback Wiring
+    private void OnPlayerStateChanged(object? sender, AudioPlayerState state) =>
+        Dispatcher.BeginInvoke(() =>
+        {
+            IsPlaying = state == AudioPlayerState.Playing;
+            var isActive = state != AudioPlayerState.Stopped;
+            CanRewind = isActive;
+            CanForward = isActive;
+
+            // The engine does not emit a final PositionChanged/ChapterChanged on its stop paths
+            // (explicit stop, end of timeline, error, chapter regeneration) — clear the UI state here
+            if (state == AudioPlayerState.Stopped)
+            {
+                PlayerPosition = TimeSpan.Zero;
+                LastKnownGlobalPosition = TimeSpan.Zero;
+                CurrentPosition = 0;
+                ActivePlaybackChapter = null;
+                SetPlayingFlag(null);
+            }
+            UpdateChapterNavigation(state);
+        });
+
+    private void OnPlayerPositionChanged(object? sender, ChaptersPlayerPositionEventArgs e) =>
+        Dispatcher.BeginInvoke(() =>
+        {
+            // The strip indicator follows every engine position report, including seeks made while
+            // stopped (the engine fires PositionChanged for those), so it sits above the Stopped guard.
+            CurrentPosition = (int)(e.GlobalPosition.TotalSeconds * WAVEFORM_PEAKS_PER_SECOND);
+            if (ChaptersPlayer.State == AudioPlayerState.Stopped)
+                return; // A stale tick queued around a stop must not resurrect the position readout
+            LastKnownGlobalPosition = e.GlobalPosition;
+            ActivePlaybackChapter = e.ActiveChapter;
+            PlayerPosition = e.GlobalPosition;
+            UpdateChapterNavigation(ChaptersPlayer.State);
+        });
+
+    private void OnPlayerChapterChanged(object? sender, IMediaChapterViewModel? chapter) =>
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (ChaptersPlayer.State == AudioPlayerState.Stopped)
+                return;
+            ActivePlaybackChapter = chapter;
+            SetPlayingFlag(chapter); // Null chapter means a gap between chapters — no row is flagged
+            UpdateChapterNavigation(ChaptersPlayer.State);
+        });
+
+    // Moves the IsPlaying flag between chapter rows. Must be called on the UI thread only.
+    private void SetPlayingFlag(IMediaChapterViewModel? chapter)
+    {
+        if (ReferenceEquals(FlaggedPlaybackChapter, chapter))
+            return;
+        if (FlaggedPlaybackChapter != null)
+            FlaggedPlaybackChapter.IsPlaying = false;
+        FlaggedPlaybackChapter = chapter;
+        if (chapter != null)
+            chapter.IsPlaying = true;
+    }
+
+    // Previous/Next availability follows the engine position: Previous needs a chapter start strictly
+    // before the active chapter's start (in a gap between chapters — before the current position),
+    // Next needs one strictly after the current position. Mirrors the seek-target selection in
+    // OnPreviousChapter/OnNextChapter. Must be called on the UI thread only.
+    private void UpdateChapterNavigation(AudioPlayerState state)
+    {
+        if (state == AudioPlayerState.Stopped)
+        {
+            CanGoPrevious = false;
+            CanGoNext = false;
+            return;
+        }
+
+        var position = LastKnownGlobalPosition;
+        var previousThreshold = ActivePlaybackChapter?.StartTime ?? position;
+        var hasPrevious = false;
+        var hasNext = false;
+        foreach (var chapter in CreatedChapters)
+        {
+            if (chapter.StartTime is not { } start)
+                continue;
+            if (start < previousThreshold)
+                hasPrevious = true;
+            if (start > position)
+                hasNext = true;
+        }
+        CanGoPrevious = hasPrevious;
+        CanGoNext = hasNext;
+    }
+
+    private void OnPlayerPlaybackError(object? sender, string message) =>
+        Dispatcher.BeginInvoke(() =>
+        {
+            // The engine already stops itself before raising this; on most error paths its
+            // StateChanged(Stopped) handler has cleared the transport UI. The exception is a
+            // play-from-Stopped failure, where no state transition occurs — reset here to
+            // match the Stop command before surfacing the message.
+            IsPlaying = false;
+            PlayerPosition = TimeSpan.Zero;
+            MessageBox.Show(message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        });
+
+    private void OnPlayPause()
+    {
+        if (!IsPlaybackSupported)
+            return;
+        switch (ChaptersPlayer.State)
+        {
+            case AudioPlayerState.Stopped:
+                ChaptersPlayer.Play(GetPlayOrigin());
+                break;
+            case AudioPlayerState.Playing:
+                ChaptersPlayer.Pause();
+                break;
+            case AudioPlayerState.Paused:
+                ChaptersPlayer.Resume();
+                break;
+        }
+    }
+
+    // Play-origin precedence when starting from the Stopped state:
+    // armed strip position (cleared on use) → selected chapter → first chapter with a start time → timeline start
+    private TimeSpan GetPlayOrigin()
+    {
+        if (ArmedStripPosition is { } armedPosition)
+        {
+            ArmedStripPosition = null;
+            return armedPosition;
+        }
+
+        if (SelectedCreatedChapter?.StartTime is { } selectedStart)
+            return selectedStart;
+
+        foreach (var chapter in CreatedChapters)
+        {
+            if (chapter.StartTime is { } start)
+                return start;
+        }
+
+        return TimeSpan.Zero;
+    }
+
+    private void OnStopPlayback()
+    {
+        ChaptersPlayer.Stop();
+        PlayerPosition = TimeSpan.Zero;
+    }
+
+    private void OnPreviousChapter()
+    {
+        if (!IsPlaybackSupported || ChaptersPlayer.State == AudioPlayerState.Stopped)
+            return;
+
+        // More than 3 seconds into the active chapter — restart it
+        var activeChapter = ActivePlaybackChapter;
+        var position = LastKnownGlobalPosition;
+        if (activeChapter?.StartTime is { } activeStart && position - activeStart > TimeSpan.FromSeconds(3))
+        {
+            ChaptersPlayer.Seek(activeStart);
+            return;
+        }
+
+        // Otherwise the closest chapter start strictly before the active chapter's start
+        // (or, in a gap with no active chapter, strictly before the current position)
+        var threshold = activeChapter?.StartTime ?? position;
+        TimeSpan? previousStart = null;
+        foreach (var chapter in CreatedChapters)
+        {
+            if (chapter.StartTime is { } start && start < threshold && (previousStart is null || start > previousStart))
+                previousStart = start;
+        }
+
+        ChaptersPlayer.Seek(previousStart ?? TimeSpan.Zero);
+    }
+
+    private void OnNextChapter()
+    {
+        if (!IsPlaybackSupported || ChaptersPlayer.State == AudioPlayerState.Stopped)
+            return;
+
+        // The closest chapter start strictly after the current position; no-op when none exists
+        var position = LastKnownGlobalPosition;
+        TimeSpan? nextStart = null;
+        foreach (var chapter in CreatedChapters)
+        {
+            if (chapter.StartTime is { } start && start > position && (nextStart is null || start < nextStart))
+                nextStart = start;
+        }
+
+        if (nextStart is { } target)
+            ChaptersPlayer.Seek(target);
+    }
+
+    private void OnRewindPlayback() => SeekRelative(TimeSpan.FromSeconds(-10));
+
+    private void OnForwardPlayback() => SeekRelative(TimeSpan.FromSeconds(10));
+
+    private void SeekRelative(TimeSpan offset)
+    {
+        if (!IsPlaybackSupported || ChaptersPlayer.State == AudioPlayerState.Stopped)
+            return;
+        // The engine clamps the target to [Zero, TotalDuration) and crosses file boundaries transparently
+        ChaptersPlayer.Seek(LastKnownGlobalPosition + offset);
+    }
+
+    /// <summary>
+    /// Starts playback from the given chapter's start regardless of the current state
+    /// (an active playback is stopped and restarted by the engine). Chapters without
+    /// a start time are ignored. Invoked from the view on chapter row double-click.
+    /// </summary>
+    public void PlayFromChapter(IMediaChapterViewModel chapter)
+    {
+        if (!IsPlaybackSupported)
+            return;
+        if (chapter.StartTime is not { } start)
+            return;
+        ArmedStripPosition = null;
+        ChaptersPlayer.Play(start);
+    }
+
+    /// <summary>
+    /// Handles a click on the waveform strip. Invoked from the view. While playing the engine
+    /// seeks and playback continues; while paused the engine seeks and stays paused (position
+    /// and indicator move, no audio); while stopped no device is touched — the position is
+    /// only armed as the next play origin and the strip indicator moves to the armed spot.
+    /// </summary>
+    public void HandleStripPositionRequest(int index)
+    {
+        if (!IsPlaybackSupported)
+            return;
+
+        var time = TimeSpan.FromSeconds(index / (double)WAVEFORM_PEAKS_PER_SECOND);
+        switch (ChaptersPlayer.State)
+        {
+            case AudioPlayerState.Playing:
+            case AudioPlayerState.Paused:
+                ChaptersPlayer.Seek(time);
+                break;
+            case AudioPlayerState.Stopped:
+                // Engine position/chapter events are ignored while stopped, so the indicator
+                // is moved directly here instead of relying on an engine round-trip
+                ArmedStripPosition = time;
+                CurrentPosition = index;
+                break;
+        }
+    }
+
+    // The strip's logical width in peaks. Summed per file with the exact skip rules and per-file rounding
+    // WaveformPeaksGenerator uses (round of the summed total duration could drift off the sum of per-file
+    // rounds by a peak per file boundary), so capacity always equals the generator's total output count
+    // and the global index mapping "index = seconds × 10" stays aligned.
+    private static int GetPlaybackCapacity(IEnumerable<IMediaFileViewModel> files)
+    {
+        var capacity = 0;
+        foreach (var file in files)
+        {
+            if (file.IsImage || file.Duration is not { } duration)
+                continue;
+            var peaksCount = (int)Math.Round(duration.TotalSeconds * WAVEFORM_PEAKS_PER_SECOND);
+            if (peaksCount > 0)
+                capacity += peaksCount;
+        }
+
+        return capacity;
+    }
+
+    // A chapter-start marker on the waveform strip. Index math matches the strip resolution: seconds × 10.
+    private sealed class StripBookmark : IStripBookmark
+    {
+        public int Index { get; init; }
+        public string Description { get; init; } = "";
+    }
+
+    // Rebuilds the strip's chapter-start markers from every chapter that has a start time.
+    // CreatedChapters mutates only on the UI thread, so no marshaling is needed here.
+    private void RebuildPlaybackBookmarks()
+    {
+        PlaybackBookmarks.Clear();
+        foreach (var chapter in CreatedChapters)
+        {
+            if (chapter.StartTime is { } start)
+                PlaybackBookmarks.Add(new StripBookmark { Index = (int)(start.TotalSeconds * WAVEFORM_PEAKS_PER_SECOND), Description = chapter.Title });
+        }
+    }
+
+    // Invoked by the waveform generator on its worker thread; a single dispatcher operation appends
+    // the whole batch to the bound collection, in order — the strip renders left-to-right as data arrives.
+    private void DeliverWaveformBatch(IReadOnlyList<float> batch) =>
+        Dispatcher.BeginInvoke(() =>
+        {
+            foreach (var peak in batch)
+                WaveformSamples.Add(peak);
+        });
+
+    // Playback is supported iff there is at least one playable (non-image, duration-bearing) file
+    // and no playable file's audio codec is in Settings.PlaybackUnsupportedCodecs.
+    private static bool GetIsPlaybackSupported(IEnumerable<IMediaFileViewModel> files)
+    {
+        var hasPlayableFile = false;
+        foreach (var file in files)
+        {
+            if (file.IsImage || file.Duration == null)
+                continue;
+            if (Settings.PlaybackUnsupportedCodecs.Contains(GetAudioCodecName(file.Streams)))
+                return false;
+            hasPlayableFile = true;
+        }
+
+        return hasPlayableFile;
+    }
+
+    // Mirrors MediaFilesService.GetCodecName: the first stream whose codec is a supported audio codec
+    private static string GetAudioCodecName(IEnumerable<IMediaStream> mediaFileStreams)
+    {
+        foreach (var stream in mediaFileStreams)
+        {
+            if (Settings.SupportedAudioCodecs.Contains(stream.CodecName))
+                return stream.CodecName ?? "";
+        }
+
+        return "";
+    }
+    #endregion
 
     private void PopulateTagNames()
     {
@@ -846,6 +1259,9 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     #region Create from Silence Scan
     private void OnScanForSilenceStarting(object? sender, EventArgs eventArgs)
     {
+        // Starting a silence scan stops any audio; the player UI itself is disabled by the
+        // IsUserInputEnabled binding on the grid that contains the PlayerControl
+        ChaptersPlayer.Stop();
         IsUserInputEnabled = false;
         SilenceScanProgressVisibility = Visibility.Visible;
         SilenceScanButtonVisibility = Visibility.Hidden;
@@ -901,6 +1317,20 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     private void OnClose() => Close?.Invoke(this, EventArgs.Empty);
 
     private void OnUseCreated() => UseCreated?.Invoke(this, EventArgs.Empty);
+
+    // ScanForSilenceCommand is an application-wide singleton; without the unsubscribe every closed wizard VM stays rooted by its event invocation lists
+    public void Dispose()
+    {
+        ScanForSilenceCommand.Starting -= OnScanForSilenceStarting;
+        ScanForSilenceCommand.Finished -= OnScanForSilenceFinished;
+        WaveformCancellation.Cancel(); // Stop waveform generation before the engine goes away; cancel completes the generator task normally
+        WaveformCancellation.Dispose();
+        ChaptersPlayer.StateChanged -= OnPlayerStateChanged;
+        ChaptersPlayer.PositionChanged -= OnPlayerPositionChanged;
+        ChaptersPlayer.ChapterChanged -= OnPlayerChapterChanged;
+        ChaptersPlayer.PlaybackError -= OnPlayerPlaybackError;
+        ChaptersPlayer.Dispose();
+    }
 
     #region INotifyPropertyChanged Implementation
     public event PropertyChangedEventHandler? PropertyChanged;

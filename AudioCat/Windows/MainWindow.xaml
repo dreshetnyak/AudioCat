@@ -7,7 +7,7 @@
         xmlns:converters="clr-namespace:AudioCat.Converters"
         mc:Ignorable="d"
         Icon="/Cat.ico"
-        Title="Audio Cat Tool v5.0.4" Height="640" Width="1024"
+        Title="Audio Cat Tool v5.1.0" Height="640" Width="1024"
         d:DataContext="{d:DesignInstance viewModels:MainViewModel, IsDesignTimeCreatable=False}">
     <Window.TaskbarItemInfo>
         <TaskbarItemInfo ProgressValue="{Binding TaskBarProgress, Mode=OneWay}" ProgressState="Normal" />
@@ -25,9 +25,12 @@
                 <ColumnDefinition Width="270" MinWidth="270" />
             </Grid.ColumnDefinitions>
 
+            <!-- The disable-during-processing flag is bound on the DataGrid and on the individual
+                 toolbar items rather than on this Border: the Cancel button lives in the toolbar
+                 and must stay enabled while everything else is disabled, which is impossible
+                 under a disabled ancestor -->
             <Border
                 Grid.Column="0"
-                IsEnabled="{Binding IsUserEntryEnabled}"
                 BorderBrush="DarkGray"
                 BorderThickness="2"
                 CornerRadius="5,5,5,5"
@@ -65,8 +68,7 @@
                                     </Image.Style>
                                 </Image>
                             </Button>
-                            <!-- TODO Cancellation Implementation needed -->
-                            <!--<Button
+                            <Button
                                 Command="{Binding Cancel}"
                                 IsEnabled="{Binding IsCancelEnabled}"
                                 ToolTip="Cancel running process">
@@ -84,8 +86,7 @@
                                         </Style>
                                     </Image.Style>
                                 </Image>
-                            </Button>-->
-
+                            </Button>
                         </ToolBar>
 
                         <ToolBar BandIndex="1">
@@ -433,6 +434,7 @@
                     <DataGrid
                         x:Name="FileDataGrid"
                         Grid.Row="1"
+                        IsEnabled="{Binding IsUserEntryEnabled}"
                         HeadersVisibility="Column"
                         IsReadOnly="True"
                         CanUserAddRows="False"

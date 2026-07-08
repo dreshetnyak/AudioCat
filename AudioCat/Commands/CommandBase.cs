@@ -1,4 +1,5 @@
 ﻿using AudioCat.Models;
+using System.Diagnostics;
 using System.Windows.Input;
 
 namespace AudioCat.Commands;
@@ -25,9 +26,14 @@ public abstract class CommandBase : ICommand
             OnStarting();
             response = await Command(parameter);
         }
-        catch
+        catch (OperationCanceledException)
         {
-            /* ignore */
+            response = Response<object>.Success(); // User-initiated cancellation is not an error, finish quietly
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex);
+            response = Response<object>.Failure(ex.Message);
         }
         finally
         {
