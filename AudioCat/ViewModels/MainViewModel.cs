@@ -677,8 +677,14 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         SelectedCodec = Services.MediaFilesService.GetAudioCodec(Files);
         if (Settings.CodecsThatDoesNotSupportChapters.Has(SelectedCodec)) // Current codec does not support chapters
         {
-            ChaptersEnabled = false; // This will call RefreshChaptersWarning
-            ChaptersWasDisabledByCodec = true;
+            // Set the flag only when this transition actually turns chapters off; if they were
+            // already off by user choice, claiming credit here would auto re-enable them once a
+            // chapter-supporting codec returns, overriding the manual disable.
+            if (ChaptersEnabled)
+            {
+                ChaptersEnabled = false; // This will call RefreshChaptersWarning
+                ChaptersWasDisabledByCodec = true;
+            }
         }
         else if (ChaptersWasDisabledByCodec) // Chapters was disabled by the codec, but the current codec supports chapters. Re-enable chapters.
         {
@@ -712,13 +718,8 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
                 DoNotInvokeOutputChaptersCountChangedEvent = true;
                 OutputChapters.Clear();
                 var newChapters = ChaptersFactory.CreateFromExisting(Files.AsReadOnly(), false);
-                for (var index = 0; index < newChapters.Count; index++)
-                {
-                    if (index == newChapters.Count - 1)
-                        DoNotInvokeOutputChaptersCountChangedEvent = true;
-                    var newChapter = newChapters[index];
+                foreach (var newChapter in newChapters)
                     OutputChapters.Add(newChapter);
-                }
             }
             finally
             {

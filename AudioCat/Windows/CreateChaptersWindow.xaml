@@ -126,7 +126,7 @@
                                 Binding="{Binding EndTime, Mode=OneWay, Converter={StaticResource DurationConverter}}"
                                 CellStyle="{StaticResource TextBlockLeftStyle}" />
                             <DataGridTextColumn
-                                Header="End"
+                                Header="Duration"
                                 IsReadOnly="True"
                                 Binding="{Binding Duration, Mode=OneWay, Converter={StaticResource DurationConverter},ConverterParameter=Trim}"
                                 CellStyle="{StaticResource TextBlockLeftStyle}" />

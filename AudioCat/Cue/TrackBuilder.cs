@@ -18,7 +18,8 @@ internal sealed class TrackBuilder
         public ReadOnlyCollection<ITag> Tags { get; } = tags;
     }
 
-    private int Number { get; set; }
+    // Null means "TRACK command not seen yet"; 0 is a legal parsed number and must not read as unset
+    private int? Number { get; set; }
     private string Type { get; set; } = "";
     private string Title { get; set; } = "";
     private string Performer { get; set; } = "";
@@ -36,17 +37,17 @@ internal sealed class TrackBuilder
 
     public IResponse<ITrack> Build()
     {
-        if (Number == 0)
+        if (Number == null)
             return Response<ITrack>.Failure("The track is missing the number");
         if (Index == null)
             return Response<ITrack>.Failure("The track is missing the index command");
 
-        return Response<ITrack>.Success(new CueTrack(Number, Type, Title, Performer, Songwriter, Index, Tags.ToArray().AsReadOnly())); // Do not remove ToArray() here, it is intended to make a copy of the list
+        return Response<ITrack>.Success(new CueTrack(Number.Value, Type, Title, Performer, Songwriter, Index, Tags.ToArray().AsReadOnly())); // Do not remove ToArray() here, it is intended to make a copy of the list
     }
 
     public void Clear()
     {
-        Number = 0;
+        Number = null;
         Type = "";
         Title = "";
         Performer = "";

@@ -142,15 +142,19 @@ internal static class ChaptersFactory
     #endregion
 
     #region Create from Silence Intervals
-    public static ReadOnlyCollection<IMediaChapterViewModel> CreateFromIntervals(ReadOnlyCollection<IInterval> intervals)
+    public static ReadOnlyCollection<IMediaChapterViewModel> CreateFromIntervals(IReadOnlyList<IInterval> intervals)
     {
         var startTime = TimeSpan.Zero;
         var chapters = new List<IMediaChapterViewModel>();
         foreach (var interval in intervals)
         {
-            var chapter = CreateChapter(startTime, interval.Start - startTime, chapters.Count.ToString(), chapters.Count);
-            chapters.Add(chapter);
-            startTime += interval.End - startTime;
+            // The intervals may touch or regress (a file ending in detected silence, ffprobe container
+            // duration disagreeing with the ffmpeg decode timeline), so skip chapters that would come
+            // out empty or negative and never move the timeline backwards.
+            if (interval.Start > startTime)
+                chapters.Add(CreateChapter(startTime, interval.Start - startTime, chapters.Count.ToString(), chapters.Count));
+            if (interval.End > startTime)
+                startTime = interval.End;
         }
 
         return chapters.AsReadOnly();

@@ -153,7 +153,7 @@ internal sealed class ChaptersPlayer : IDisposable
 
                     SubscribeToPlayer(ActivePlayer);
                     ActivePlayer.SetVolume(VolumeLevel);
-                    ActivePlayer.SetPosition(playableFile.File.FilePath, positionInFile);
+                    ActivePlayer.SetPosition(positionInFile);
                     ActivePlayer.Play();
                 }
             }
@@ -259,7 +259,7 @@ internal sealed class ChaptersPlayer : IDisposable
                 if (fileIndex == ActiveFileIndex && ActivePlayer is not null)
                 {
                     // Target falls in the currently open file; a paused player stays paused
-                    ActivePlayer.SetPosition(playableFile.File.FilePath, positionInFile);
+                    ActivePlayer.SetPosition(positionInFile);
                     CurrentGlobalPosition = globalPosition;
                     notifyPosition = true;
                 }
@@ -287,7 +287,7 @@ internal sealed class ChaptersPlayer : IDisposable
 
                         SubscribeToPlayer(ActivePlayer);
                         ActivePlayer.SetVolume(VolumeLevel);
-                        ActivePlayer.SetPosition(playableFile.File.FilePath, positionInFile);
+                        ActivePlayer.SetPosition(positionInFile);
                         if (State == AudioPlayerState.Playing)
                             ActivePlayer.Play(); // A paused engine keeps the new player silent until Resume
                         notifyPosition = true;
@@ -473,7 +473,7 @@ internal sealed class ChaptersPlayer : IDisposable
 
                         SubscribeToPlayer(ActivePlayer);
                         ActivePlayer.SetVolume(VolumeLevel);
-                        ActivePlayer.SetPosition(nextFile.File.FilePath, TimeSpan.Zero);
+                        ActivePlayer.SetPosition(TimeSpan.Zero);
                         ActivePlayer.Play();
                     }
                 }
@@ -557,7 +557,7 @@ internal sealed class ChaptersPlayer : IDisposable
 
         SubscribeToPlayer(ActivePlayer);
         ActivePlayer.SetVolume(VolumeLevel);
-        ActivePlayer.SetPosition(playableFile.File.FilePath, CurrentGlobalPosition - playableFile.GlobalOffset);
+        ActivePlayer.SetPosition(CurrentGlobalPosition - playableFile.GlobalOffset);
         if (State == AudioPlayerState.Playing)
             ActivePlayer.Play(); // A paused engine keeps the new player silent until Resume
         LastRecoveryAtUtc = nowUtc;

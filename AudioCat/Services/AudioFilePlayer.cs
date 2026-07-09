@@ -33,7 +33,7 @@ internal interface IAudioFilePlayer
     void Play();
     void Pause();
     void SetVolume(float volume);
-    void SetPosition(string filePath, TimeSpan position);
+    void SetPosition(TimeSpan position);
     event EventHandler<StreamVolumeEventArgs>? PlaybackVolume;
     event EventHandler<AudioPlayStateEventArgs>? PlaybackStateChanged;
     event EventHandler<PlaybackPositionEventArgs>? PlaybackPositionChanged;
@@ -68,7 +68,9 @@ internal sealed class AudioFilePlayer : IAudioFilePlayer, IAsyncDisposable, IDis
         AudioFileReader = new AudioFileReader(audioFile);
         GuardedReader = new DisposalGuardedSampleProvider(AudioFileReader);
         MeteringProvider = new MeteringSampleProvider(GuardedReader);
-        MeteringProvider.StreamVolume += (sender, e) => PlaybackVolume?.Invoke(sender, new StreamVolumeEventArgs(e.MaxSampleValues));
+        // NAudio reuses (and Array.Clears) the MaxSampleValues buffer across callbacks, so it must be
+        // cloned before forwarding; '?.' skips the clone entirely while there are no subscribers.
+        MeteringProvider.StreamVolume += (_, e) => PlaybackVolume?.Invoke(this, new StreamVolumeEventArgs((float[])e.MaxSampleValues.Clone()));
         OutputDevice.PlaybackStopped += OnPlaybackStopped;
         OutputDevice.Init(MeteringProvider);
         Duration = AudioFileReader.TotalTime;
@@ -157,7 +159,7 @@ internal sealed class AudioFilePlayer : IAudioFilePlayer, IAsyncDisposable, IDis
         }
     }
 
-    public void SetPosition(string filePath, TimeSpan position)
+    public void SetPosition(TimeSpan position)
     {
         if (position < TimeSpan.Zero)
             position = TimeSpan.Zero;

@@ -2,7 +2,11 @@
 
 namespace AudioCat.FFmpeg;
 
-// TODO This class is a work in progress.
+// Part of the planned re-encoding feature (on the roadmap, not yet wired up): builds the ffmpeg
+// encoder arguments for user-configurable MP3 (libmp3lame) re-encoding (VBR quality / CBR / ABR
+// bitrate, optional lowpass cutoff). Introduced in 4.0.0 together with the FLAC re-encode support;
+// the shipped concatenation instead uses the fixed per-codec commands in Settings.EncodingCommands,
+// so this class has no callers yet. Kept for the future re-encoding development.
 internal sealed class Mp3EncoderArgs : IEncoderArgs
 {
     public enum EncodingType { Vbr, Cbr, Abr }
@@ -19,8 +23,8 @@ internal sealed class Mp3EncoderArgs : IEncoderArgs
     public string Build() => Encoding switch
     {
         EncodingType.Vbr => $"-q:a {Quality}{BuildCutOff()}",
-        EncodingType.Cbr => $"-b:a {Bitrate}{BuildCutOff()}k",
-        EncodingType.Abr => $"-abr 1 -b:a {Bitrate}{BuildCutOff()}k", // abr (--abr): Enable the encoder to use ABR when set to 1. The lame --abr sets the target bitrate, while this options only tells FFmpeg to use ABR still relies on b to set bitrate.
+        EncodingType.Cbr => $"-b:a {Bitrate}k{BuildCutOff()}",
+        EncodingType.Abr => $"-abr 1 -b:a {Bitrate}k{BuildCutOff()}", // abr (--abr): Enable the encoder to use ABR when set to 1. The lame --abr sets the target bitrate, while this options only tells FFmpeg to use ABR still relies on b to set bitrate.
         _ => ""
     };
 

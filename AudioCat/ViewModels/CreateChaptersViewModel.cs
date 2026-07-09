@@ -1248,10 +1248,12 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
 
     private void OnGetQueueFileFinished(object sender, ResponseEventArgs eventArgs)
     {
-        CueFiles.Clear();
+        // Replace the list only when new data actually arrived; dialog cancel, abort and
+        // failure outcomes must leave the previously loaded cue files untouched
         if (eventArgs.Response.IsFailure || eventArgs.Response.Data is not ReadOnlyCollection<Cue.ICue> cueFiles || cueFiles.Count == 0)
             return;
-        foreach (var cueFile in cueFiles) 
+        CueFiles.Clear();
+        foreach (var cueFile in cueFiles)
             CueFiles.Add(cueFile);
     }
     #endregion
@@ -1283,8 +1285,8 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
                 return;
             }
 
-            if (response.Data != null) 
-                UpdateChapters(ChaptersFactory.CreateFromIntervals((ReadOnlyCollection<IInterval>)response.Data));
+            if (response.Data is IReadOnlyList<IInterval> intervals)
+                UpdateChapters(ChaptersFactory.CreateFromIntervals(intervals));
         }
         finally
         {

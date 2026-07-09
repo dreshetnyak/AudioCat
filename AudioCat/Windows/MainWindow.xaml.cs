@@ -89,11 +89,17 @@ public partial class MainWindow : Window
                 fileNames = await Files.GetFilesFromDirectories(fileNames);
 
             var response = await MediaFilesService.AddMediaFiles(fileNames, clearExisting); // Long operation, we fire the task and forget
-            if (response.SkippedFiles.Count > 0) 
+            if (response.SkippedFiles.Count > 0)
                 await Application.Current.Dispatcher.InvokeAsync(() => new SkippedFilesWindow(response.SkippedFiles).ShowDialog());
         }
-        catch
-        { /* ignore */ }
+        catch (Exception ex)
+        {
+            // This runs on a worker thread, out of reach of the drop handler's catch blocks;
+            // swallowing here would turn failures (e.g. an access-denied directory aborting the
+            // file enumeration) into a silent no-op with no user feedback.
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+                MessageBox.Show(Application.Current.MainWindow!, ex.Message, "Failed to Add the Dropped Files", MessageBoxButton.OK, MessageBoxImage.Error));
+        }
         finally
         {
             ViewModel.IsUserEntryEnabled = true;

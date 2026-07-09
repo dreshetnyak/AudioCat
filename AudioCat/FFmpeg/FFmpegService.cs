@@ -208,6 +208,15 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             if (twoStepsConcat)
             {
                 listFile = await CreateFilesListFile(tempDir, outputToFile);
+                if (listFile == "")
+                {
+                    // The first-step output is pre-created on disk, so it can only be missing through
+                    // outside interference (antivirus quarantine, temp cleanup); without this guard
+                    // the second step would run ffmpeg with an empty input path
+                    await OnError($"The intermediate output file '{outputToFile}' is missing, the concatenation cannot be completed.");
+                    return;
+                }
+
                 outputToFile = hasImages
                     ? await GenerateTempOutputFileFrom(tempDir, Path.GetExtension(outputFileName))
                     : outputFileName;
@@ -216,6 +225,12 @@ internal sealed class FFmpegService : IMediaFileToolkitService
                 Debug.WriteLine($"{Settings.FFmpegName} {args2}");
                 outputFileWritten |= outputToFile == outputFileName;
                 await Process.Run(Settings.FFmpegName, args2, status => OnConcatStatus(status, totalDuration), Process.OutputType.Error, ctx);
+
+                // The error check in the loop above only covers the first step; without this
+                // check a second-step failure accumulates in concatErrors and never surfaces
+                var secondStepErrors = concatErrors.ToString();
+                if (secondStepErrors != "")
+                    await OnError(secondStepErrors);
             }
             #endregion
 
@@ -355,16 +370,16 @@ internal sealed class FFmpegService : IMediaFileToolkitService
 
     private static ReadOnlyCollection<string> SortRemuxedFiles(IReadOnlyList<IMediaFileViewModel> mediaFiles, ConcurrentBag<(IMediaFileViewModel, string)> remuxedFiles)
     {
+        // Match by reference, same as the ConcurrentBag scan this replaces; view-model Equals overrides must not affect pairing
+        var remuxedByFile = new Dictionary<IMediaFileViewModel, string>(ReferenceEqualityComparer.Instance);
+        foreach (var (remuxedMediaFile, remuxedFile) in remuxedFiles)
+            remuxedByFile[remuxedMediaFile] = remuxedFile;
+
         var sortedFiles = new List<string>(mediaFiles.Count);
         foreach (var mediaFile in mediaFiles)
         {
-            foreach (var (remuxedMediaFile, remuxedFile) in remuxedFiles)
-            {
-                if (remuxedMediaFile != mediaFile)
-                    continue;
+            if (remuxedByFile.TryGetValue(mediaFile, out var remuxedFile))
                 sortedFiles.Add(remuxedFile);
-                break;
-            }
         }
 
         return sortedFiles.AsReadOnly();
@@ -411,7 +426,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         var errors = new StringBuilder();
         var filesList = await CreateFilesListFile(tempDir, [mediaFile]);
         var outputToFile = await GenerateTempOutputFileFrom(tempDir, mediaFile.File.Extension);
-        var args = $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{filesList}\" -vn -c:a copy -update true \"{outputToFile}\"";
+        var args = $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{filesList}\" -vn -c:a copy \"{outputToFile}\"";
         Debug.WriteLine($"{Settings.FFmpegName} {args}");
         await Process.Run(Settings.FFmpegName, args, OnStatus, Process.OutputType.Error, ctx);
 
@@ -435,12 +450,12 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         var encodingCommand = Settings.GetEncodingCommand(codec);
         if (Settings.CodecsWithTwoStepsConcat.Has(codec)) // For Vorbis we first save it discarding tags, then in the second step we add the tags
             return metadataFile == ""
-                ? $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -map_metadata -1 -vn {encodingCommand} -update true \"{outputToFile}\""
-                : $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -i \"{metadataFile}\" -map_metadata 1 -vn {encodingCommand} -update true \"{outputToFile}\"";
+                ? $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -map_metadata -1 -vn {encodingCommand} \"{outputToFile}\""
+                : $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -i \"{metadataFile}\" -map_metadata 1 -vn {encodingCommand} \"{outputToFile}\"";
         
         return metadataFile != ""
-            ? $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -i \"{metadataFile}\" -map_metadata 1 -vn {encodingCommand} -id3v2_version 3 -write_id3v1 1 -update true \"{outputToFile}\""
-            : $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -vn {encodingCommand} -update true \"{outputToFile}\"";
+            ? $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -i \"{metadataFile}\" -map_metadata 1 -vn {encodingCommand} -id3v2_version 3 -write_id3v1 1 \"{outputToFile}\""
+            : $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -vn {encodingCommand} \"{outputToFile}\"";
     }
 
     private static async Task<string> GenerateTempOutputFileFrom(string tempDir, string fileExtension)

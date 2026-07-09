@@ -248,9 +248,11 @@ internal static class CommandFactory
 
     private static ReadOnlySpan<char> GetQuotedValueFullString(ReadOnlySpan<char> valueSpan)
     {
-        var endIdx = valueSpan.LastIndexOf('\"', 1);
+        // Closing quote = LAST quote at index >= 1, tolerating unescaped embedded quotes
+        // in the value; slice off the opening quote so the BCL backward scan can't match it.
+        var endIdx = valueSpan[1..].LastIndexOf('\"');
         return endIdx != -1
-            ? valueSpan[1..endIdx]
+            ? valueSpan[1..(endIdx + 1)]
             : [];
     }
 }

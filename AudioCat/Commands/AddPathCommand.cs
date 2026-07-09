@@ -18,8 +18,10 @@ public sealed class AddPathCommand(IMediaFilesService mediaFilesService) : Comma
             if (path == "")
                 return Response<object>.Success();
 
-            var fileNames = Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).ToArray();
-            var sortedFileNames = Files.Sort(fileNames);
+            // The recursive walk and the sort run synchronously and can take seconds on a large
+            // tree or a network share, so they must stay off the UI thread
+            var sortedFileNames = await Task.Run(() =>
+                Files.Sort(Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).ToArray()));
 
             var response = await MediaFilesService.AddMediaFiles(sortedFileNames, false);
             if (response.SkippedFiles.Count > 0)

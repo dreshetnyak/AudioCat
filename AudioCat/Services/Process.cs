@@ -13,15 +13,18 @@ internal static class Process
         using System.Diagnostics.Process process = CreateProcess(executable, arguments);
         process.Start();
         var outTask = ReadOutStream(process, onOutput, outputType, ctx);
+        // Both streams are redirected, so the non-selected one must be drained too, otherwise the child stalls once that pipe buffer fills
+        var drainTask = ReadOutStream(process, static _ => Task.CompletedTask, outputType == OutputType.Error ? OutputType.Standard : OutputType.Error, ctx);
         try { await process.WaitForExitAsync(ctx); }
         catch (OperationCanceledException)
         {
             await KillAndWaitForExit(process);
-            try { await outTask; }
+            try { await Task.WhenAll(outTask, drainTask); }
             catch { /* ignore */ }
             throw;
         }
         await outTask;
+        await drainTask;
     }
 
     public static async Task<string> Run(string executable, string arguments, OutputType outputType, CancellationToken ctx)
@@ -77,7 +80,7 @@ internal static class Process
                 try { await onOutput(line); }
                 catch { /* ignore */ }
             }
-            catch
+            catch (OperationCanceledException)
             {
                 break;
             }
@@ -104,7 +107,7 @@ internal static class Process
                     break;
                 responseBuilder.AppendLine(line);
             }
-            catch
+            catch (OperationCanceledException)
             {
                 break;
             }
@@ -125,11 +128,10 @@ internal static class Process
                 CreateNoWindow = true,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
-                RedirectStandardInput = true,
+                RedirectStandardInput = false,
                 RedirectStandardError = true,
                 StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8,
-                Verb = "runas"
+                StandardErrorEncoding = Encoding.UTF8
             }
         };
     }

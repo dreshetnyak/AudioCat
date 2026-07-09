@@ -2,7 +2,11 @@
 
 namespace AudioCat.FFmpeg;
 
-// TODO This class is a work in progress.
+// Part of the planned re-encoding feature (on the roadmap, not yet wired up): builds the ffmpeg
+// encoder arguments for user-configurable AAC re-encoding (VBR quality / CBR bitrate, optional
+// frequency cutoff). Introduced in 4.0.0 together with the FLAC re-encode support; the shipped
+// concatenation instead uses the fixed per-codec commands in Settings.EncodingCommands, so this
+// class has no callers yet. Kept for the future re-encoding development.
 internal sealed class AacEncoderArgs : IEncoderArgs
 {
     public enum EncodingType { Vbr, Cbr }
@@ -18,7 +22,7 @@ internal sealed class AacEncoderArgs : IEncoderArgs
     public string Build() => Encoding switch
     {
         EncodingType.Vbr => $"-q:a {Quality}{BuildCutOff()}",
-        EncodingType.Cbr => $"-b:a {Bitrate}{BuildCutOff()}k",
+        EncodingType.Cbr => $"-b:a {Bitrate}k{BuildCutOff()}",
         _ => ""
     };
 

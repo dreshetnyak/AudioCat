@@ -50,9 +50,13 @@ internal static partial class Files
     private static async Task<IReadOnlyList<string>> GetFilesFromDirectory(string directory)
     {
         var subDirectories = new List<string>();
-        foreach (var subDirectory in Directory.EnumerateDirectories(directory, "*", SearchOption.TopDirectoryOnly))
+        foreach (var subDirectory in new DirectoryInfo(directory).EnumerateDirectories("*", SearchOption.TopDirectoryOnly))
         {
-            subDirectories.Add(subDirectory);
+            // Junctions and directory symlinks are not traversed: a link pointing at an ancestor
+            // creates a cycle, and Windows aborts path resolution after 63 chained reparse points,
+            // which would fail the whole walk partway through with an unrelated IO error
+            if ((subDirectory.Attributes & FileAttributes.ReparsePoint) == 0)
+                subDirectories.Add(subDirectory.FullName);
             await Task.Yield();
         }
 

@@ -94,15 +94,15 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
         return new GetMediaFilesResponse(mediaFiles, skippedFiles);
     }
 
-    private async Task<IReadOnlyList<IResponse<IMediaFile>>> ProbeFiles(IReadOnlyList<string> fileNames, CancellationToken ctx)
+    // Preserves the order of sortedFileNames; the caller indexes the returned list in parallel
+    // with the list it passed in, so the responses must stay aligned with the input.
+    private async Task<IReadOnlyList<IResponse<IMediaFile>>> ProbeFiles(IReadOnlyList<string> sortedFileNames, CancellationToken ctx)
     {
-        var sortedFiles = Files.Sort(fileNames);
-
-        var probeTasks = new List<Task<IResponse<IMediaFile>>>(fileNames.Count);
-        foreach (var filePath in sortedFiles)
+        var probeTasks = new List<Task<IResponse<IMediaFile>>>(sortedFileNames.Count);
+        foreach (var filePath in sortedFileNames)
             probeTasks.Add(MediaFileToolkitService.Probe(filePath, ctx));
 
-        var mediaFiles = new List<IResponse<IMediaFile>>(fileNames.Count);
+        var mediaFiles = new List<IResponse<IMediaFile>>(sortedFileNames.Count);
         foreach (var probeTask in probeTasks)
             mediaFiles.Add(await probeTask);
 
@@ -111,11 +111,11 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
 
     private static IResult SelectCodec(IMediaFile mediaFile, ref string selectedCodec)
     {
-        if (selectedCodec != "") // Acceptable codec has not been selected yet
+        if (selectedCodec != "") // A previous file already selected the codec, validate this file against it
             return HasStreamWithCodec(mediaFile, selectedCodec)
                 ? Result.Success()
                 : Result.Failure($"Doesn't contain any audio stream encoded with '{selectedCodec}' codec");
-        selectedCodec = GetCodecName(mediaFile.Streams);
+        selectedCodec = GetCodecName(mediaFile.Streams); // First file with a supported stream selects the codec
         return selectedCodec != ""
             ? Result.Success()
             : Result.Failure("Doesn't contain any supported audio streams");
@@ -148,7 +148,19 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
     #endregion
 
     #region AddMediaFiles
+    // Serializes overlapping add operations: the entry points (Add Files/Add Path commands, drag-drop,
+    // startup CLI files) are not mutually gated in the UI, and concurrent runs would race on the shared
+    // files collection, codec/duplicate detection and the CollectionChanged suppression flag.
+    private SemaphoreSlim AddGate { get; } = new(1, 1);
+
     public async Task<IMediaFilesService.IGetMediaFilesResponse> AddMediaFiles(IReadOnlyList<string> fileNames, bool clearExisting)
+    {
+        await AddGate.WaitAsync();
+        try { return await AddMediaFilesUnsafe(fileNames, clearExisting); }
+        finally { AddGate.Release(); }
+    }
+
+    private async Task<IMediaFilesService.IGetMediaFilesResponse> AddMediaFilesUnsafe(IReadOnlyList<string> fileNames, bool clearExisting)
     {
         var uiDispatcher = System.Windows.Application.Current.Dispatcher;
 
