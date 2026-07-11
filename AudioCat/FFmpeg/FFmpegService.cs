@@ -131,6 +131,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
     {
         var concatErrors = new StringBuilder();
         var tempDir = "";
+        var stagedOutputFile = "";
         var outputFileWritten = false;
         var isCancelled = false;
         try
@@ -155,11 +156,19 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             var twoStepsConcat = Settings.CodecsWithTwoStepsConcat.Has(codec) && metadataFile != "";
 
             var hasImages = extractedImages.Count > 0;
+            var finalOutputFile = outputFileName;
+            if (IsOutputFileAnInput(mediaFiles, outputFileName))
+            {
+                stagedOutputFile = await GenerateStagedOutputFileFrom(outputFileName);
+                finalOutputFile = stagedOutputFile;
+            }
+
             var outputToFile = hasImages || twoStepsConcat
                 ? await GenerateTempOutputFileFrom(tempDir, Path.GetExtension(outputFileName))
-                : outputFileName;
+                : finalOutputFile;
 
             ReadOnlyCollection<string>? remuxedFiles = null;
+            var firstStepSucceeded = false;
             var totalDuration = await totalDurationTask;
             do
             {
@@ -172,7 +181,10 @@ internal sealed class FFmpegService : IMediaFileToolkitService
                 concatErrors.Clear();
 
                 if (concatErrorsStr == "")
+                {
+                    firstStepSucceeded = true;
                     break;
+                }
 
                 if (remuxedFiles != null || !Settings.RemuxOnErrors.IsIn(concatErrorsStr)) //If not a remuxable error
                 {
@@ -204,6 +216,9 @@ internal sealed class FFmpegService : IMediaFileToolkitService
                 #endregion
             } while (true);
 
+            if (!firstStepSucceeded && stagedOutputFile != "")
+                return;
+
             #region Second Step of Concatenation
             if (twoStepsConcat)
             {
@@ -219,7 +234,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
 
                 outputToFile = hasImages
                     ? await GenerateTempOutputFileFrom(tempDir, Path.GetExtension(outputFileName))
-                    : outputFileName;
+                    : finalOutputFile;
 
                 var args2 = GetFFmpegArgs(codec, listFile, metadataFile, outputToFile);
                 Debug.WriteLine($"{Settings.FFmpegName} {args2}");
@@ -230,7 +245,11 @@ internal sealed class FFmpegService : IMediaFileToolkitService
                 // check a second-step failure accumulates in concatErrors and never surfaces
                 var secondStepErrors = concatErrors.ToString();
                 if (secondStepErrors != "")
+                {
                     await OnError(secondStepErrors);
+                    if (stagedOutputFile != "")
+                        return;
+                }
             }
             #endregion
 
@@ -238,12 +257,29 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             if (hasImages)
             {
                 await OnStatus(extractedImages.Count == 1 ? "Embedding cover image..." : "Embedding cover images...");
-                outputFileWritten = true;
-                var imagesResult = await AddImages(outputToFile, extractedImages, outputFileName, ctx);
+                outputFileWritten |= finalOutputFile == outputFileName;
+                var imagesResult = await AddImages(outputToFile, extractedImages, finalOutputFile, ctx);
                 if (imagesResult.IsFailure)
+                {
                     await OnError($"Image embedding errors:{Environment.NewLine}{imagesResult.Message}");
+                    if (stagedOutputFile != "")
+                        return;
+                }
             }
             #endregion
+
+            if (stagedOutputFile != "")
+            {
+                var stagedOutput = new FileInfo(stagedOutputFile);
+                if (!stagedOutput.Exists || stagedOutput.Length == 0)
+                {
+                    await OnError("Concatenation did not produce a valid output file.");
+                    return;
+                }
+
+                await Task.Run(() => File.Move(stagedOutputFile, outputFileName, true), CancellationToken.None);
+                outputFileWritten = true;
+            }
         }
         catch (OperationCanceledException)
         {
@@ -260,11 +296,17 @@ internal sealed class FFmpegService : IMediaFileToolkitService
             if (tempDir != "")
                 await Task.Run(() => TempDirectory.Delete(tempDir), CancellationToken.None);
 
+            if (stagedOutputFile != "")
+            {
+                try { await Task.Run(() => File.Delete(stagedOutputFile), CancellationToken.None); }
+                catch { /* ignore */ }
+            }
+
             try
             {
                 // A cancelled run leaves a partial output file, a failed one can leave an empty one; neither should survive.
                 var outputFile = new FileInfo(outputFileName);
-                if (outputFile.Exists && (isCancelled && outputFileWritten || outputFile.Length == 0))
+                if (outputFile.Exists && outputFileWritten && (isCancelled || outputFile.Length == 0))
                     await Task.Run(() => outputFile.Delete(), CancellationToken.None);
             }
             catch { /* ignore */ }
@@ -456,6 +498,20 @@ internal sealed class FFmpegService : IMediaFileToolkitService
         return metadataFile != ""
             ? $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -i \"{metadataFile}\" -map_metadata 1 -vn {encodingCommand} -id3v2_version 3 -write_id3v1 1 \"{outputToFile}\""
             : $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{listFile}\" -vn {encodingCommand} \"{outputToFile}\"";
+    }
+
+    private static bool IsOutputFileAnInput(IEnumerable<IMediaFileViewModel> mediaFiles, string outputFileName)
+    {
+        var outputFullName = Path.GetFullPath(outputFileName);
+        return mediaFiles.Any(file => file.File.FullName.Equals(outputFullName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static Task<string> GenerateStagedOutputFileFrom(string outputFileName)
+    {
+        var outputFile = new FileInfo(outputFileName);
+        var outputDirectory = outputFile.Directory?.FullName
+            ?? throw new IOException($"Cannot determine the output directory for '{outputFileName}'.");
+        return GenerateTempOutputFileFrom(outputDirectory, outputFile.Extension);
     }
 
     private static async Task<string> GenerateTempOutputFileFrom(string tempDir, string fileExtension)

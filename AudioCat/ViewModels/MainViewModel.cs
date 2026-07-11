@@ -21,6 +21,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
     private IMediaFileToolkitService MediaFileToolkitService { get; }
     private IMediaFilesContainer MediaFilesContainer { get; }
     private IMediaFilesService MediaFilesService { get; }
+    private int ActiveUserOperations { get; set; }
 
     public ObservableCollection<IMediaFileViewModel> Files { get; }
     public IMediaFileViewModel? SelectedFile
@@ -411,14 +412,22 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
         Files = mediaFilesContainer.Files;
         AddFiles = addFilesCommand;
+        addFilesCommand.Starting += OnUserOperationStarting;
+        addFilesCommand.Finished += OnUserOperationFinished;
+
         AddPath = addPathCommand;
+        addPathCommand.Starting += OnUserOperationStarting;
+        addPathCommand.Finished += OnUserOperationFinished;
+
         MoveSelected = moveFileCommand;
 
         concatenate.Starting += OnConcatStarting;
         concatenate.Finished += OnConcatFinished;
         Concatenate = concatenate;
 
+        createChapters.Starting += OnUserOperationStarting;
         createChapters.Finished += OnCreateChaptersFinished;
+        createChapters.Finished += OnUserOperationFinished;
         CreateChapters = createChapters;
 
         ClearChapters = new RelayCommand(OnClearChapters);
@@ -438,6 +447,26 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
         _ = InitializeAsync();
     }
+
+    internal void BeginUserOperation()
+    {
+        ActiveUserOperations++;
+        IsUserEntryEnabled = false;
+    }
+
+    internal void EndUserOperation()
+    {
+        if (ActiveUserOperations == 0)
+            return;
+        if (--ActiveUserOperations == 0)
+            IsUserEntryEnabled = true;
+    }
+
+    private void OnUserOperationStarting(object? sender, EventArgs e) =>
+        BeginUserOperation();
+
+    private void OnUserOperationFinished(object sender, ResponseEventArgs e) =>
+        EndUserOperation();
 
     private void OnOutputTagsChanged(object? sender, NotifyCollectionChangedEventArgs e) => 
         OnPropertyChanged(nameof(OutputTagsCount));
@@ -495,14 +524,13 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         if (!await VerifyMediaFileServiceIsAccessible())
             return; // FFmpeg/ffprobe missing — leave the UI disabled
         await AddCliFilesOnStartup(); // Output chapters are populated by OnFilesCollectionChanged when the last file is added
+        IsUserEntryEnabled = true;
     }
 
     private async Task<bool> VerifyMediaFileServiceIsAccessible()
     {
         var result = await MediaFileToolkitService.IsAccessible();
-        if (result.IsSuccess)
-            IsUserEntryEnabled = true;
-        else
+        if (result.IsFailure)
             MessageBox.Show($"{result.Message}{Environment.NewLine}The tools '{Settings.FFmpegName}' and '{Settings.FFprobeName}' are required for the application to work properly. Download the tools and place them in the system path.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         return result.IsSuccess;
     }
@@ -573,7 +601,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
     private void OnConcatStarting(object? sender, EventArgs e)
     {
         ProgressPercentage = Constants.PROGRESS_BAR_MAX_VALUE;
-        IsUserEntryEnabled = false;
+        BeginUserOperation();
     }
 
     private void OnConcatFinished(object sender, ResponseEventArgs eventArgs)
@@ -587,7 +615,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         {
             ProgressPercentage = 0;
             ProgressText = "Done.";
-            IsUserEntryEnabled = true;
+            EndUserOperation();
         }
     }
 
@@ -704,14 +732,27 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         OnPropertyChanged(nameof(IsChaptersFromFilesEnabled));
         OnPropertyChanged(nameof(IsCreateChapters));
 
-        if (Files.Count == 0 || !Files.ChaptersExist()) // No files or no chapters in files
+        if (Files.Count == 0)
         {
             RememberChaptersFilesOrder();
             OutputChaptersSource = ChaptersSourceType.None;
             IsOutputChaptersExpanded = false;
             OnPropertyChanged(nameof(OutputChaptersCount));
         }
-        else if (OutputChaptersSource == ChaptersSourceType.None || OutputChaptersSource == ChaptersSourceType.ExistingChapters && IsChaptersFilesOrderChanged()) // Re-generate chapters from existing files
+        else if (OutputChaptersSource == ChaptersSourceType.ExistingChapters &&
+                 !Files.ChaptersExist())
+        {
+            // Last embedded-chapter source removed: discard generated chapters.
+            OutputChapters.Clear();
+            RememberChaptersFilesOrder();
+            OutputChaptersSource = ChaptersSourceType.None;
+            IsOutputChaptersExpanded = false;
+            OnPropertyChanged(nameof(OutputChaptersCount));
+        }
+        else if (Files.ChaptersExist() &&
+                 (OutputChaptersSource == ChaptersSourceType.None ||
+                  OutputChaptersSource == ChaptersSourceType.ExistingChapters &&
+                  IsChaptersFilesOrderChanged())) // Re-generate chapters from existing files
         {
             try
             {

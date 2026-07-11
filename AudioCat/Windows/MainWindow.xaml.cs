@@ -69,7 +69,8 @@ public partial class MainWindow : Window
             if (e.Data.GetData(DataFormats.FileDrop, true) is not string[] fileNames || fileNames.Length == 0) 
                 return;
             var ctrlDown = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
-            Task.Run(async () => await AddDragFiles(fileNames, !ctrlDown));
+            ViewModel.BeginUserOperation();
+            _ = Task.Run(() => AddDragFiles(fileNames, !ctrlDown));
         }
         catch (COMException ex) when (ex.ErrorCode == unchecked((int)0x8007007A))
         {
@@ -83,8 +84,6 @@ public partial class MainWindow : Window
     {
         try
         {
-            ViewModel.IsUserEntryEnabled = false;
-
             if (fileNames.IsAllDirectories())
                 fileNames = await Files.GetFilesFromDirectories(fileNames);
 
@@ -102,7 +101,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            ViewModel.IsUserEntryEnabled = true;
+            await Application.Current.Dispatcher.InvokeAsync(ViewModel.EndUserOperation);
         }
     }
 

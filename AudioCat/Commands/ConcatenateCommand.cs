@@ -29,6 +29,16 @@ public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkit
         public bool ChaptersEnabled { get; } = chaptersEnabled;
         public ObservableCollection<IMediaTagViewModel> OutputTags { get; } = [];
         public ObservableCollection<IMediaChapterViewModel> OutputChapters { get; } = [];
+
+        public static ConcatParams CreateSnapshot(IConcatParams source)
+        {
+            var snapshot = new ConcatParams(source.TagsEnabled, source.ChaptersEnabled);
+            foreach (var tag in source.OutputTags)
+                snapshot.OutputTags.Add(TagViewModel.Copy(tag));
+            foreach (var chapter in source.OutputChapters)
+                snapshot.OutputChapters.Add(ChapterViewModel.CreateFrom(chapter));
+            return snapshot;
+        }
     }
     #endregion
 
@@ -45,12 +55,13 @@ public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkit
             var cts = new CancellationTokenSource();
             Cts = cts;
 
-            if (MediaFiles.Count == 0)
+            var mediaFiles = Array.AsReadOnly(MediaFiles.ToArray());
+            if (mediaFiles.Count == 0)
                 return Response<object>.Failure("No files to concatenate");
 
-            var codec = MediaFilesService.GetAudioCodec(MediaFiles);
+            var codec = MediaFilesService.GetAudioCodec(mediaFiles);
 
-            var firstFile = new FileInfo((MediaFiles.FirstOrDefault(file => !file.IsImage) ?? MediaFiles[0]).FilePath);
+            var firstFile = new FileInfo((mediaFiles.FirstOrDefault(file => !file.IsImage) ?? mediaFiles[0]).FilePath);
             var initialDirectory = GetFileDirectory(firstFile);
             var outputFileName = SelectionDialog.ChooseFileToSave(
                 Settings.GetSaveFileExtensionFilter(codec), 
@@ -60,12 +71,14 @@ public sealed class ConcatenateCommand(IMediaFileToolkitService mediaFileToolkit
                 return Response<object>.Success();
 
             var errors = new StringBuilder();
-            var concatParams = parameter as IConcatParams ?? new ConcatParams(true, true);
+            var concatParams = parameter is IConcatParams source
+                ? ConcatParams.CreateSnapshot(source)
+                : new ConcatParams(true, true);
 
             try
             {
                 MediaFileToolkitService.Error += OnConcatErrors;
-                await MediaFileToolkitService.Concatenate(MediaFiles, concatParams, outputFileName, cts.Token);
+                await MediaFileToolkitService.Concatenate(mediaFiles, concatParams, outputFileName, cts.Token);
             }
             finally { MediaFileToolkitService.Error -= OnConcatErrors; }
 

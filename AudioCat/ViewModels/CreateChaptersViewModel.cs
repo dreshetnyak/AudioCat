@@ -683,7 +683,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     public event EventHandler? UseCreated;
 
     public CreateChaptersViewModel(
-        ObservableCollection<IMediaFileViewModel> files, 
+        ReadOnlyCollection<IMediaFileViewModel> files, 
         FixItemEncodingCommand fixItemEncodingCommand,
         FixItemsEncodingCommand fixItemsEncodingCommand,
         ScanForSilenceCommand scanForSilence)
@@ -701,7 +701,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
 
         Dispatcher = System.Windows.Application.Current.Dispatcher;
 
-        ChaptersPlayer = new ChaptersPlayer(files.AsReadOnly(), CreatedChapters);
+        ChaptersPlayer = new ChaptersPlayer(files, CreatedChapters);
         ChaptersPlayer.StateChanged += OnPlayerStateChanged;
         ChaptersPlayer.PositionChanged += OnPlayerPositionChanged;
         ChaptersPlayer.ChapterChanged += OnPlayerChapterChanged;
@@ -722,7 +722,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
 
         GenerateChapters = new RelayCommand(OnGenerateChapters);
         CloseDialog = new RelayCommand(OnClose);
-        Files = files.AsReadOnly();
+        Files = files;
         FixAllIso8859ToWin1251 = fixItemsEncodingCommand;
         FixSelectedIso8859ToWin1251 = fixItemEncodingCommand;
         UseCreatedChapters = new RelayCommand(() => { OnUseCreated(); OnClose(); });
@@ -770,7 +770,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             yield return new ChapterSourceItem { SourceType = ChapterSourceType.Existing, Description = "Existing Chapters" };
     }
 
-    private void SetInitialSelectedChapterSource(ObservableCollection<IMediaFileViewModel> files)
+    private void SetInitialSelectedChapterSource(IReadOnlyList<IMediaFileViewModel> files)
     {
         foreach (var file in files)
         {

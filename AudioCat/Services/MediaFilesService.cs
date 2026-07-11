@@ -165,14 +165,11 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
         var uiDispatcher = System.Windows.Application.Current.Dispatcher;
 
         var files = MediaFilesContainer.Files;
-        if (clearExisting)
-            await uiDispatcher.InvokeAsync(files.Clear);
-
-        var selectedCodec = files.Count > 0 
+        var selectedCodec = !clearExisting && files.Count > 0
             ? GetAudioCodec(files) 
             : "";
 
-        var coverSelected = SelectionFlags.GetCoverSelectedFrom(files);
+        var coverSelected = !clearExisting && SelectionFlags.GetCoverSelectedFrom(files);
 
         var response = await GetMediaFiles(fileNames, !coverSelected, selectedCodec, CancellationToken.None);
 
@@ -180,18 +177,25 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
             selectedCodec = GetAudioCodec(response.MediaFiles);
         if (Settings.CodecsThatDoesNotSupportImages.Has(selectedCodec))
         {
-            if (files.Any(file => file.IsImage))
+            if (!clearExisting && files.Any(file => file.IsImage))
                 response = SkipFiles(response, selectedCodec);
             else if (response.MediaFiles.Any(file => file.IsImage))
                 response = SkipImages(response, selectedCodec);
         }
 
         var mediaFiles = response.MediaFiles;
-        var duplicates = GetDuplicates(files, mediaFiles);
-        mediaFiles = await HandleDuplicates(mediaFiles, duplicates);
+        if (!clearExisting)
+        {
+            var duplicates = GetDuplicates(files, mediaFiles);
+            mediaFiles = await HandleDuplicates(mediaFiles, duplicates);
+        }
 
         if (mediaFiles.Count > 0)
+        {
+            if (clearExisting)
+                await uiDispatcher.InvokeAsync(files.Clear);
             MediaFilesContainer.DoNotInvokeFilesCollectionChangedEvent = true;
+        }
         try
         {
             for (var index = 0; index < mediaFiles.Count; index++)
@@ -215,7 +219,7 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
             MediaFilesContainer.DoNotInvokeFilesCollectionChangedEvent = false;
         }
 
-        if (files.Count > 0)
+        if (mediaFiles.Count > 0)
             await uiDispatcher.InvokeAsync(() => MediaFilesContainer.SelectedFile = files[0]);
 
         return response;
