@@ -7,7 +7,7 @@ internal class DurationConverter : IValueConverter
 {
     //Source to target
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
-        value is TimeSpan { TotalSeconds: > 0 } time
+        value is TimeSpan { TotalSeconds: >= 0 } time
             ? $"{Math.Truncate(time.TotalHours):00}:{time.Minutes:00}:{time.Seconds:00}"
             : "N/A";
 

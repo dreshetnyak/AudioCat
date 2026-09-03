@@ -1,4 +1,5 @@
-﻿using AudioCat.Models;
+﻿using System.Collections.ObjectModel;
+using AudioCat.Models;
 using System.IO;
 using System.Xml.Linq;
 
@@ -14,9 +15,9 @@ public class FFprobeMediaFile : IMediaFile
     public decimal? StartTime { get; private init; }
     public TimeSpan? Duration { get; private init; }
     public decimal? Bitrate { get; private init; }
-    public IReadOnlyList<IMediaTag> Tags { get; private init; } = [];
-    public IReadOnlyList<IMediaChapter> Chapters { get; private init; } = [];
-    public IReadOnlyList<IMediaStream> Streams { get; private init; } = [];
+    public ReadOnlyCollection<IMediaTag> Tags { get; private init; } = [];
+    public ReadOnlyCollection<IMediaChapter> Chapters { get; private init; } = [];
+    public ReadOnlyCollection<IMediaStream> Streams { get; private init; } = [];
 
     private FFprobeMediaFile(FileInfo file) { File = file; }
 
@@ -48,7 +49,7 @@ public class FFprobeMediaFile : IMediaFile
         });
     }
 
-    private static IReadOnlyList<IMediaTag> GetFileTags(XElement? formatElement, XElement? streamsElement)
+    private static ReadOnlyCollection<IMediaTag> GetFileTags(XElement? formatElement, XElement? streamsElement)
     {
         var tags = formatElement.GetTags();
         if (tags.Count > 0 || streamsElement == null)
@@ -63,7 +64,7 @@ public class FFprobeMediaFile : IMediaFile
         return tags;
     }
 
-    private static IReadOnlyList<IMediaChapter> GetChapters(XElement? chaptersContainerElement)
+    private static ReadOnlyCollection<IMediaChapter> GetChapters(XElement? chaptersContainerElement)
     {
         if (chaptersContainerElement is not { HasElements: true })
             return [];
@@ -76,10 +77,10 @@ public class FFprobeMediaFile : IMediaFile
                 chapters.Add(chapterResponse.Data!);
         }
 
-        return chapters;
+        return chapters.AsReadOnly();
     }
 
-    private static IReadOnlyList<IMediaStream> GetStreams(XElement? streamsContainerElement)
+    private static ReadOnlyCollection<IMediaStream> GetStreams(XElement? streamsContainerElement)
     {
         if (streamsContainerElement is not { HasElements: true })
             return [];
@@ -92,6 +93,6 @@ public class FFprobeMediaFile : IMediaFile
                 chapters.Add(chapterResponse.Data!);
         }
 
-        return chapters;
+        return chapters.AsReadOnly();
     }
 }

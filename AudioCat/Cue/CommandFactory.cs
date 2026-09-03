@@ -204,24 +204,22 @@ internal static class CommandFactory
             return Response<object>.Success(new TagCommand(Command.REM, valueSpan.Trim().ToString()));
 
         var valueStartIdx = valueSpan.SkipWhitespace(firstLiteralEndIdx);
-        if (valueSpan[valueStartIdx] == '\"')
-            return Response<object>.Success(new TagCommand(firstLiteral.ToString(), GetQuotedValueFullString(valueSpan[valueStartIdx..]).ToString()));
-        
-        return Response<object>.Success(new TagCommand(firstLiteral.ToString(),
-            (valueSpan[valueStartIdx] != '\"' //TODO This is always true, should it be removed?
-                ? valueSpan[valueStartIdx..].Trim() 
-                : GetQuotedValueFullString(valueSpan[valueStartIdx..])).ToString()));
+        if (valueStartIdx == valueSpan.Length)
+            return Response<object>.Success(new TagCommand(firstLiteral.ToString(), ""));
+        return Response<object>.Success(valueSpan[valueStartIdx] == '\"'
+            ? new TagCommand(firstLiteral.ToString(), GetQuotedValueFullString(valueSpan[valueStartIdx..]).ToString()) 
+            : new TagCommand(firstLiteral.ToString(), valueSpan[valueStartIdx..].ToString().Trim()));
+    }
 
-        static bool IsSubCommand(ReadOnlySpan<char> valueSpan)
+    private static bool IsSubCommand(ReadOnlySpan<char> valueSpan)
+    {
+        foreach (var ch in valueSpan)
         {
-            foreach (var ch in valueSpan)
-            {
-                if (!(char.IsUpper(ch) || ch == '_'))
-                    return false;
-            }
-
-            return true;
+            if (!(char.IsUpper(ch) || ch == '_'))
+                return false;
         }
+
+        return true;
     }
 
     private static IResponse<object> CreateCueTagCommand(ReadOnlySpan<char> tagName, ReadOnlySpan<char> valueSpan) => Response<object>.Success(!valueSpan.IsEmpty
@@ -250,9 +248,11 @@ internal static class CommandFactory
 
     private static ReadOnlySpan<char> GetQuotedValueFullString(ReadOnlySpan<char> valueSpan)
     {
-        var endIdx = valueSpan.LastIndexOf('\"', 1);
+        // Closing quote = LAST quote at index >= 1, tolerating unescaped embedded quotes
+        // in the value; slice off the opening quote so the BCL backward scan can't match it.
+        var endIdx = valueSpan[1..].LastIndexOf('\"');
         return endIdx != -1
-            ? valueSpan[1..endIdx]
+            ? valueSpan[1..(endIdx + 1)]
             : [];
     }
 }

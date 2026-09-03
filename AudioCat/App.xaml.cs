@@ -9,9 +9,6 @@ using System.Windows;
 
 namespace AudioCat;
 
-/// <summary>
-/// Interaction logic for App.xaml
-/// </summary>
 public partial class App : Application
 {
     private ServiceProvider ServiceProvider { get; } =
@@ -35,6 +32,7 @@ public partial class App : Application
     {
         try { Encoding.RegisterProvider(CodePagesEncodingProvider.Instance); }
         catch {/* ignore */ }
+        _ = Task.Run(TempDirectory.Sweep);
         ServiceProvider.GetService<MainWindow>()?.Show();
     }
 }

@@ -29,14 +29,18 @@ internal static class Settings
         Codecs.VORBIS,      // OGG Vorbis
         Codecs.WMAV2,       // WMA
         Codecs.PCM_S16_LE,  // WAV; Most of the files with this format will have this codec
+        Codecs.PCM_F32_LE,  // WAV
         Codecs.PCM_U8,      // WAV; Less common
         Codecs.FLAC
     ];
     public static IEnumerable<string> SupportedImageCodecs { get; } = [Codecs.MJPEG, Codecs.PNG];
     public static IEnumerable<string> CodecsWithTwoStepsConcat { get; } = [Codecs.VORBIS]; // Concat and embedding of metadata must be done in two separate steps
     public static IEnumerable<string> CodecsWithTagsInStream { get; } = [Codecs.OPUS, Codecs.VORBIS]; // In OPUS and OGG Vorbis files the tags are placed in the stream
-    public static IEnumerable<string> CodecsThatDoesNotSupportChapters { get; } = [Codecs.VORBIS, Codecs.PCM_S16_LE, Codecs.PCM_U8, Codecs.FLAC];
-    public static IEnumerable<string> CodecsThatDoesNotSupportImages { get; } = [Codecs.VORBIS, Codecs.PCM_S16_LE, Codecs.PCM_U8];
+    public static IEnumerable<string> CodecsThatDoesNotSupportChapters { get; } = [Codecs.VORBIS, Codecs.PCM_S16_LE, Codecs.PCM_F32_LE, Codecs.PCM_U8, Codecs.FLAC];
+    public static IEnumerable<string> CodecsThatDoesNotSupportImages { get; } = [Codecs.VORBIS, Codecs.PCM_S16_LE, Codecs.PCM_F32_LE, Codecs.PCM_U8];
+    // NAudio/Media Foundation on stock Windows cannot decode OPUS or OGG Vorbis; this is a static list
+    // checked against ffprobe codec names — no runtime decode probe is performed.
+    public static IEnumerable<string> PlaybackUnsupportedCodecs { get; } = [Codecs.OPUS, Codecs.VORBIS];
 
     private static string DefaultEncodingCommand => "-c copy";
     private static IEnumerable<NameValue> CodecEncodingCommands { get; } =
@@ -54,33 +58,33 @@ internal static class Settings
         return DefaultEncodingCommand;
     }
 
-    public static string GetSaveFileExtensionFilter(string codec) =>
-        codec switch
-        {
-            Codecs.AAC => "AAC Audio|*.m4b",
-            Codecs.MP3 => "MP3 Audio|*.mp3",
-            Codecs.OPUS => "Opus Audio|*.opus",
-            Codecs.WMAV2 => "Windows Media Audio|*.wma",
-            Codecs.FLAC => "Free Lossless Audio Codec|*.flac",
-            Codecs.PCM_S16_LE => "Waveform Audio|*.wav",
-            Codecs.PCM_U8 => "Waveform Audio|*.wav",
-            Codecs.VORBIS => "OGG Vorbis|*.ogg",
-            _ => "Other Files|*.*"
-        };
+    public static string GetSaveFileExtensionFilter(string codec) => codec switch
+    {
+        Codecs.AAC => "AAC Audio|*.m4b",
+        Codecs.MP3 => "MP3 Audio|*.mp3",
+        Codecs.OPUS => "Opus Audio|*.opus",
+        Codecs.WMAV2 => "Windows Media Audio|*.wma",
+        Codecs.FLAC => "Free Lossless Audio Codec|*.flac",
+        Codecs.PCM_S16_LE => "Waveform Audio|*.wav",
+        Codecs.PCM_F32_LE => "Waveform Audio|*.wav",
+        Codecs.PCM_U8 => "Waveform Audio|*.wav",
+        Codecs.VORBIS => "OGG Vorbis|*.ogg",
+        _ => "Other Files|*.*"
+    };
 
-    public static string GetSuggestedFileNameExtension(string codec) =>
-        codec switch
-        {
-            Codecs.AAC => ".m4b",
-            Codecs.MP3 => ".mp3",
-            Codecs.OPUS => ".opus",
-            Codecs.WMAV2 => ".wma",
-            Codecs.FLAC => ".flac",
-            Codecs.PCM_S16_LE => ".wav",
-            Codecs.PCM_U8 => ".wav",
-            Codecs.VORBIS => ".ogg",
-            _ => ""
-        };
+    public static string GetSuggestedFileNameExtension(string codec) => codec switch
+    {
+        Codecs.AAC => ".m4b",
+        Codecs.MP3 => ".mp3",
+        Codecs.OPUS => ".opus",
+        Codecs.WMAV2 => ".wma",
+        Codecs.FLAC => ".flac",
+        Codecs.PCM_S16_LE => ".wav",
+        Codecs.PCM_F32_LE => ".wav",
+        Codecs.PCM_U8 => ".wav",
+        Codecs.VORBIS => ".ogg",
+        _ => ""
+    };
 
     private const string OTHER_AUDIO_EXTENSION = "Other Audio|*.*";
     public static string GetAddFilesExtensionFilter(string codec) => codec switch
@@ -99,6 +103,8 @@ internal static class Settings
                        OTHER_AUDIO_EXTENSION,
         Codecs.PCM_S16_LE => "Waveform Audio|*.wav|" +
                              OTHER_AUDIO_EXTENSION,
+        Codecs.PCM_F32_LE => "Waveform Audio|*.wav|" +
+                             OTHER_AUDIO_EXTENSION,
         Codecs.PCM_U8 => "Waveform Audio|*.wav|" +
                          OTHER_AUDIO_EXTENSION,
         Codecs.VORBIS => "OGG Vorbis|*.ogg|" +
@@ -114,4 +120,12 @@ internal static class Settings
              "OGG Vorbis|*.ogg|" +
              OTHER_AUDIO_EXTENSION
     };
+
+    public static class ChapterWizard
+    {
+        public static string DefaultSelectedTag { get; set; } = "title";
+        public static string DefaultTemplate { get; set; } = "Chapter {}";
+        public static int DefaultSilenceThreshold { get; set; } = Constants.DEFAULT_SILENCE_THRESHOLD;
+        public static int DefaultAudioThreshold { get; set; } = Constants.DEFAULT_SILENCE_DURATION;
+    }
 }

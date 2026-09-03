@@ -1,12 +1,13 @@
-﻿using System.Runtime.CompilerServices;
-using AudioCat.Models;
+﻿using AudioCat.Models;
 using AudioCat.ViewModels;
+using System.Collections.ObjectModel;
+using System.Runtime.CompilerServices;
 
 namespace AudioCat.Commands;
 
 public interface ISilenceScanArgs
 {
-    IReadOnlyList<IMediaFileViewModel> Files { get; }
+    ReadOnlyCollection<IMediaFileViewModel> Files { get; }
     int SilenceDuration { get; }
     int SilenceThreshold { get; }
 }
@@ -44,7 +45,8 @@ public sealed class ScanForSilenceCommand(IMediaFileToolkitService mediaFileTool
                 var fileIntervals = intervalsResponse.Data!;
                 AddFileIntervals(intervals, fileIntervals, startTime);
                 var fileDuration = file.Duration!.Value;
-                intervals.Add(new Interval(file.FilePath, fileDuration, fileDuration));
+                var fileEndTime = startTime + fileDuration;
+                intervals.Add(new Interval(file.FilePath, fileEndTime, fileEndTime));
                 startTime += fileDuration;
             }
 

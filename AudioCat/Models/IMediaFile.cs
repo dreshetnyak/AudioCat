@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Collections.ObjectModel;
+using System.IO;
 
 namespace AudioCat.Models;
 
@@ -34,6 +35,7 @@ public interface IMediaChapter
     decimal? TimeBaseDivisor { get; }
     TimeSpan? StartTime { get; }
     TimeSpan? EndTime { get; }
+    TimeSpan? Duration { get; }
     IReadOnlyList<IMediaTag> Tags { get; }
 }
 
@@ -47,7 +49,7 @@ public interface IMediaFile
     decimal? StartTime { get; }
     TimeSpan? Duration { get; }
     decimal? Bitrate { get; }
-    IReadOnlyList<IMediaTag> Tags { get; }
-    IReadOnlyList<IMediaChapter> Chapters { get; }
-    IReadOnlyList<IMediaStream> Streams { get; }
+    ReadOnlyCollection<IMediaTag> Tags { get; }
+    ReadOnlyCollection<IMediaChapter> Chapters { get; }
+    ReadOnlyCollection<IMediaStream> Streams { get; }
 }

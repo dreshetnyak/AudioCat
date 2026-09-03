@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using AudioCat.Commands;
+﻿using AudioCat.Commands;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;

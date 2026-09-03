@@ -96,10 +96,8 @@ public sealed class MediaFileViewModel : IMediaFileViewModel
         Tags.CollectionChanged += OnTagsCollectionChanged;
     }
 
-    private void OnTagsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs _)
-    {
+    private void OnTagsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs _) => 
         OnPropertyChanged(nameof(HasTags));
-    }
 
     private static IEnumerable<string> SupportedImageCodecs { get; } = [Codecs.MJPEG, Codecs.PNG];
     private static bool HasImageStream(IEnumerable<IMediaStream> streams)

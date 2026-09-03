@@ -2,26 +2,31 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <ApplicationIcon>Cat.ico</ApplicationIcon>
+    <ApplicationIcon>Cat.ico</ApplicationIcon>    
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SupportedOSPlatform>windows</SupportedOSPlatform>
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Images\Add.png" />
     <None Remove="Images\AddFiles.png" />
     <None Remove="Images\AddFilesGray.png" />
+    <None Remove="Images\AddGray.png" />
     <None Remove="Images\AddPath.png" />
     <None Remove="Images\AddPathGray.png" />
+    <None Remove="Images\Backward.png" />
+    <None Remove="Images\BackwardGray.png" />
     <None Remove="Images\Blank.png" />
     <None Remove="Images\Build.png" />
     <None Remove="Images\Cancel.png" />
     <None Remove="Images\CancelGray.png" />
     <None Remove="Images\Chapters.png" />
     <None Remove="Images\ChaptersGray.png" />
-    <None Remove="Images\Clear.png" />
-    <None Remove="Images\ClearGray.png" />
     <None Remove="Images\Cue.png" />
     <None Remove="Images\CueGray.png" />
     <None Remove="Images\Down.png" />
@@ -31,6 +36,8 @@
     <None Remove="Images\Execute.png" />
     <None Remove="Images\ExecuteGray.png" />
     <None Remove="Images\Find.png" />
+    <None Remove="Images\Forward.png" />
+    <None Remove="Images\ForwardGray.png" />
     <None Remove="Images\Ignore.png" />
     <None Remove="Images\Image.png" />
     <None Remove="Images\ImageGray.png" />
@@ -38,36 +45,57 @@
     <None Remove="Images\NewFilesGray.png" />
     <None Remove="Images\NewTag.png" />
     <None Remove="Images\NewTagGray.png" />
+    <None Remove="Images\Next.png" />
+    <None Remove="Images\NextGray.png" />
     <None Remove="Images\Ok.png" />
     <None Remove="Images\OkGray.png" />
+    <None Remove="Images\Pause.png" />
+    <None Remove="Images\Play.png" />
+    <None Remove="Images\PlayGray.png" />
+    <None Remove="Images\Previous.png" />
+    <None Remove="Images\PreviousGray.png" />
     <None Remove="Images\Refresh.png" />
     <None Remove="Images\RefreshGray.png" />
     <None Remove="Images\Remove.png" />
     <None Remove="Images\RemoveGray.png" />
     <None Remove="Images\Selected.png" />
+    <None Remove="Images\Slider.png" />
+    <None Remove="Images\Stop.png" />
+    <None Remove="Images\StopGray.png" />
     <None Remove="Images\Tag.png" />
     <None Remove="Images\TagGray.png" />
     <None Remove="Images\ToggleOff.png" />
     <None Remove="Images\ToggleOn.png" />
     <None Remove="Images\Up.png" />
     <None Remove="Images\UpGray.png" />
+    <None Remove="Images\Volume1.png" />
+    <None Remove="Images\Volume2.png" />
+    <None Remove="Images\Volume3.png" />
+    <None Remove="Images\VolumeMute.png" />
+    <None Remove="Images\VolumeMuteGray.png" />
+    <None Remove="Images\VolumeUp.png" />
+    <None Remove="Images\VolumeUpGray.png" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
-    <PackageReference Include="NAudio" Version="2.2.1" />
-    <PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
+    <PackageReference Include="NAudio" Version="2.3.0" />
+    <PackageReference Include="System.Management" Version="10.0.9" />
   </ItemGroup>
 
   <ItemGroup>
     <Resource Include="Cat.ico" />
+    <Resource Include="Images\Add.png" />
   </ItemGroup>
 
   <ItemGroup>
     <Resource Include="Images\AddFiles.png" />
     <Resource Include="Images\AddFilesGray.png" />
+    <Resource Include="Images\AddGray.png" />
     <Resource Include="Images\AddPath.png" />
     <Resource Include="Images\AddPathGray.png" />
+    <Resource Include="Images\Backward.png" />
+    <Resource Include="Images\BackwardGray.png" />
     <Resource Include="Images\Blank.png" />
     <Resource Include="Images\Build.png" />
     <Resource Include="Images\Cancel.png" />
@@ -85,6 +113,8 @@
     <Resource Include="Images\Execute.png" />
     <Resource Include="Images\ExecuteGray.png" />
     <Resource Include="Images\Find.png" />
+    <Resource Include="Images\Forward.png" />
+    <Resource Include="Images\ForwardGray.png" />
     <Resource Include="Images\Ignore.png" />
     <Resource Include="Images\Image.png" />
     <Resource Include="Images\ImageGray.png" />
@@ -92,19 +122,33 @@
     <Resource Include="Images\NewFilesGray.png" />
     <Resource Include="Images\NewTag.png" />
     <Resource Include="Images\NewTagGray.png" />
+    <Resource Include="Images\Next.png" />
+    <Resource Include="Images\NextGray.png" />
     <Resource Include="Images\Ok.png" />
     <Resource Include="Images\OkGray.png" />
+    <Resource Include="Images\Pause.png" />
+    <Resource Include="Images\Play.png" />
+    <Resource Include="Images\PlayGray.png" />
+    <Resource Include="Images\Previous.png" />
+    <Resource Include="Images\PreviousGray.png" />
     <Resource Include="Images\Refresh.png" />
     <Resource Include="Images\RefreshGray.png" />
     <Resource Include="Images\Remove.png" />
     <Resource Include="Images\RemoveGray.png" />
     <Resource Include="Images\Selected.png" />
+    <Resource Include="Images\Slider.png" />
+    <Resource Include="Images\Stop.png" />
+    <Resource Include="Images\StopGray.png" />
     <Resource Include="Images\Tag.png" />
     <Resource Include="Images\TagGray.png" />
     <Resource Include="Images\ToggleOff.png" />
     <Resource Include="Images\ToggleOn.png" />
     <Resource Include="Images\Up.png" />
     <Resource Include="Images\UpGray.png" />
+    <Resource Include="Images\VolumeMute.png" />
+    <Resource Include="Images\VolumeMuteGray.png" />
+    <Resource Include="Images\VolumeUp.png" />
+    <Resource Include="Images\VolumeUpGray.png" />
   </ItemGroup>
 
   <ItemGroup>

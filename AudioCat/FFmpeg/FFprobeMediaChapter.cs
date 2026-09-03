@@ -5,7 +5,7 @@ using System.Xml.Linq;
 
 namespace AudioCat.FFmpeg;
 
-[DebuggerDisplay("Id: {Id,nq}; StartTime: {StartTime,nq}; EndTime: {EndTime,nq}")]
+[DebuggerDisplay("Id: {Id,nq}; StartTime: {StartTime,nq}; EndTime: {EndTime,nq}; Duration: {Duration,nq}")]
 public class FFprobeMediaChapter : IMediaChapter
 {
     public int Id { get; private init; }
@@ -15,6 +15,7 @@ public class FFprobeMediaChapter : IMediaChapter
     public decimal? TimeBaseDivisor { get; private init; }
     public TimeSpan? StartTime { get; private init; }
     public TimeSpan? EndTime { get; private init; }
+    public TimeSpan? Duration => StartTime.HasValue && EndTime.HasValue ? EndTime - StartTime : null;
     public IReadOnlyList<IMediaTag> Tags { get; private init; } = [];
 
     private FFprobeMediaChapter() { }

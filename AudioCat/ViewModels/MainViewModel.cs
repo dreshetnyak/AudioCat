@@ -1,6 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
@@ -13,26 +14,6 @@ namespace AudioCat.ViewModels;
 
 public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 {
-    #region Backing Fields
-    private bool _isUserEntryEnabled;
-    private long _totalSize;
-    private TimeSpan _totalDuration;
-    private int _progressPercentage;
-    private string _progressText = "";
-    private bool _isTagsExpanded;
-    private bool _isOutputTagsExpanded;
-    private bool _isStreamsExpanded;
-    private bool _isChaptersExpanded;
-    private bool _isOutputChaptersExpanded;
-    private bool _tagsEnabled = true;
-    private bool _chaptersEnabled = true;
-    private string _selectedCodec = "";
-    private int _selectedDataTabIndex;
-    private string _outputWarning = "";
-    private Visibility _outputWarningVisibility = Visibility.Collapsed;
-
-    #endregion
-
     private const string CHAPTERS_WARNING = 
         "[b]WARNING![/b] The files or their order has changed after the chapters has been " +
         "generated, [b]the output file will likely contain [u]invalid[/u] chapters[/b].";
@@ -40,6 +21,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
     private IMediaFileToolkitService MediaFileToolkitService { get; }
     private IMediaFilesContainer MediaFilesContainer { get; }
     private IMediaFilesService MediaFilesService { get; }
+    private int ActiveUserOperations { get; set; }
 
     public ObservableCollection<IMediaFileViewModel> Files { get; }
     public IMediaFileViewModel? SelectedFile
@@ -47,27 +29,33 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         get => MediaFilesContainer.SelectedFile;
         set => MediaFilesContainer.SelectedFile = value;
     }
+
     public string SelectedCodec
     {
-        get => _selectedCodec;
+        get;
         set
         {
-            if (value == _selectedCodec) return;
-            _selectedCodec = value;
+            if (value == field)
+                return;
+            field = value;
             OnPropertyChanged();
         }
-    }
+    } = "";
 
     public ObservableCollection<IMediaTagViewModel> OutputTags { get; }
     public ObservableCollection<IMediaChapterViewModel> OutputChapters { get; }
+
+    private enum ChaptersSourceType { None, ExistingChapters, CustomChapters }
+    private ChaptersSourceType OutputChaptersSource { get; set; }
+
     public int SelectedDataTabIndex
     {
-        get => _selectedDataTabIndex;
+        get;
         set
         {
-            if (value == _selectedDataTabIndex) 
+            if (value == field)
                 return;
-            _selectedDataTabIndex = value;
+            field = value;
             OnPropertyChanged();
         }
     }
@@ -88,12 +76,12 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
     public long TotalSize
     {
-        get => _totalSize;
+        get;
         set
         {
-            if (value == _totalSize)
+            if (value == field)
                 return;
-            _totalSize = value;
+            field = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(TotalSizeText));
         }
@@ -101,12 +89,12 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
     public TimeSpan TotalDuration
     {
-        get => _totalDuration;
+        get;
         set
         {
-            if (value.Equals(_totalDuration))
+            if (value.Equals(field))
                 return;
-            _totalDuration = value;
+            field = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(DurationText));
         }
@@ -117,12 +105,12 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
     public bool IsUserEntryEnabled
     {
-        get => _isUserEntryEnabled;
+        get;
         set
         {
-            if (value == _isUserEntryEnabled)
+            if (value == field)
                 return;
-            _isUserEntryEnabled = value;
+            field = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsConcatenateEnabled));
             OnPropertyChanged(nameof(IsCancelEnabled));
@@ -137,6 +125,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
             OnPropertyChanged(nameof(IsCreateChapters));
         }
     }
+
     public bool IsConcatenateEnabled => IsUserEntryEnabled && Files.Count > 0 && TotalDuration != TimeSpan.Zero;
     public bool IsCancelEnabled => !IsUserEntryEnabled;
     public bool IsAddPathEnabled => IsUserEntryEnabled;
@@ -148,57 +137,60 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
     public bool IsTagsExpanded
     {
-        get => _isTagsExpanded;
+        get;
         set
         {
-            if (value == _isTagsExpanded) 
+            if (value == field)
                 return;
-            _isTagsExpanded = value;
+            field = value;
             OnPropertyChanged();
         }
     }
+
     public bool IsStreamsExpanded
     {
-        get => _isStreamsExpanded;
+        get;
         set
         {
-            if (value == _isStreamsExpanded) 
+            if (value == field)
                 return;
-            _isStreamsExpanded = value;
+            field = value;
             OnPropertyChanged();
         }
     }
+
     public bool IsChaptersExpanded
     {
-        get => _isChaptersExpanded;
+        get;
         set
         {
-            if (value == _isChaptersExpanded)
+            if (value == field)
                 return;
-            _isChaptersExpanded = value;
+            field = value;
             OnPropertyChanged();
         }
     }
 
     public bool IsOutputTagsExpanded
     {
-        get => _isOutputTagsExpanded;
+        get;
         set
         {
-            if (value == _isOutputTagsExpanded)
+            if (value == field)
                 return;
-            _isOutputTagsExpanded = value;
+            field = value;
             OnPropertyChanged();
         }
     }
+
     public bool IsOutputChaptersExpanded
     {
-        get => _isOutputChaptersExpanded;
+        get;
         set
         {
-            if (value == _isOutputChaptersExpanded)
+            if (value == field)
                 return;
-            _isOutputChaptersExpanded = value;
+            field = value;
             OnPropertyChanged();
         }
     }
@@ -271,12 +263,12 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
     public bool TagsEnabled
     {
-        get => _tagsEnabled;
+        get;
         set
         {
-            if (value == _tagsEnabled) 
+            if (value == field)
                 return;
-            _tagsEnabled = value;
+            field = value;
             OnPropertyChanged();
             IsTagsExpanded = value && SelectedFile is { Tags.Count: > 0 };
             IsOutputTagsExpanded = value && OutputTags.Count > 0;
@@ -284,7 +276,8 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
             OnPropertyChanged(nameof(OutputTagsVisibility));
             OnPropertyChanged(nameof(IsChaptersFromTagsEnabled));
         }
-    }
+    } = true;
+
     public Visibility TagsVisibility => TagsEnabled && SelectedFile is { IsImage: false } ? Visibility.Visible : Visibility.Collapsed;
     public Visibility OutputTagsVisibility => TagsEnabled ? Visibility.Visible : Visibility.Collapsed;
 
@@ -292,12 +285,12 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
     public bool ChaptersEnabled
     {
-        get => _chaptersEnabled;
+        get;
         set
         {
-            if (value == _chaptersEnabled) 
+            if (value == field)
                 return;
-            _chaptersEnabled = value;
+            field = value;
             OnPropertyChanged();
             IsChaptersExpanded = value && SelectedFile is { Chapters.Count: > 0 };
             IsOutputChaptersExpanded = OutputChapters.Count > 0;
@@ -308,7 +301,8 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
             OnPropertyChanged(nameof(IsCreateChapters));
             RefreshChaptersWarning();
         }
-    }
+    } = true;
+
     public Visibility ChaptersVisibility => ChaptersEnabled && SelectedFile is { IsImage: false } ? Visibility.Visible : Visibility.Collapsed;
     public Visibility OutputChaptersVisibility => ChaptersEnabled ? Visibility.Visible : Visibility.Collapsed;
 
@@ -318,29 +312,29 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
     public string OutputWarning
     {
-        get => _outputWarning;
+        get;
         set
         {
-            if (value == _outputWarning) 
+            if (value == field)
                 return;
-            _outputWarning = value;
+            field = value;
             OnPropertyChanged();
             OutputWarningVisibility = string.IsNullOrWhiteSpace(value) ? Visibility.Collapsed : Visibility.Visible;
         }
-    }
+    } = "";
 
     public Visibility OutputWarningVisibility
     {
-        get => _outputWarningVisibility;
+        get;
         set
         {
-            if (value == _outputWarningVisibility) 
+            if (value == field)
                 return;
-            _outputWarningVisibility = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
-    
+    } = Visibility.Collapsed;
+
     public ICommand Concatenate { get; }
     public ICommand Cancel { get; }
     public ICommand AddPath { get; }
@@ -361,30 +355,33 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         get => ProgressPercentage / 10000d;
         set => throw new NotSupportedException();
     }
+
     public int ProgressPercentage
     {
-        get => _progressPercentage;
+        get;
         set
         {
-            if (value == _progressPercentage)
+            if (value == field)
                 return;
-            _progressPercentage = value;
+            field = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(TaskBarProgress));
         }
     }
+
     public string ProgressText
     {
-        get => _progressText;
+        get;
         set
         {
-            if (value == _progressText)
+            if (value == field)
                 return;
-            _progressText = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
-    
+    } = "";
+
+    #pragma warning disable S107
     public MainViewModel(
         IMediaFileToolkitService mediaFileToolkitService,
         IMediaFilesContainer mediaFilesContainer,
@@ -396,6 +393,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         CreateChaptersCommand createChapters,
         FixItemEncodingCommand fixItemEncodingCommand,
         FixItemsEncodingCommand fixItemsEncodingCommand)
+    #pragma warning restore S107
     {
         MediaFileToolkitService  = mediaFileToolkitService;
         
@@ -414,14 +412,22 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
         Files = mediaFilesContainer.Files;
         AddFiles = addFilesCommand;
+        addFilesCommand.Starting += OnUserOperationStarting;
+        addFilesCommand.Finished += OnUserOperationFinished;
+
         AddPath = addPathCommand;
+        addPathCommand.Starting += OnUserOperationStarting;
+        addPathCommand.Finished += OnUserOperationFinished;
+
         MoveSelected = moveFileCommand;
 
         concatenate.Starting += OnConcatStarting;
         concatenate.Finished += OnConcatFinished;
         Concatenate = concatenate;
 
+        createChapters.Starting += OnUserOperationStarting;
         createChapters.Finished += OnCreateChaptersFinished;
+        createChapters.Finished += OnUserOperationFinished;
         CreateChapters = createChapters;
 
         ClearChapters = new RelayCommand(OnClearChapters);
@@ -439,15 +445,38 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
 
         Files.CollectionChanged += OnFilesCollectionChanged;
 
-        _ = VerifyMediaFileServiceIsAccessible()
-            .ContinueWith(AddCliFilesOnStartup);
+        _ = InitializeAsync();
     }
+
+    internal void BeginUserOperation()
+    {
+        ActiveUserOperations++;
+        IsUserEntryEnabled = false;
+    }
+
+    internal void EndUserOperation()
+    {
+        if (ActiveUserOperations == 0)
+            return;
+        if (--ActiveUserOperations == 0)
+            IsUserEntryEnabled = true;
+    }
+
+    private void OnUserOperationStarting(object? sender, EventArgs e) =>
+        BeginUserOperation();
+
+    private void OnUserOperationFinished(object sender, ResponseEventArgs e) =>
+        EndUserOperation();
 
     private void OnOutputTagsChanged(object? sender, NotifyCollectionChangedEventArgs e) => 
         OnPropertyChanged(nameof(OutputTagsCount));
 
-    private void OnOutputChaptersChanged(object? sender, NotifyCollectionChangedEventArgs e) => 
-        OnPropertyChanged(nameof(OutputChaptersCount));
+    private bool DoNotInvokeOutputChaptersCountChangedEvent { get; set; } = false;
+    private void OnOutputChaptersChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (!DoNotInvokeOutputChaptersCountChangedEvent) 
+            OnPropertyChanged(nameof(OutputChaptersCount));
+    }
 
     private ObservableCollection<IMediaTagViewModel>? SelectedFileTags { get; set; }
 
@@ -490,23 +519,26 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         OnPropertyChanged(nameof(TagsCount));
     }
 
-    private async Task VerifyMediaFileServiceIsAccessible()
+    private async Task InitializeAsync()
     {
-        var result = await MediaFileToolkitService.IsAccessible();
-        if (result.IsSuccess)
-            IsUserEntryEnabled = true;
-        else
-            MessageBox.Show($"{result.Message}{Environment.NewLine}The tools '{Settings.FFmpegName}' and '{Settings.FFprobeName}' are required for the application to work properly. Download the tools and place them in the system path.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        if (!await VerifyMediaFileServiceIsAccessible())
+            return; // FFmpeg/ffprobe missing — leave the UI disabled
+        await AddCliFilesOnStartup(); // Output chapters are populated by OnFilesCollectionChanged when the last file is added
+        IsUserEntryEnabled = true;
     }
 
-    private async Task AddCliFilesOnStartup(Task _)
+    private async Task<bool> VerifyMediaFileServiceIsAccessible()
     {
-        if (!IsUserEntryEnabled) // Media Files Service is not accessible
-            return;
+        var result = await MediaFileToolkitService.IsAccessible();
+        if (result.IsFailure)
+            MessageBox.Show($"{result.Message}{Environment.NewLine}The tools '{Settings.FFmpegName}' and '{Settings.FFprobeName}' are required for the application to work properly. Download the tools and place them in the system path.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        return result.IsSuccess;
+    }
 
+    private async Task AddCliFilesOnStartup()
+    {
         try
         {
-            IsUserEntryEnabled = false;
             var args = Environment.GetCommandLineArgs();
             if (args.Length < 2)
                 return;
@@ -519,16 +551,12 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
                 ? await Services.Files.GetFilesFromDirectories(namesFromArgs)
                 : namesFromArgs;
 
-            var response = await MediaFilesService.AddMediaFiles(fileNames, false); // Long operation, we fire the task and forget
+            var response = await MediaFilesService.AddMediaFiles(fileNames, false);
             if (response.SkippedFiles.Count > 0)
                 await Application.Current.Dispatcher.InvokeAsync(() => new SkippedFilesWindow(response.SkippedFiles).ShowDialog());
         }
-        catch
-        { /* ignore */ }
-        finally
-        {
-            IsUserEntryEnabled = true;
-        }
+        catch (Exception ex)
+        { Debug.WriteLine(ex); } // Best effort — CLI-passed files silently not loading is preferable to a crash on startup
     }
 
     // Called when tags source is selected in the DataGrid. Not called for initial selection.
@@ -573,7 +601,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
     private void OnConcatStarting(object? sender, EventArgs e)
     {
         ProgressPercentage = Constants.PROGRESS_BAR_MAX_VALUE;
-        IsUserEntryEnabled = false;
+        BeginUserOperation();
     }
 
     private void OnConcatFinished(object sender, ResponseEventArgs eventArgs)
@@ -587,7 +615,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         {
             ProgressPercentage = 0;
             ProgressText = "Done.";
-            IsUserEntryEnabled = true;
+            EndUserOperation();
         }
     }
 
@@ -604,12 +632,20 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         ChaptersFilesOrder.Clear();
         OutputChapters.Clear();
         OutputWarning = "";
+        OutputChaptersSource = ChaptersSourceType.None;
     }
 
     private void OnCreateChaptersFinished(object sender, ResponseEventArgs eventArgs)
     {
         var response = eventArgs.Response;
-        if (response is { IsSuccess: true, Data: null } || response.IsFailure)
+        if (response.IsFailure)
+        {
+            // CreateChaptersCommand itself only returns Success; a failure here is an unexpected
+            // exception surfaced by CommandBase, so it must be shown rather than swallowed.
+            MessageBox.Show(response.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+        if (response.Data is null)
             return;
 
         var outputChapters = (ObservableCollection<IMediaChapterViewModel>)response.Data!;
@@ -617,6 +653,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         foreach (var chapter in outputChapters)
             OutputChapters.Add(chapter);
         
+        OutputChaptersSource = ChaptersSourceType.CustomChapters; //TODO: distinguish Custom vs Existing
         RememberChaptersFilesOrder();
         IsOutputChaptersExpanded = ChaptersEnabled && OutputChapters.Count > 0;
         OnPropertyChanged(nameof(OutputChaptersCount));
@@ -649,17 +686,43 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
     }
 
     private void RefreshChaptersWarning() => 
-        OutputWarning = ChaptersEnabled && IsChaptersFilesOrderChanged() ? CHAPTERS_WARNING : "";
+        OutputWarning = ChaptersEnabled && OutputChaptersSource != ChaptersSourceType.ExistingChapters && IsChaptersFilesOrderChanged() ? CHAPTERS_WARNING : "";
     
     private bool ChaptersWasDisabledByCodec { get; set; } 
     private void OnFilesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        if (MediaFilesContainer.DoNotInvokeFilesCollectionChangedEvent)
+            return;
+
         if (Files.Count == 0)
         {
             SelectedDataTabIndex = 0;
             ClearOutput();
         }
 
+        TotalSize = Files.GetFilesTotalSize();
+        TotalDuration = Files.GetTotalDuration();
+        SelectedCodec = Services.MediaFilesService.GetAudioCodec(Files);
+        if (Settings.CodecsThatDoesNotSupportChapters.Has(SelectedCodec)) // Current codec does not support chapters
+        {
+            // Set the flag only when this transition actually turns chapters off; if they were
+            // already off by user choice, claiming credit here would auto re-enable them once a
+            // chapter-supporting codec returns, overriding the manual disable.
+            if (ChaptersEnabled)
+            {
+                ChaptersEnabled = false; // This will call RefreshChaptersWarning
+                ChaptersWasDisabledByCodec = true;
+            }
+        }
+        else if (ChaptersWasDisabledByCodec) // Chapters was disabled by the codec, but the current codec supports chapters. Re-enable chapters.
+        {
+            ChaptersEnabled = true; // This will call RefreshChaptersWarning
+            ChaptersWasDisabledByCodec = false;
+        }
+        else 
+            RefreshChaptersWarning();
+
+        // Must go after the TotalDuration and other code above due to dependencies
         OnPropertyChanged(nameof(IsConcatenateEnabled));
         OnPropertyChanged(nameof(IsClearPathsEnabled));
         OnPropertyChanged(nameof(IsMoveUpEnabled));
@@ -668,23 +731,49 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         OnPropertyChanged(nameof(IsChaptersFromTagsEnabled));
         OnPropertyChanged(nameof(IsChaptersFromFilesEnabled));
         OnPropertyChanged(nameof(IsCreateChapters));
-        TotalSize = Files.GetFilesTotalSize();
-        TotalDuration = Files.GetTotalDuration();
-        SelectedCodec = Services.MediaFilesService.GetAudioCodec(Files);
-        if (Settings.CodecsThatDoesNotSupportChapters.Has(SelectedCodec))
-        {
-            ChaptersEnabled = false;
-            ChaptersWasDisabledByCodec = true;
-        }
-        else if (ChaptersWasDisabledByCodec)
-        {
-            ChaptersEnabled = true;
-            ChaptersWasDisabledByCodec = false;
-        }
-        else
-            RefreshChaptersWarning();
 
-        SelectOutputTagsOnFilesLoad();        
+        if (Files.Count == 0)
+        {
+            RememberChaptersFilesOrder();
+            OutputChaptersSource = ChaptersSourceType.None;
+            IsOutputChaptersExpanded = false;
+            OnPropertyChanged(nameof(OutputChaptersCount));
+        }
+        else if (OutputChaptersSource == ChaptersSourceType.ExistingChapters &&
+                 !Files.ChaptersExist())
+        {
+            // Last embedded-chapter source removed: discard generated chapters.
+            OutputChapters.Clear();
+            RememberChaptersFilesOrder();
+            OutputChaptersSource = ChaptersSourceType.None;
+            IsOutputChaptersExpanded = false;
+            OnPropertyChanged(nameof(OutputChaptersCount));
+        }
+        else if (Files.ChaptersExist() &&
+                 (OutputChaptersSource == ChaptersSourceType.None ||
+                  OutputChaptersSource == ChaptersSourceType.ExistingChapters &&
+                  IsChaptersFilesOrderChanged())) // Re-generate chapters from existing files
+        {
+            try
+            {
+                DoNotInvokeOutputChaptersCountChangedEvent = true;
+                OutputChapters.Clear();
+                var newChapters = ChaptersFactory.CreateFromExisting(Files.AsReadOnly(), false);
+                foreach (var newChapter in newChapters)
+                    OutputChapters.Add(newChapter);
+            }
+            finally
+            {
+                DoNotInvokeOutputChaptersCountChangedEvent = false;
+            }
+            RememberChaptersFilesOrder();
+            OutputChaptersSource = ChaptersSourceType.ExistingChapters;
+            IsOutputChaptersExpanded = ChaptersEnabled && OutputChapters.Count > 0;
+            OnPropertyChanged(nameof(OutputChaptersCount));
+        }
+
+        if (OutputTags.Count == 0)
+            SelectOutputTagsOnFilesLoad();        
     }
 
     private void SelectOutputTagsOnFilesLoad()
@@ -692,7 +781,7 @@ public sealed class MainViewModel : IConcatParams, INotifyPropertyChanged
         foreach (var file in Files)
         {
             if (!file.HasTags || file.IsImage)
-                continue;
+                continue; //Skip the files that doesn't have tags, take the tags from the first file
             file.Tags.SetTo(OutputTags);
             IsOutputTagsExpanded = OutputTags.Count > 0;
             break;

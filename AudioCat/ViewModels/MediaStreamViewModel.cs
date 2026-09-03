@@ -8,7 +8,6 @@ namespace AudioCat.ViewModels;
 [DebuggerDisplay("{Index,nq}: Duration: {Duration,nq}; Codec: {CodecName,nq}; SampleRate: {SampleRate,nq};")]
 public sealed class MediaStreamViewModel(IMediaStream mediaStream) : IMediaStream, INotifyPropertyChanged
 {
-    private bool _include = true;
     public IMediaStream MediaStream { get; } = mediaStream;
 
     public int Index => MediaStream.Index;
@@ -27,15 +26,15 @@ public sealed class MediaStreamViewModel(IMediaStream mediaStream) : IMediaStrea
 
     public bool Include
     {
-        get => _include;
+        get;
         set
         {
-            if (value == _include) 
+            if (value == field)
                 return;
-            _include = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
+    } = true;
 
     #region INotifyPropertyChanged Implementation
     public event PropertyChangedEventHandler? PropertyChanged;

@@ -11,11 +11,11 @@ internal static class Extensions
 {
     public static string ToQuoted(this string str) => str switch { null => "[null]", "" => "[empty]", _ => $"'{str}'" };
     
-    public static decimal? ToDecimal(this string str) =>  decimal.TryParse(str, NumberStyles.Number, CultureInfo.CurrentCulture, out var value) ? value : null;
+    public static decimal? ToDecimal(this string str) =>  decimal.TryParse(str, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : null;
 
-    public static int? ToInt(this string str) => int.TryParse(str, NumberStyles.Integer, CultureInfo.CurrentCulture, out var value) ? value : null;
+    public static int? ToInt(this string str) => int.TryParse(str, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : null;
 
-    public static long? ToLong(this string str) => long.TryParse(str, NumberStyles.Integer, CultureInfo.CurrentCulture, out var value) ? value : null;
+    public static long? ToLong(this string str) => long.TryParse(str, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : null;
 
     public static string TrimStartNonChars(this string source)
     {
@@ -90,7 +90,7 @@ internal static class Extensions
     }
 
     public static TimeSpan? SecondsToTimeSpan(this string str) =>  
-        decimal.TryParse(str, NumberStyles.Number, CultureInfo.CurrentCulture, out var value) 
+        decimal.TryParse(str, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
             ? TimeSpan.FromSeconds((double)value)
             : null;
 
@@ -255,18 +255,6 @@ internal static class Extensions
 
         return -1;
     }
-
-    public static int LastIndexOf(this ReadOnlySpan<char> span, char ch, int startIndex)
-    {
-        for (var i = span.Length - 1; i >= startIndex; i--)
-        {
-            if (span[i] == ch)
-                return i;
-        }
-
-        return -1;
-    }
-
 
     public static int SkipNonWhitespace(this ReadOnlySpan<char> span, int startIndex = 0)
     {

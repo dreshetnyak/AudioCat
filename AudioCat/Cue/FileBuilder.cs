@@ -1,16 +1,17 @@
-﻿using System.Diagnostics;
-using AudioCat.Models;
+﻿using AudioCat.Models;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 
 namespace AudioCat.Cue;
 
 internal sealed class FileBuilder
 {
     [DebuggerDisplay("Name: {Name,nq}; Type: {Type,nq}; Tracks Count: {Tracks.Count,nq}")]
-    private sealed class CueFile(string name, string type, IReadOnlyList<ITrack> tracks) : IFile
+    private sealed class CueFile(string name, string type, ReadOnlyCollection<ITrack> tracks) : IFile
     {
         public string Name { get; } = name;
         public string Type { get; } = type;
-        public IReadOnlyList<ITrack> Tracks { get; } = tracks;
+        public ReadOnlyCollection<ITrack> Tracks { get; } = tracks;
     }
 
     private string Name { get; set; } = "";
@@ -28,7 +29,7 @@ internal sealed class FileBuilder
         if (Tracks.Count == 0)
             return Response<IFile>.Failure("The FILE command doesn't have any TRACK commands");
         
-        return Response<IFile>.Success(new CueFile(Name, Type, Tracks.ToArray())); // Do not  remove ToArray() here, it is intended to make a copy of the list
+        return Response<IFile>.Success(new CueFile(Name, Type, Tracks.ToArray().AsReadOnly())); // Do not remove ToArray() here, it is intended to make a copy of the list
     }
 
     public void Clear()

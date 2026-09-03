@@ -40,6 +40,7 @@ internal sealed class Parser
             return Response<ICue>.Failure("File not found");
 
         var context = new Context();
+        context.CueBuilder.SetSourceFileFullName(cueFileFullName);
 
         await using var fileStream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var streamReader = new StreamReader(fileStream);
@@ -70,7 +71,6 @@ internal sealed class Parser
         IFileCommand fileCommand => ProcessFileCommand(context, fileCommand),
         ITrackCommand trackCommand when context.TrackFound => ProcessTrackCommandWhenTrackFound(context, trackCommand),
         ITrackCommand trackCommand => ProcessTrackCommand(context, trackCommand),
-        IIndexCommand when context.IndexFound => Response<ICue>.Failure("More than one INDEX command specified in the TRACK command"),
         IIndexCommand indexCommand => ProcessIndexCommand(context, indexCommand),
         ITitleCommand titleCommand when context.FileFound => ProcessTitleCommandWhenFileFound(context, titleCommand),
         ITitleCommand titleCommand => ProcessTitleCommand(context, titleCommand),
@@ -150,7 +150,11 @@ internal sealed class Parser
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static IResponse<ICue> ProcessIndexCommand(Context context, IIndexCommand indexCommand)
     {
-        context.TrackBuilder.SetIndex(Index.From(indexCommand));
+        // Prefer INDEX 01 as the track start, but keep old behavior for files
+        // that provide only a non-01 index.
+        if (!context.IndexFound || indexCommand.Number == 1)
+            context.TrackBuilder.SetIndex(Index.From(indexCommand));
+
         context.IndexFound = true;
         return Response<ICue>.Success();
     }

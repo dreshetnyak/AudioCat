@@ -69,7 +69,8 @@ public partial class MainWindow : Window
             if (e.Data.GetData(DataFormats.FileDrop, true) is not string[] fileNames || fileNames.Length == 0) 
                 return;
             var ctrlDown = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
-            Task.Run(async () => await AddDragFiles(fileNames, !ctrlDown));
+            ViewModel.BeginUserOperation();
+            _ = Task.Run(() => AddDragFiles(fileNames, !ctrlDown));
         }
         catch (COMException ex) when (ex.ErrorCode == unchecked((int)0x8007007A))
         {
@@ -83,20 +84,24 @@ public partial class MainWindow : Window
     {
         try
         {
-            ViewModel.IsUserEntryEnabled = false;
-
             if (fileNames.IsAllDirectories())
                 fileNames = await Files.GetFilesFromDirectories(fileNames);
 
             var response = await MediaFilesService.AddMediaFiles(fileNames, clearExisting); // Long operation, we fire the task and forget
-            if (response.SkippedFiles.Count > 0) 
+            if (response.SkippedFiles.Count > 0)
                 await Application.Current.Dispatcher.InvokeAsync(() => new SkippedFilesWindow(response.SkippedFiles).ShowDialog());
         }
-        catch
-        { /* ignore */ }
+        catch (Exception ex)
+        {
+            // This runs on a worker thread, out of reach of the drop handler's catch blocks;
+            // swallowing here would turn failures (e.g. an access-denied directory aborting the
+            // file enumeration) into a silent no-op with no user feedback.
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+                MessageBox.Show(Application.Current.MainWindow!, ex.Message, "Failed to Add the Dropped Files", MessageBoxButton.OK, MessageBoxImage.Error));
+        }
         finally
         {
-            ViewModel.IsUserEntryEnabled = true;
+            await Application.Current.Dispatcher.InvokeAsync(ViewModel.EndUserOperation);
         }
     }
 
@@ -133,12 +138,12 @@ public partial class MainWindow : Window
 
     private void OnTagsDataGridMouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not DataGrid { ItemsSource: ObservableCollection<IMediaTagViewModel> tags } dataGrid || dataGrid.Items.Count > 0)
+        // Seeds the first tag on double-clicking the empty grid. On a populated grid double-click
+        // must keep its standard begin-cell-edit meaning, so the guard bails out; use the Insert
+        // key to add rows there.
+        if (sender is not DataGrid { ItemsSource: ObservableCollection<IMediaTagViewModel> tags, Items.Count: 0 })
             return;
-        if (dataGrid.SelectedIndex >= 0)
-            tags.Insert(dataGrid.SelectedIndex, new TagViewModel());
-        else
-            tags.Add(new TagViewModel());
+        tags.Add(new TagViewModel());
     }
 
     private void OnTagsDataGridPreviewKeyDown(object sender, KeyEventArgs eventArgs)

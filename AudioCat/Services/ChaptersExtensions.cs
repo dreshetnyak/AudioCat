@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace AudioCat.Services;
 
-internal static class ChaptersEdit
+internal static class ChaptersExtensions
 {
     public static void TrimStart(this IEnumerable<IMediaChapterViewModel> createdChapters, string textToTrim, bool isTrimExactText, bool isTrimCharsFromText, bool isTrimCaseSensitive)
     {
@@ -109,5 +109,27 @@ internal static class ChaptersEdit
             chapter.Title += textToAdd.Replace("{}", (chapterIndex + textToAddSequenceStart).ToString(new string('0', sequenceSize)));
             chapterIndex++;
         }
+    }
+
+    public static bool ChaptersExist(this IReadOnlyList<IMediaFileViewModel> files)
+    {
+        foreach (var file in files)
+        {
+            if (file.Chapters.Count > 0)
+                return true;
+        }
+
+        return false;
+    }
+
+    public static bool TagsExist(this IReadOnlyList<IMediaFileViewModel> files)
+    {
+        foreach (var file in files)
+        {
+            if (file.HasTags)
+                return true;
+        }
+
+        return false;
     }
 }

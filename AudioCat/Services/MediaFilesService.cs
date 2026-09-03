@@ -94,15 +94,15 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
         return new GetMediaFilesResponse(mediaFiles, skippedFiles);
     }
 
-    private async Task<IReadOnlyList<IResponse<IMediaFile>>> ProbeFiles(IReadOnlyList<string> fileNames, CancellationToken ctx)
+    // Preserves the order of sortedFileNames; the caller indexes the returned list in parallel
+    // with the list it passed in, so the responses must stay aligned with the input.
+    private async Task<IReadOnlyList<IResponse<IMediaFile>>> ProbeFiles(IReadOnlyList<string> sortedFileNames, CancellationToken ctx)
     {
-        var sortedFiles = Files.Sort(fileNames);
-
-        var probeTasks = new List<Task<IResponse<IMediaFile>>>(fileNames.Count);
-        foreach (var filePath in sortedFiles)
+        var probeTasks = new List<Task<IResponse<IMediaFile>>>(sortedFileNames.Count);
+        foreach (var filePath in sortedFileNames)
             probeTasks.Add(MediaFileToolkitService.Probe(filePath, ctx));
 
-        var mediaFiles = new List<IResponse<IMediaFile>>(fileNames.Count);
+        var mediaFiles = new List<IResponse<IMediaFile>>(sortedFileNames.Count);
         foreach (var probeTask in probeTasks)
             mediaFiles.Add(await probeTask);
 
@@ -111,11 +111,11 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
 
     private static IResult SelectCodec(IMediaFile mediaFile, ref string selectedCodec)
     {
-        if (selectedCodec != "") // Acceptable codec has not been selected yet
+        if (selectedCodec != "") // A previous file already selected the codec, validate this file against it
             return HasStreamWithCodec(mediaFile, selectedCodec)
                 ? Result.Success()
                 : Result.Failure($"Doesn't contain any audio stream encoded with '{selectedCodec}' codec");
-        selectedCodec = GetCodecName(mediaFile.Streams);
+        selectedCodec = GetCodecName(mediaFile.Streams); // First file with a supported stream selects the codec
         return selectedCodec != ""
             ? Result.Success()
             : Result.Failure("Doesn't contain any supported audio streams");
@@ -148,25 +148,28 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
     #endregion
 
     #region AddMediaFiles
+    // Serializes overlapping add operations: the entry points (Add Files/Add Path commands, drag-drop,
+    // startup CLI files) are not mutually gated in the UI, and concurrent runs would race on the shared
+    // files collection, codec/duplicate detection and the CollectionChanged suppression flag.
+    private SemaphoreSlim AddGate { get; } = new(1, 1);
+
     public async Task<IMediaFilesService.IGetMediaFilesResponse> AddMediaFiles(IReadOnlyList<string> fileNames, bool clearExisting)
+    {
+        await AddGate.WaitAsync();
+        try { return await AddMediaFilesUnsafe(fileNames, clearExisting); }
+        finally { AddGate.Release(); }
+    }
+
+    private async Task<IMediaFilesService.IGetMediaFilesResponse> AddMediaFilesUnsafe(IReadOnlyList<string> fileNames, bool clearExisting)
     {
         var uiDispatcher = System.Windows.Application.Current.Dispatcher;
 
         var files = MediaFilesContainer.Files;
-        if (clearExisting)
-            await uiDispatcher.InvokeAsync(files.Clear);
-
-        var selectedCodec = files.Count > 0 
+        var selectedCodec = !clearExisting && files.Count > 0
             ? GetAudioCodec(files) 
             : "";
 
-        var coverSelected = SelectionFlags.GetCoverSelectedFrom(files);
-
-
-
-        //TODO CUE FILES SHOULD BE ADDED HERE
-
-
+        var coverSelected = !clearExisting && SelectionFlags.GetCoverSelectedFrom(files);
 
         var response = await GetMediaFiles(fileNames, !coverSelected, selectedCodec, CancellationToken.None);
 
@@ -174,43 +177,77 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
             selectedCodec = GetAudioCodec(response.MediaFiles);
         if (Settings.CodecsThatDoesNotSupportImages.Has(selectedCodec))
         {
-            if (files.Any(file => file.IsImage))
+            if (!clearExisting && files.Any(file => file.IsImage))
                 response = SkipFiles(response, selectedCodec);
             else if (response.MediaFiles.Any(file => file.IsImage))
                 response = SkipImages(response, selectedCodec);
         }
 
         var mediaFiles = response.MediaFiles;
-        var duplicates = GetDuplicates(files, mediaFiles);
-        if (duplicates.Count > 0)
+        if (!clearExisting)
         {
-            var duplicatesToAdd = await uiDispatcher.InvokeAsync(() =>
-            {
-                var duplicateFilesWindow = new DuplicateFilesWindow(duplicates);
-                duplicateFilesWindow.ShowDialog();
-                return duplicateFilesWindow.GetSelectedDuplicateFiles();
-            });
+            var duplicates = GetDuplicates(files, mediaFiles);
+            mediaFiles = await HandleDuplicates(mediaFiles, duplicates);
+        }
 
-            if (duplicatesToAdd.Count != duplicates.Count)
+        if (mediaFiles.Count > 0)
+        {
+            if (clearExisting)
+                await uiDispatcher.InvokeAsync(files.Clear);
+            MediaFilesContainer.DoNotInvokeFilesCollectionChangedEvent = true;
+        }
+        try
+        {
+            for (var index = 0; index < mediaFiles.Count; index++)
             {
-                var mediaFilesWithoutDuplicates = new List<IMediaFileViewModel>(mediaFiles.Count);
-                foreach (var file in mediaFiles)
+                var audioFile = mediaFiles[index];
+                await uiDispatcher.InvokeAsync(() =>
                 {
-                    if (duplicates.All(duplicate => duplicate.FilePath != file.FilePath) || duplicatesToAdd.Any(duplicate => duplicate.FilePath == file.FilePath))
-                        mediaFilesWithoutDuplicates.Add(file);
-                }
-
-                mediaFiles = mediaFilesWithoutDuplicates;
+                    // The flag must go false BEFORE the last Add so that Add still raises the
+                    // suppressed-until-now CollectionChanged handler exactly once for the batch.
+                    // Resetting after the loop instead would swallow that one notification too.
+                    if (index == mediaFiles.Count - 1)
+                        MediaFilesContainer.DoNotInvokeFilesCollectionChangedEvent = false;
+                    files.Add(audioFile);
+                });
             }
         }
-        
-        foreach (var audioFile in mediaFiles)
-            await uiDispatcher.InvokeAsync(() => files.Add(audioFile));
+        finally
+        {
+            // Exception insurance only: if a dispatched Add throws mid-loop, the flag would
+            // otherwise stay true and suppress all future notifications (issue #35).
+            MediaFilesContainer.DoNotInvokeFilesCollectionChangedEvent = false;
+        }
 
-        if (files.Count > 0)
+        if (mediaFiles.Count > 0)
             await uiDispatcher.InvokeAsync(() => MediaFilesContainer.SelectedFile = files[0]);
 
         return response;
+    }
+
+    private static async Task<IReadOnlyList<IMediaFileViewModel>> HandleDuplicates(IReadOnlyList<IMediaFileViewModel> mediaFiles, IReadOnlyList<IMediaFileViewModel> duplicates)
+    {
+        if (duplicates.Count <= 0) 
+            return mediaFiles;
+
+        var duplicatesToAdd = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            var duplicateFilesWindow = new DuplicateFilesWindow(duplicates);
+            duplicateFilesWindow.ShowDialog();
+            return duplicateFilesWindow.GetSelectedDuplicateFiles();
+        });
+
+        if (duplicatesToAdd.Count == duplicates.Count) 
+            return mediaFiles;
+
+        var mediaFilesWithoutDuplicates = new List<IMediaFileViewModel>(mediaFiles.Count);
+        foreach (var file in mediaFiles)
+        {
+            if (duplicates.All(duplicate => duplicate.FilePath != file.FilePath) || duplicatesToAdd.Any(duplicate => duplicate.FilePath == file.FilePath))
+                mediaFilesWithoutDuplicates.Add(file);
+        }
+
+        return mediaFilesWithoutDuplicates;
     }
 
     private static IMediaFilesService.IGetMediaFilesResponse SkipImages(IMediaFilesService.IGetMediaFilesResponse response, string codec)
@@ -259,9 +296,7 @@ internal sealed class MediaFilesService(IMediaFilesContainer mediaFilesContainer
 
         return duplicateFiles;
     }
-
-
-
+    
     #endregion
 
     public static string GetAudioCodec(IReadOnlyCollection<IMediaFileViewModel> mediaFiles)

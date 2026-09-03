@@ -62,16 +62,19 @@ internal class TextBlockFormatter
                 AddFormattedText(textBlock, output, formatters);
                 formatters.Add(startingFormatter!.Type);
                 processedBytes = startingFormatter.Start.Length;
+                continue;
             }
-            else if (TryGetFormatterEndAt(input, readOffset, out var endingFormatter))
+
+            if (TryGetFormatterEndAt(input, readOffset, out var endingFormatter))
             {
                 AddFormattedText(textBlock, output, formatters);
                 RemoveFormatter(formatters, endingFormatter!.Type);
                 processedBytes = endingFormatter.End.Length;
+                continue;
             }
 
             output.Append(input[readOffset]);
-            processedBytes++;
+            processedBytes = 1;
         }
 
         AddFormattedText(textBlock, output, formatters);

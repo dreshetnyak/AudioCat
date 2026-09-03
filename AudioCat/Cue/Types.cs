@@ -1,18 +1,20 @@
-﻿namespace AudioCat.Cue;
+﻿using System.Collections.ObjectModel;
 
-internal interface ITag
+namespace AudioCat.Cue;
+
+public interface ITag
 {
     string Name { get; }
     string Value { get; }
 }
 
-internal interface IIndex
+public interface IIndex
 {
     int Number { get; }
     TimeSpan Time { get; }
 }
 
-internal interface ITrack
+public interface ITrack
 {
     int Number { get; }
     string Type { get; }
@@ -20,23 +22,24 @@ internal interface ITrack
     string Performer { get; }
     string Songwriter { get; }
     IIndex Index { get; }
-    IReadOnlyList<ITag> Tags { get; }
+    ReadOnlyCollection<ITag> Tags { get; }
 }
 
-internal interface IFile
+public interface IFile
 {
     string Name { get; }
     string Type { get; }
-    IReadOnlyList<ITrack> Tracks { get; }
+    ReadOnlyCollection<ITrack> Tracks { get; }
 }
 
-internal interface ICue
+public interface ICue
 {
+    string SourceFileFullName { get; }
     string Title { get; }
     string Performer { get; }
     string Songwriter { get; }
-    IReadOnlyList<ITag> Tags { get; }
-    IReadOnlyList<IFile> Files { get; }
+    ReadOnlyCollection<ITag> Tags { get; }
+    ReadOnlyCollection<IFile> Files { get; }
 }
 
 public interface IFileCommand
