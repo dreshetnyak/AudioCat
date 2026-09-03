@@ -14,6 +14,13 @@ public interface IIndex
     TimeSpan Time { get; }
 }
 
+internal interface IRawIndexTime
+{
+    int Minutes { get; }
+    int Seconds { get; }
+    int Frames { get; }
+}
+
 public interface ITrack
 {
     int Number { get; }

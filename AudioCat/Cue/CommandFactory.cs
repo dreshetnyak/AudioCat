@@ -23,11 +23,14 @@ internal static class CommandFactory
             : $"{Command.TRACK} {Number:00}";
     }
 
-    private sealed class IndexCommand(int number, TimeSpan time) : IIndexCommand
+    private sealed class IndexCommand(int number, int minutes, int seconds, int frames) : IIndexCommand, IRawIndexTime
     {
         public int Number { get; } = number;
-        public TimeSpan Time { get; } = time;
-        public override string ToString() => $"{Command.INDEX} {Number:00} {(int)Time.TotalMinutes:00}:{Time.Seconds:00}:{Time.Milliseconds / 1000.0 * 75:00}";
+        public int Minutes { get; } = minutes;
+        public int Seconds { get; } = seconds;
+        public int Frames { get; } = frames;
+        public TimeSpan Time { get; } = TimeSpan.FromMinutes(minutes) + TimeSpan.FromSeconds(seconds + frames / 75.0);
+        public override string ToString() => $"{Command.INDEX} {Number:00} {Minutes:00}:{Seconds:00}:{Frames:00}";
     }
 
     private sealed class TitleCommand(string title) : ITitleCommand
@@ -149,35 +152,36 @@ internal static class CommandFactory
         var timeSpan = timeStartIndex != valueSpan.Length
             ? valueSpan[timeStartIndex..]
             : [];
-        if (timeSpan.IsEmpty || !TryParseIndexTime(timeSpan, out var time))
+        if (timeSpan.IsEmpty || !TryParseIndexTime(timeSpan, out var minutes, out var seconds, out var frames))
             return Response<object>.Failure("Invalid INDEX command, bad track time");
         #endregion
 
-        return Response<object>.Success(new IndexCommand(indexNumber, time));
+        return Response<object>.Success(new IndexCommand(indexNumber, minutes, seconds, frames));
     }
 
-    private static bool TryParseIndexTime(ReadOnlySpan<char> timeSpan, out TimeSpan ts)
+    private static bool TryParseIndexTime(ReadOnlySpan<char> timeSpan, out int minutes, out int seconds, out int frames)
     {
-        ts = TimeSpan.Zero;
+        minutes = 0;
+        seconds = 0;
+        frames = 0;
         var minutesEndIndex = timeSpan.IndexOf(':');
         if (minutesEndIndex == -1)
             return false;
         var minutesSpan = timeSpan[..minutesEndIndex];
-        if (minutesSpan.IsEmpty || !int.TryParse(minutesSpan, out var minutes) || minutes < 0)
+        if (minutesSpan.IsEmpty || !int.TryParse(minutesSpan, out minutes) || minutes < 0)
             return false;
 
         var secondsEndIndex = timeSpan.IndexOf(':', minutesEndIndex + 1);
         if (secondsEndIndex == -1)
             return false;
         var secondsSpan = timeSpan[(minutesEndIndex + 1)..secondsEndIndex];
-        if (secondsSpan.IsEmpty || !int.TryParse(secondsSpan, out var seconds) || seconds < 0)
+        if (secondsSpan.IsEmpty || !int.TryParse(secondsSpan, out seconds) || seconds < 0)
             return false;
 
         var framesSpan = timeSpan[(secondsEndIndex + 1)..];
-        if (framesSpan.IsEmpty || !int.TryParse(framesSpan, out var frames) || frames < 0)
+        if (framesSpan.IsEmpty || !int.TryParse(framesSpan, out frames) || frames < 0)
             return false;
 
-        ts = TimeSpan.FromMinutes(minutes) + TimeSpan.FromSeconds(seconds + frames / 75.0);
         return true;
     }
 

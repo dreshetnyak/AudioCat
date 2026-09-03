@@ -8,11 +8,26 @@ namespace AudioCat.Cue;
 internal sealed class Parser
 {
     [DebuggerDisplay("Number: {Number,nq}; Time: {Time,nq}")]
-    private sealed class Index : IIndex
+    private sealed class Index : IIndex, IRawIndexTime
     {
         public int Number { get; private init; }
-        public TimeSpan Time { get; private init; } 
-        public static IIndex From(IIndexCommand indexCommand) => new Index { Number = indexCommand.Number, Time = indexCommand.Time };
+        public TimeSpan Time { get; private init; }
+        public int Minutes { get; private init; }
+        public int Seconds { get; private init; }
+        public int Frames { get; private init; }
+
+        public static IIndex From(IIndexCommand indexCommand)
+        {
+            var rawTime = (IRawIndexTime)indexCommand;
+            return new Index
+            {
+                Number = indexCommand.Number,
+                Time = indexCommand.Time,
+                Minutes = rawTime.Minutes,
+                Seconds = rawTime.Seconds,
+                Frames = rawTime.Frames
+            };
+        }
     }
 
     [DebuggerDisplay("Name: {Name}; Value: {Value,nq}")]
