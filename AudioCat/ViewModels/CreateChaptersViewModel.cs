@@ -1255,6 +1255,9 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         CueFiles.Clear();
         foreach (var cueFile in cueFiles)
             CueFiles.Add(cueFile);
+
+        if (SelectedChapterSource.SourceType == ChapterSourceType.CueFiles)
+            OnGenerateChapters();
     }
     #endregion
 
