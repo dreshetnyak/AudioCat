@@ -6,6 +6,7 @@ using AudioCat.Models;
 using AudioCat.Services;
 using System.IO;
 using System.Text;
+using System.Xml.Linq;
 using AudioCat.ViewModels;
 using Process = AudioCat.Services.Process;
 
@@ -32,14 +33,51 @@ internal sealed class FFmpegService : IMediaFileToolkitService
                 ctx);
 
             var createResponse = FFprobeMediaFile.Create(fileFullName, probeResponse);
-            return createResponse.IsSuccess
-                ? Response<IMediaFile>.Success(createResponse.Data!)
-                : Response<IMediaFile>.Failure(createResponse);
+            if (!createResponse.IsSuccess)
+                return Response<IMediaFile>.Failure(createResponse);
+
+            var mediaFile = createResponse.Data!;
+            if (IsMp3File(mediaFile) && await GetMp3FramesDuration(fileFullName, ctx) is { } framesDuration)
+                mediaFile = mediaFile.WithDuration(framesDuration);
+            return Response<IMediaFile>.Success(mediaFile);
         }
         catch (Exception ex)
         {
             return Response<IMediaFile>.Failure(ex.Message);
         }
+    }
+
+    private const string MP3_FORMAT_NAME = "mp3";
+    private static bool IsMp3File(IMediaFile mediaFile) =>
+        mediaFile.FormatName == MP3_FORMAT_NAME &&
+        mediaFile.Streams.Any(stream => stream.CodecType == "audio" && stream.CodecName == Codecs.MP3);
+
+    // An MP3 header duration can be wrong (missing or bad frame count, bitrate estimate) and excludes the gapless filler,
+    // while the concat copies every frame and places each next file at the previous file's duration; a header duration
+    // shifts the chapters and overlaps the timestamps ("non monotonically increasing dts"), the frame count does not.
+    private static async Task<TimeSpan?> GetMp3FramesDuration(string fileFullName, CancellationToken ctx)
+    {
+        try
+        {
+            var args = $"-v error -select_streams a:0 -count_packets -show_entries stream=sample_rate,nb_read_packets -print_format xml -i \"{fileFullName}\"";
+            Debug.WriteLine($"{Settings.FFprobeName} {args}");
+            var countResponse = await Process.Run(
+                Settings.FFprobeName,
+                args,
+                Process.OutputType.Standard,
+                ctx);
+
+            var streamElement = XElement.Parse(countResponse).Element("streams")?.Element("stream");
+            var sampleRate = streamElement?.Attribute("sample_rate")?.Value.ToInt();
+            var framesCount = streamElement?.Attribute("nb_read_packets")?.Value.ToLong();
+            if (sampleRate is not > 0 || framesCount is not > 0)
+                return null;
+
+            var samplesPerFrame = sampleRate >= 32000 ? 1152 : 576; // MPEG-1 Layer III : MPEG-2/2.5 Layer III; one packet is one frame
+            return TimeSpan.FromSeconds(framesCount.Value * samplesPerFrame / (double)sampleRate.Value);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch { return null; } // The header duration is kept
     }
 
     #region Silence Detection
@@ -140,12 +178,12 @@ internal sealed class FFmpegService : IMediaFileToolkitService
 
             tempDir = TempDirectory.Create();
 
-            var listFileTask = CreateFilesListFile(tempDir, mediaFiles);
+            var codec = MediaFilesService.GetAudioCodec(mediaFiles);
+
+            var listFileTask = CreateFilesListFile(tempDir, mediaFiles, codec);
             var extractImagesTask = ExtractImages(tempDir, mediaFiles, ctx);
             var metadataFileTask = CreateMetadataFile(tempDir, concatParams, ctx);
             var totalDurationTask = Task.Run(mediaFiles.GetTotalDuration, ctx);
-
-            var codec = MediaFilesService.GetAudioCodec(mediaFiles);
 
             var listFile = await listFileTask;
             var (extractedImages, imageExtractionErrors) = await extractImagesTask;
@@ -167,54 +205,20 @@ internal sealed class FFmpegService : IMediaFileToolkitService
                 ? await GenerateTempOutputFileFrom(tempDir, Path.GetExtension(outputFileName))
                 : finalOutputFile;
 
-            ReadOnlyCollection<string>? remuxedFiles = null;
             var firstStepSucceeded = false;
             var totalDuration = await totalDurationTask;
-            do
-            {
-                var args1 = GetFFmpegArgs(codec, listFile, !twoStepsConcat ? metadataFile : "", outputToFile);
-                Debug.WriteLine($"{Settings.FFmpegName} {args1}");
-                outputFileWritten |= outputToFile == outputFileName;
-                await Process.Run(Settings.FFmpegName, args1, status => OnConcatStatus(status, totalDuration), Process.OutputType.Error, ctx);
 
-                var concatErrorsStr = concatErrors.ToString();
-                concatErrors.Clear();
+            var args1 = GetFFmpegArgs(codec, listFile, !twoStepsConcat ? metadataFile : "", outputToFile);
+            Debug.WriteLine($"{Settings.FFmpegName} {args1}");
+            outputFileWritten |= outputToFile == outputFileName;
+            await Process.Run(Settings.FFmpegName, args1, status => OnConcatStatus(status, totalDuration), Process.OutputType.Error, ctx);
 
-                if (concatErrorsStr == "")
-                {
-                    firstStepSucceeded = true;
-                    break;
-                }
-
-                if (remuxedFiles != null || !Settings.RemuxOnErrors.IsIn(concatErrorsStr)) //If not a remuxable error
-                {
-                    await OnError(concatErrorsStr);
-                    break;
-                }
-
-                #region Remuxing files
-                // Some of the audio files have minor issues in them, like "non-monotonically increasing dts", if we try to concatenate them 'as is' FFMpeg will return errors
-                // and I don't really know if the resulting output will play well. We need to remux the files to fix these errors. By remuxing I mean to copy the streams to
-                // a new file for each file individually, this will fix the errors and allow to concatenation to terminate clean. To remux we run concatenation command with
-                // a single input file, we output it to a temporary file. Then we concatenate the temporary files.
-
-                await OnStatus("Remuxing files...");
-                var remuxResponse = await RemuxFiles(tempDir, mediaFiles, OnProgress, ctx);
-                if (remuxResponse.IsFailure)
-                {
-                    await OnError($"Remuxing errors:{Environment.NewLine}{remuxResponse.Message}");
-                }
-                if (remuxResponse.Data == null)
-                {
-                    await OnError("Remuxing failed with an unrecoverable error, aborting.");
-                    break;
-                }
-
-                remuxedFiles = remuxResponse.Data!;
-                listFile = await CreateFilesListFile(tempDir, remuxedFiles);
-
-                #endregion
-            } while (true);
+            var concatErrorsStr = concatErrors.ToString();
+            concatErrors.Clear();
+            if (concatErrorsStr == "")
+                firstStepSucceeded = true;
+            else
+                await OnError(concatErrorsStr);
 
             if (!firstStepSucceeded && stagedOutputFile != "")
                 return;
@@ -241,7 +245,7 @@ internal sealed class FFmpegService : IMediaFileToolkitService
                 outputFileWritten |= outputToFile == outputFileName;
                 await Process.Run(Settings.FFmpegName, args2, status => OnConcatStatus(status, totalDuration), Process.OutputType.Error, ctx);
 
-                // The error check in the loop above only covers the first step; without this
+                // The error check above only covers the first step; without this
                 // check a second-step failure accumulates in concatErrors and never surfaces
                 var secondStepErrors = concatErrors.ToString();
                 if (secondStepErrors != "")
@@ -335,158 +339,6 @@ internal sealed class FFmpegService : IMediaFileToolkitService
     private static bool IsErrorMessage(string status) =>
         status.StartsWith('[') || !StatusLineContent.Any(status.Contains);
 
-    private sealed class RemuxProgress(IMediaFileViewModel file, IProcessingStats? stats = null)
-    {
-        public IMediaFileViewModel File { get; } = file;
-        public IProcessingStats? Stats { get; set; } = stats;
-    }
-
-    private static async Task<IResponse<ReadOnlyCollection<string>>> RemuxFiles(string tempDir, IReadOnlyList<IMediaFileViewModel> mediaFiles, Func<Progress, Task> onProgress, CancellationToken ctx)
-    {
-        var sync = new object();
-        var errors = new StringBuilder();
-        var remuxedFiles = new ConcurrentBag<(IMediaFileViewModel, string)>();
-        using var statusMessages = new BlockingCollection<RemuxProgress>();
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ctx);
-        // ReSharper disable AccessToDisposedClosure
-        using var progressTrackingTask = Task.Run(async () => await ProgressTracking(mediaFiles, statusMessages, onProgress, cts.Token), CancellationToken.None);
-        // ReSharper restore AccessToDisposedClosure
-        
-        var remuxTasks = mediaFiles.AsParallel().Select(async file => 
-        {
-            if (file.IsImage)
-                return;
-            // ReSharper disable once AccessToDisposedClosure
-            var remuxResponse = await RemuxFile(tempDir, file, status => statusMessages.Add(status, CancellationToken.None), ctx);
-            remuxedFiles.Add((file, remuxResponse.Data!));
-            if (remuxResponse.IsFailure)
-                lock (sync) errors.AppendMessage(remuxResponse.Message);
-        });
-        try { await Task.WhenAll(remuxTasks); }
-        finally
-        {
-            // The progress tracking task must be joined before the using blocks dispose it and its collections
-            await cts.CancelAsync();
-            try { await progressTrackingTask; }
-            catch { /* ignore */ }
-        }
-
-        if (errors.Length > 0 && IsUnrecoverableError(remuxedFiles))
-        {
-            await DeleteAllTempFiles(remuxedFiles);
-            // Data must stay null here: the caller aborts on Data == null (issue #43). Returning the
-            // now-deleted paths would send the concatenation loop into a rerun against missing files.
-            return Response<ReadOnlyCollection<string>>.Failure(errors.ToString());
-        }
-
-        var sortedRemuxedFiles = SortRemuxedFiles(mediaFiles, remuxedFiles);
-
-        return errors.Length == 0
-            ? Response<ReadOnlyCollection<string>>.Success(sortedRemuxedFiles)
-            : Response<ReadOnlyCollection<string>>.Failure(sortedRemuxedFiles, errors.ToString());
-    }
-
-    private static bool IsUnrecoverableError(ConcurrentBag<(IMediaFileViewModel, string)> remuxedFiles)
-    {
-        foreach (var (_, remuxedFile) in remuxedFiles)
-        {
-            var fileInfo = new FileInfo(remuxedFile);
-            if (!fileInfo.Exists || fileInfo.Length == 0)
-                return true;
-        }
-
-        return false;
-    }
-
-    private static async Task DeleteAllTempFiles(ConcurrentBag<(IMediaFileViewModel, string)> remuxedFiles)
-    {
-        foreach (var (_, remuxedFile) in remuxedFiles)
-        {
-            var fileInfo = new FileInfo(remuxedFile);
-            if (!fileInfo.Exists)
-                continue;
-            try { await Task.Run(() => File.Delete(fileInfo.FullName), CancellationToken.None); }
-            catch { /* ignore */ }
-        }
-    }
-
-    private static ReadOnlyCollection<string> SortRemuxedFiles(IReadOnlyList<IMediaFileViewModel> mediaFiles, ConcurrentBag<(IMediaFileViewModel, string)> remuxedFiles)
-    {
-        // Match by reference, same as the ConcurrentBag scan this replaces; view-model Equals overrides must not affect pairing
-        var remuxedByFile = new Dictionary<IMediaFileViewModel, string>(ReferenceEqualityComparer.Instance);
-        foreach (var (remuxedMediaFile, remuxedFile) in remuxedFiles)
-            remuxedByFile[remuxedMediaFile] = remuxedFile;
-
-        var sortedFiles = new List<string>(mediaFiles.Count);
-        foreach (var mediaFile in mediaFiles)
-        {
-            if (remuxedByFile.TryGetValue(mediaFile, out var remuxedFile))
-                sortedFiles.Add(remuxedFile);
-        }
-
-        return sortedFiles.AsReadOnly();
-    }
-
-    private static async Task ProgressTracking(IReadOnlyList<IMediaFileViewModel> mediaFiles, BlockingCollection<RemuxProgress> statusMessages, Func<Progress, Task> onProgress, CancellationToken ctx)
-    {
-        var totalDuration = mediaFiles.GetTotalDuration();
-        var filesTracking = new RemuxProgress[mediaFiles.Count];
-        for (var index = 0; index < mediaFiles.Count; index++) 
-            filesTracking[index] = new RemuxProgress(mediaFiles[index]);
-        
-        do 
-        {
-            var statusUpdate = statusMessages.Take(ctx);
-            foreach (var fileTracking in filesTracking)
-            {
-                if (fileTracking.File != statusUpdate.File)
-                    continue;
-                fileTracking.Stats = statusUpdate.Stats;
-                var completedDuration = GetCompletedDuration(filesTracking);
-                await onProgress(new Progress(totalDuration, completedDuration));
-                break;
-            }
-        } while (!ctx.IsCancellationRequested);
-        ctx.ThrowIfCancellationRequested();
-    }
-
-    private static TimeSpan GetCompletedDuration(IEnumerable<RemuxProgress> filesTracking)
-    {
-        var completedDuration = TimeSpan.Zero;
-        foreach (var fileTacking in filesTracking)
-        {
-            var fileStats = fileTacking.Stats;
-            if (fileStats != null)
-                completedDuration = completedDuration.Add(fileStats.Time);
-        }
-
-        return completedDuration;
-    }
-    
-    private static async Task<IResponse<string>> RemuxFile(string tempDir, IMediaFileViewModel mediaFile, Action<RemuxProgress> onStatus, CancellationToken ctx)
-    {
-        var errors = new StringBuilder();
-        var filesList = await CreateFilesListFile(tempDir, [mediaFile]);
-        var outputToFile = await GenerateTempOutputFileFrom(tempDir, mediaFile.File.Extension);
-        var args = $"-hide_banner -y -loglevel error -stats -stats_period 0.1 -f concat -safe 0 -i \"{filesList}\" -vn -c:a copy \"{outputToFile}\"";
-        Debug.WriteLine($"{Settings.FFmpegName} {args}");
-        await Process.Run(Settings.FFmpegName, args, OnStatus, Process.OutputType.Error, ctx);
-
-        return errors.Length == 0
-            ? Response<string>.Success(outputToFile)
-            : Response<string>.Failure(outputToFile, errors.ToString());
-
-        async Task OnStatus(string status)
-        {
-            if (Settings.ErrorsToIgnore.IsIn(status))
-                return;
-            if (IsErrorMessage(status))
-                errors.AppendMessage(status);
-            else
-                await Task.Run(() => onStatus(new RemuxProgress(mediaFile, new FFmpegStats(status))), CancellationToken.None);
-        }
-    }
-
     private static string GetFFmpegArgs(string codec, string listFile, string metadataFile, string outputToFile)
     {
         var encodingCommand = Settings.GetEncodingCommand(codec);
@@ -534,28 +386,22 @@ internal sealed class FFmpegService : IMediaFileToolkitService
     }
 
     private const string FILES_LIST_HEADER = "ffconcat version 1.0\n";
-    private static async Task<string> CreateFilesListFile(string tempDir, IEnumerable<IMediaFileViewModel> mediaFiles)
+    private static async Task<string> CreateFilesListFile(string tempDir, IEnumerable<IMediaFileViewModel> mediaFiles, string codec)
     {
+        // For MP3 the concat demuxer would place each next file at the previous file's header duration and shift each file back by its own
+        // start time (the encoder delay); "duration" gives it the measured length and "inpoint 0" stops the shift, so the files join back to back
+        var writeDurations = codec == Codecs.MP3;
         var listFile = Path.Combine(tempDir, Path.GetRandomFileName());
         await using var fileStream = new FileStream(listFile, FileMode.Create, FileAccess.Write);
         await fileStream.WriteAsync(Encoding.UTF8.GetBytes(FILES_LIST_HEADER));
         foreach (var mediaFile in mediaFiles)
         {
-            if (!mediaFile.IsImage) 
-                await fileStream.WriteAsync(Encoding.UTF8.GetBytes($"file \'{EscapeFileListFilePath(mediaFile.File.FullName)}\'\n"));
+            if (mediaFile.IsImage)
+                continue;
+            await fileStream.WriteAsync(Encoding.UTF8.GetBytes($"file \'{EscapeFileListFilePath(mediaFile.File.FullName)}\'\n"));
+            if (writeDurations && mediaFile.Duration.HasValue)
+                await fileStream.WriteAsync(Encoding.UTF8.GetBytes($"inpoint 0\nduration {mediaFile.Duration.Value.TotalSeconds.ToString("0.000000", CultureInfo.InvariantCulture)}\n"));
         }
-
-        return listFile;
-    }
-
-    private static async Task<string> CreateFilesListFile(string tempDir, IReadOnlyList<string> remuxedFiles)
-    {
-        var listFile = Path.Combine(tempDir, Path.GetRandomFileName());
-        await using var fileStream = new FileStream(listFile, FileMode.Create, FileAccess.Write);
-        await fileStream.WriteAsync(Encoding.UTF8.GetBytes(FILES_LIST_HEADER));
-        
-        foreach (var remuxedFile in remuxedFiles) 
-            await fileStream.WriteAsync(Encoding.UTF8.GetBytes($"file \'{EscapeFileListFilePath(remuxedFile)}\'\n"));
 
         return listFile;
     }

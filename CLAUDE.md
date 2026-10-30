@@ -53,7 +53,9 @@ No test projects exist — testing is done manually by running the application.
 
 **Chapters** are not supported for OGG, WAV, and FLAC formats (disabled in `Settings.cs`).
 
-**Error handling**: `Settings.cs` defines lists of FFmpeg stderr patterns that should be ignored, trigger a retry with remuxing, or are fatal. Check there before adding new error handling.
+**MP3 durations** are measured by frame count at probe time (`FFmpegService.Probe`), because header durations can be wrong or exclude the gapless filler. When concatenating MP3, each file's entry in the concat list gets `inpoint 0` + `duration <measured seconds>` lines: `duration` places the next file after the real end of the previous one, `inpoint 0` stops the per-file start-time shift. This prevents "non monotonically increasing dts" errors and chapter drift without remuxing.
+
+**Error handling**: `Settings.cs` defines lists of FFmpeg stderr patterns that should be ignored; any other FFmpeg error during concatenation is shown to the user. Check there before adding new error handling.
 
 **File codec consistency**: When files are added, the first file's audio stream codec defines the expected codec for all subsequent files. Files with a different codec are rejected with a message.
 

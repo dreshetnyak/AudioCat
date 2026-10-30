@@ -591,7 +591,7 @@ internal sealed class ChaptersPlayer : IDisposable
     /// [StartTime, EndTime) range contains it. Chapters missing either time are skipped.
     /// Returns null when no chapter contains the position (a gap).
     /// </summary>
-    private IMediaChapterViewModel? FindChapter(TimeSpan globalPosition)
+    public IMediaChapterViewModel? FindChapter(TimeSpan globalPosition)
     {
         foreach (var chapter in CreatedChapters)
         {

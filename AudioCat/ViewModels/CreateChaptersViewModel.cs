@@ -612,15 +612,17 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     // before touching bound properties.
     private Dispatcher Dispatcher { get; }
 
-    // A pending play origin armed from the waveform strip (Phase 2). Always null in Phase 1; consumed
-    // (and cleared) by PlayPause when starting from the Stopped state.
+    // A pending play origin armed by moving the cursor while stopped (waveform strip click or a transport
+    // button); consumed (and cleared) by PlayPause when starting from the Stopped state.
     private TimeSpan? ArmedStripPosition { get; set; }
 
-    // Latest global timeline position reported by the engine; the engine exposes no position getter,
-    // so seek-relative commands are computed from this. Only touched on the UI thread.
+    // Latest global timeline position reported by the engine, or the cursor position while stopped; the
+    // engine exposes no position getter, so seek-relative commands and chapter navigation are computed
+    // from this. Only touched on the UI thread.
     private TimeSpan LastKnownGlobalPosition { get; set; }
 
-    // The chapter derived from the latest engine position; null while stopped or in a gap between chapters.
+    // The chapter derived from the latest engine position, or from the cursor position while stopped;
+    // null in a gap between chapters and after the cursor is reset.
     private IMediaChapterViewModel? ActivePlaybackChapter { get; set; }
 
     // The chapter currently flagged with IsPlaying for the grid's playing-row indicator. Tracked here so
@@ -712,6 +714,9 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         IsPlaybackSupported = GetIsPlaybackSupported(files);
         IsPlayerEnabled = IsPlaybackSupported;
         PlaybackCapacity = GetPlaybackCapacity(files);
+        // Rewind/Forward work in every state: while stopped they move the cursor only
+        CanRewind = IsPlaybackSupported;
+        CanForward = IsPlaybackSupported;
 
         PlayPause = new RelayCommand(OnPlayPause);
         StopPlayback = new RelayCommand(OnStopPlayback);
@@ -809,14 +814,10 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         RebuildPlaybackBookmarks();
 
         // Chapter regeneration stops playback inside the engine (it also listens to CollectionChanged);
-        // here we only clear the playback UI leftovers the engine does not report on its stop path.
-        ArmedStripPosition = null;
-        if (IsPlaying)
-            IsPlaying = false;
-        if (PlayerPosition != TimeSpan.Zero)
-            PlayerPosition = TimeSpan.Zero;
-        if (CurrentPosition != 0)
-            CurrentPosition = 0;
+        // here we only clear the playback UI leftovers the engine does not report on its stop path,
+        // including a cursor moved while stopped, which could point into a removed chapter.
+        IsPlaying = false;
+        ResetCursor();
     }
 
     #region Playback Wiring
@@ -824,21 +825,13 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         Dispatcher.BeginInvoke(() =>
         {
             IsPlaying = state == AudioPlayerState.Playing;
-            var isActive = state != AudioPlayerState.Stopped;
-            CanRewind = isActive;
-            CanForward = isActive;
 
             // The engine does not emit a final PositionChanged/ChapterChanged on its stop paths
             // (explicit stop, end of timeline, error, chapter regeneration) — clear the UI state here
             if (state == AudioPlayerState.Stopped)
-            {
-                PlayerPosition = TimeSpan.Zero;
-                LastKnownGlobalPosition = TimeSpan.Zero;
-                CurrentPosition = 0;
-                ActivePlaybackChapter = null;
-                SetPlayingFlag(null);
-            }
-            UpdateChapterNavigation(state);
+                ResetCursor();
+            else
+                UpdateChapterNavigation();
         });
 
     private void OnPlayerPositionChanged(object? sender, ChaptersPlayerPositionEventArgs e) =>
@@ -846,13 +839,13 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         {
             // The strip indicator follows every engine position report, including seeks made while
             // stopped (the engine fires PositionChanged for those), so it sits above the Stopped guard.
-            CurrentPosition = (int)(e.GlobalPosition.TotalSeconds * WAVEFORM_PEAKS_PER_SECOND);
+            CurrentPosition = ToStripIndex(e.GlobalPosition);
             if (ChaptersPlayer.State == AudioPlayerState.Stopped)
                 return; // A stale tick queued around a stop must not resurrect the position readout
             LastKnownGlobalPosition = e.GlobalPosition;
             ActivePlaybackChapter = e.ActiveChapter;
             PlayerPosition = e.GlobalPosition;
-            UpdateChapterNavigation(ChaptersPlayer.State);
+            UpdateChapterNavigation();
         });
 
     private void OnPlayerChapterChanged(object? sender, IMediaChapterViewModel? chapter) =>
@@ -862,7 +855,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
                 return;
             ActivePlaybackChapter = chapter;
             SetPlayingFlag(chapter); // Null chapter means a gap between chapters — no row is flagged
-            UpdateChapterNavigation(ChaptersPlayer.State);
+            UpdateChapterNavigation();
         });
 
     // Moves the IsPlaying flag between chapter rows. Must be called on the UI thread only.
@@ -877,13 +870,13 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             chapter.IsPlaying = true;
     }
 
-    // Previous/Next availability follows the engine position: Previous needs a chapter start strictly
-    // before the active chapter's start (in a gap between chapters — before the current position),
-    // Next needs one strictly after the current position. Mirrors the seek-target selection in
-    // OnPreviousChapter/OnNextChapter. Must be called on the UI thread only.
-    private void UpdateChapterNavigation(AudioPlayerState state)
+    // Previous/Next availability follows the engine position, or the cursor position while stopped:
+    // Previous needs a chapter start strictly before the active chapter's start (in a gap between
+    // chapters — before the current position), Next needs one strictly after the current position.
+    // Mirrors the target selection in OnPreviousChapter/OnNextChapter. Must be called on the UI thread only.
+    private void UpdateChapterNavigation()
     {
-        if (state == AudioPlayerState.Stopped)
+        if (!IsPlaybackSupported)
         {
             CanGoPrevious = false;
             CanGoNext = false;
@@ -915,7 +908,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
             // play-from-Stopped failure, where no state transition occurs — reset here to
             // match the Stop command before surfacing the message.
             IsPlaying = false;
-            PlayerPosition = TimeSpan.Zero;
+            ResetCursor();
             MessageBox.Show(message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         });
 
@@ -967,7 +960,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
 
     private void OnPreviousChapter()
     {
-        if (!IsPlaybackSupported || ChaptersPlayer.State == AudioPlayerState.Stopped)
+        if (!IsPlaybackSupported)
             return;
 
         // More than 3 seconds into the active chapter — restart it
@@ -975,7 +968,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         var position = LastKnownGlobalPosition;
         if (activeChapter?.StartTime is { } activeStart && position - activeStart > TimeSpan.FromSeconds(3))
         {
-            ChaptersPlayer.Seek(activeStart);
+            MovePosition(activeStart);
             return;
         }
 
@@ -989,12 +982,12 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
                 previousStart = start;
         }
 
-        ChaptersPlayer.Seek(previousStart ?? TimeSpan.Zero);
+        MovePosition(previousStart ?? TimeSpan.Zero);
     }
 
     private void OnNextChapter()
     {
-        if (!IsPlaybackSupported || ChaptersPlayer.State == AudioPlayerState.Stopped)
+        if (!IsPlaybackSupported)
             return;
 
         // The closest chapter start strictly after the current position; no-op when none exists
@@ -1007,7 +1000,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
         }
 
         if (nextStart is { } target)
-            ChaptersPlayer.Seek(target);
+            MovePosition(target);
     }
 
     private void OnRewindPlayback() => SeekRelative(TimeSpan.FromSeconds(-10));
@@ -1016,11 +1009,62 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
 
     private void SeekRelative(TimeSpan offset)
     {
-        if (!IsPlaybackSupported || ChaptersPlayer.State == AudioPlayerState.Stopped)
+        if (!IsPlaybackSupported)
             return;
-        // The engine clamps the target to [Zero, TotalDuration) and crosses file boundaries transparently
-        ChaptersPlayer.Seek(LastKnownGlobalPosition + offset);
+        // The target is clamped to [Zero, TotalDuration); the engine crosses file boundaries transparently
+        MovePosition(LastKnownGlobalPosition + offset);
     }
+
+    // While playing or paused the engine seeks (it clamps the target itself); while stopped only the
+    // cursor moves and no audio starts until Play.
+    private void MovePosition(TimeSpan position)
+    {
+        if (ChaptersPlayer.State != AudioPlayerState.Stopped)
+        {
+            ChaptersPlayer.Seek(position);
+            return;
+        }
+
+        position = ClampToTimeline(position);
+        MoveStoppedCursor(position, ToStripIndex(position));
+    }
+
+    // Moves the cursor while stopped: arms the position as the next play origin and moves the strip
+    // indicator, the time readout and the chapter navigation to it. Engine position/chapter events are
+    // ignored while stopped, so no engine round-trip is involved and no device is touched.
+    // Must be called on the UI thread only.
+    private void MoveStoppedCursor(TimeSpan position, int stripIndex)
+    {
+        ArmedStripPosition = position;
+        LastKnownGlobalPosition = position;
+        ActivePlaybackChapter = ChaptersPlayer.FindChapter(position);
+        PlayerPosition = position;
+        CurrentPosition = stripIndex;
+        UpdateChapterNavigation();
+    }
+
+    // Returns the cursor to the timeline start with nothing armed, so the next Play falls back to the
+    // selected/first chapter. Must be called on the UI thread only.
+    private void ResetCursor()
+    {
+        ArmedStripPosition = null;
+        LastKnownGlobalPosition = TimeSpan.Zero;
+        ActivePlaybackChapter = null;
+        PlayerPosition = TimeSpan.Zero;
+        CurrentPosition = 0;
+        SetPlayingFlag(null);
+        UpdateChapterNavigation();
+    }
+
+    // Mirrors the engine's Seek clamp: the timeline is [Zero, TotalDuration), the end itself is not a seekable position
+    private TimeSpan ClampToTimeline(TimeSpan position)
+    {
+        if (position >= ChaptersPlayer.TotalDuration)
+            position = ChaptersPlayer.TotalDuration - TimeSpan.FromMilliseconds(1);
+        return position < TimeSpan.Zero ? TimeSpan.Zero : position;
+    }
+
+    private static int ToStripIndex(TimeSpan position) => (int)(position.TotalSeconds * WAVEFORM_PEAKS_PER_SECOND);
 
     /// <summary>
     /// Starts playback from the given chapter's start regardless of the current state
@@ -1041,7 +1085,8 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
     /// Handles a click on the waveform strip. Invoked from the view. While playing the engine
     /// seeks and playback continues; while paused the engine seeks and stays paused (position
     /// and indicator move, no audio); while stopped no device is touched — the position is
-    /// only armed as the next play origin and the strip indicator moves to the armed spot.
+    /// only armed as the next play origin and the cursor (strip indicator, time readout and
+    /// chapter navigation) moves to the armed spot.
     /// </summary>
     public void HandleStripPositionRequest(int index)
     {
@@ -1056,10 +1101,7 @@ public sealed class CreateChaptersViewModel : ISilenceScanArgs, INotifyPropertyC
                 ChaptersPlayer.Seek(time);
                 break;
             case AudioPlayerState.Stopped:
-                // Engine position/chapter events are ignored while stopped, so the indicator
-                // is moved directly here instead of relying on an engine round-trip
-                ArmedStripPosition = time;
-                CurrentPosition = index;
+                MoveStoppedCursor(ClampToTimeline(time), index);
                 break;
         }
     }

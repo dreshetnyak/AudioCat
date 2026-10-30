@@ -6,6 +6,9 @@
 # Internal issue-tracking log (kept locally only)
 ISSUES.md
 
+# Local test data and scripts
+.scratch/
+
 # User-specific files
 *.rsuser
 *.suo

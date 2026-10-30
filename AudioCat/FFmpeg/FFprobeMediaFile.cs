@@ -21,22 +21,22 @@ public class FFprobeMediaFile : IMediaFile
 
     private FFprobeMediaFile(FileInfo file) { File = file; }
 
-    public static IResponse<IMediaFile> Create(string fileFullName, string probeXmlResponse)
+    public static IResponse<FFprobeMediaFile> Create(string fileFullName, string probeXmlResponse)
     {
         if (string.IsNullOrEmpty(fileFullName))
-            return Response<IMediaFile>.Failure("Missing the file name");
+            return Response<FFprobeMediaFile>.Failure("Missing the file name");
         var fileInfo = new FileInfo(fileFullName);
         if (!fileInfo.Exists)
-            return Response<IMediaFile>.Failure($"The file {fileFullName.ToQuoted()} doesn't exist");
+            return Response<FFprobeMediaFile>.Failure($"The file {fileFullName.ToQuoted()} doesn't exist");
 
         XElement response;
         try { response = XElement.Parse(probeXmlResponse); }
-        catch (Exception ex) { return Response<IMediaFile>.Failure($"Failed to parse FFprobe response to XML: {ex.Message}"); }
+        catch (Exception ex) { return Response<FFprobeMediaFile>.Failure($"Failed to parse FFprobe response to XML: {ex.Message}"); }
 
         var formatElement = response.Element("format");
         var streamsElement = response.Element("streams");
         var streams = GetStreams(streamsElement);
-        return Response<IMediaFile>.Success(new FFprobeMediaFile(fileInfo)
+        return Response<FFprobeMediaFile>.Success(new FFprobeMediaFile(fileInfo)
         {
             FormatName = formatElement?.Attribute("format_name")?.Value,
             FormatDescription = formatElement?.Attribute("format_long_name")?.Value,
@@ -48,6 +48,18 @@ public class FFprobeMediaFile : IMediaFile
             Streams = streams
         });
     }
+
+    public FFprobeMediaFile WithDuration(TimeSpan duration) => new(File)
+    {
+        FormatName = FormatName,
+        FormatDescription = FormatDescription,
+        StartTime = StartTime,
+        Duration = duration,
+        Bitrate = Bitrate,
+        Tags = Tags,
+        Chapters = Chapters,
+        Streams = Streams
+    };
 
     private static ReadOnlyCollection<IMediaTag> GetFileTags(XElement? formatElement, XElement? streamsElement)
     {

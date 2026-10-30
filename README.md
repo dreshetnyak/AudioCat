@@ -13,3 +13,5 @@
 **Chapters.** AudioCat disables chapter output for Ogg Vorbis, WAV/PCM, and FLAC. CUE sheets are supported as a chapter source for chapter-capable output formats.
 
 **FLAC.** AudioCat re-encodes FLAC audio during concatenation rather than stream-copying it, avoiding timestamp problems observed with FFmpeg's concat workflow. Because FLAC is lossless, this does not reduce audio quality.
+
+**MP3 lengths.** AudioCat measures MP3 lengths from the audio frames instead of taking them from the file header, so they can differ slightly from what other players show (and a lot for files with a wrong header).

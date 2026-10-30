@@ -16,10 +16,6 @@ internal static class Settings
         "Error reading comment frame, skipped",
         "Error reading frame GEOB, skipped"
     ];
-    public static IReadOnlyList<string> RemuxOnErrors { get; } =
-    [
-        "non monotonically increasing dts"
-    ];
 
     public static IEnumerable<string> SupportedAudioCodecs { get; } = 
     [
